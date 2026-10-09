@@ -1,0 +1,651 @@
+{
+ "props": {
+  "rec_yds": {
+   "predictors": [
+    {
+     "key": "pg_receiving_yards",
+     "label": "Receiving yards per game",
+     "r": 0.428,
+     "n": 12110
+    },
+    {
+     "key": "avg_target_share",
+     "label": "Target share",
+     "r": 0.418,
+     "n": 12110
+    },
+    {
+     "key": "pg_targets",
+     "label": "Targets per game",
+     "r": 0.415,
+     "n": 12110
+    },
+    {
+     "key": "avg_wopr",
+     "label": "WOPR (target + air-yards share)",
+     "r": 0.415,
+     "n": 12110
+    },
+    {
+     "key": "pg_receptions",
+     "label": "Receptions per game",
+     "r": 0.404,
+     "n": 12110
+    },
+    {
+     "key": "l3_receiving_yards",
+     "label": "Receiving yards, last 3 games",
+     "r": 0.376,
+     "n": 12110
+    },
+    {
+     "key": "avg_air_yards_share",
+     "label": "Air-yards share",
+     "r": 0.356,
+     "n": 12110
+    },
+    {
+     "key": "pg_receiving_air_yards",
+     "label": "Air yards per game",
+     "r": 0.354,
+     "n": 12110
+    },
+    {
+     "key": "pg_rz_targets",
+     "label": "Targets inside the 10",
+     "r": 0.214,
+     "n": 12110
+    },
+    {
+     "key": "ypt",
+     "label": "Yards per target",
+     "r": 0.179,
+     "n": 12110
+    },
+    {
+     "key": "rec_epa_t",
+     "label": "Receiving EPA per target",
+     "r": 0.166,
+     "n": 12110
+    },
+    {
+     "key": "implied_tt",
+     "label": "Vegas implied team total",
+     "r": 0.122,
+     "n": 12110
+    },
+    {
+     "key": "pre_ngs_yacoe",
+     "label": "NGS YAC over expected",
+     "r": 0.086,
+     "n": 11893
+    },
+    {
+     "key": "catch_rate",
+     "label": "Catch rate",
+     "r": 0.077,
+     "n": 12110
+    },
+    {
+     "key": "team_spread",
+     "label": "Team favored by (spread)",
+     "r": 0.076,
+     "n": 12110
+    },
+    {
+     "key": "pre_ngs_sep",
+     "label": "NGS separation",
+     "r": -0.073,
+     "n": 11905
+    },
+    {
+     "key": "rel_rec_allowed",
+     "label": "Opponent yards allowed to position",
+     "r": 0.029,
+     "n": 12110
+    },
+    {
+     "key": "is_home",
+     "label": "Home game",
+     "r": 0.011,
+     "n": 12110
+    },
+    {
+     "key": "pg_team_att",
+     "label": "Team pass attempts per game",
+     "r": 0.002,
+     "n": 12110
+    }
+   ],
+   "model_feats": [
+    "pg_receiving_yards",
+    "avg_target_share",
+    "pg_targets",
+    "avg_wopr",
+    "pg_receptions",
+    "l3_receiving_yards"
+   ],
+   "mae_model": 24.85,
+   "mae_season_avg": 25.21,
+   "r_model": 0.443,
+   "r_season_avg": 0.423,
+   "n_test": 3116,
+   "resid_sd": 32.11
+  },
+  "receptions": {
+   "predictors": [
+    {
+     "key": "pg_receptions",
+     "label": "Receptions per game",
+     "r": 0.486,
+     "n": 16801
+    },
+    {
+     "key": "pg_targets",
+     "label": "Targets per game",
+     "r": 0.473,
+     "n": 16801
+    },
+    {
+     "key": "avg_target_share",
+     "label": "Target share",
+     "r": 0.462,
+     "n": 16801
+    },
+    {
+     "key": "l3_targets",
+     "label": "Targets, last 3 games",
+     "r": 0.447,
+     "n": 16801
+    },
+    {
+     "key": "avg_wopr",
+     "label": "WOPR (target + air-yards share)",
+     "r": 0.409,
+     "n": 16801
+    },
+    {
+     "key": "implied_tt",
+     "label": "Vegas implied team total",
+     "r": 0.081,
+     "n": 16801
+    },
+    {
+     "key": "catch_rate",
+     "label": "Catch rate",
+     "r": 0.07,
+     "n": 16801
+    },
+    {
+     "key": "team_spread",
+     "label": "Team favored by (spread)",
+     "r": 0.042,
+     "n": 16801
+    },
+    {
+     "key": "pg_team_att",
+     "label": "Team pass attempts per game",
+     "r": 0.03,
+     "n": 16801
+    },
+    {
+     "key": "rel_rec_allowed",
+     "label": "Opponent yards allowed to position",
+     "r": 0.025,
+     "n": 16801
+    }
+   ],
+   "model_feats": [
+    "pg_receptions",
+    "pg_targets",
+    "avg_target_share",
+    "l3_targets",
+    "avg_wopr",
+    "implied_tt"
+   ],
+   "mae_model": 1.65,
+   "mae_season_avg": 1.68,
+   "r_model": 0.504,
+   "r_season_avg": 0.487,
+   "n_test": 4201,
+   "resid_sd": 2.1
+  },
+  "rush_yds": {
+   "predictors": [
+    {
+     "key": "pg_rushing_yards",
+     "label": "Rushing yards per game",
+     "r": 0.414,
+     "n": 4786
+    },
+    {
+     "key": "l3_carries",
+     "label": "Carries, last 3 games",
+     "r": 0.4,
+     "n": 4786
+    },
+    {
+     "key": "l3_rushing_yards",
+     "label": "Rushing yards, last 3 games",
+     "r": 0.398,
+     "n": 4786
+    },
+    {
+     "key": "pg_carries",
+     "label": "Carries per game",
+     "r": 0.398,
+     "n": 4786
+    },
+    {
+     "key": "avg_carry_share",
+     "label": "Carry share",
+     "r": 0.385,
+     "n": 4786
+    },
+    {
+     "key": "pg_rz_carries",
+     "label": "Carries inside the 10",
+     "r": 0.257,
+     "n": 4786
+    },
+    {
+     "key": "ypc",
+     "label": "Yards per carry",
+     "r": 0.172,
+     "n": 4786
+    },
+    {
+     "key": "rush_epa_c",
+     "label": "Rush EPA per carry",
+     "r": 0.15,
+     "n": 4786
+    },
+    {
+     "key": "pre_ngs_ryoe",
+     "label": "NGS rush yards over expected",
+     "r": 0.143,
+     "n": 4708
+    },
+    {
+     "key": "rel_rush_allowed",
+     "label": "Opponent rush yards allowed to RBs",
+     "r": 0.114,
+     "n": 4786
+    },
+    {
+     "key": "implied_tt",
+     "label": "Vegas implied team total",
+     "r": 0.093,
+     "n": 4786
+    },
+    {
+     "key": "team_spread",
+     "label": "Team favored by (spread)",
+     "r": 0.093,
+     "n": 4786
+    },
+    {
+     "key": "is_home",
+     "label": "Home game",
+     "r": 0.025,
+     "n": 4786
+    },
+    {
+     "key": "pre_ngs_box8",
+     "label": "NGS stacked-box rate",
+     "r": -0.019,
+     "n": 4708
+    },
+    {
+     "key": "pg_team_car",
+     "label": "Team carries per game",
+     "r": -0.001,
+     "n": 4786
+    }
+   ],
+   "model_feats": [
+    "pg_rushing_yards",
+    "l3_carries",
+    "l3_rushing_yards",
+    "pg_carries",
+    "avg_carry_share",
+    "pg_rz_carries"
+   ],
+   "mae_model": 26.18,
+   "mae_season_avg": 26.61,
+   "r_model": 0.48,
+   "r_season_avg": 0.467,
+   "n_test": 1236,
+   "resid_sd": 34.45
+  },
+  "pass_yds": {
+   "predictors": [
+    {
+     "key": "pg_passing_yards",
+     "label": "Passing yards per game",
+     "r": 0.323,
+     "n": 3144
+    },
+    {
+     "key": "implied_tt",
+     "label": "Vegas implied team total",
+     "r": 0.307,
+     "n": 3144
+    },
+    {
+     "key": "l3_passing_yards",
+     "label": "Passing yards, last 3 games",
+     "r": 0.29,
+     "n": 3144
+    },
+    {
+     "key": "epa_db",
+     "label": "EPA per dropback",
+     "r": 0.273,
+     "n": 3144
+    },
+    {
+     "key": "pg_attempts",
+     "label": "Pass attempts per game",
+     "r": 0.239,
+     "n": 3144
+    },
+    {
+     "key": "ypa",
+     "label": "Yards per attempt",
+     "r": 0.217,
+     "n": 3144
+    },
+    {
+     "key": "cpoe",
+     "label": "Completion % over expected",
+     "r": 0.18,
+     "n": 3144
+    },
+    {
+     "key": "sack_rate",
+     "label": "Sack rate",
+     "r": -0.179,
+     "n": 3144
+    },
+    {
+     "key": "pre_ngs_cpoe",
+     "label": "NGS completion % over expected",
+     "r": 0.17,
+     "n": 3144
+    },
+    {
+     "key": "team_spread",
+     "label": "Team favored by (spread)",
+     "r": 0.166,
+     "n": 3144
+    },
+    {
+     "key": "rel_pass_allowed",
+     "label": "Opponent pass yards allowed",
+     "r": 0.092,
+     "n": 3144
+    },
+    {
+     "key": "pre_ngs_ttt",
+     "label": "NGS time to throw",
+     "r": -0.085,
+     "n": 3144
+    },
+    {
+     "key": "adot",
+     "label": "Average depth of target",
+     "r": 0.035,
+     "n": 3144
+    },
+    {
+     "key": "is_home",
+     "label": "Home game",
+     "r": 0.034,
+     "n": 3144
+    }
+   ],
+   "model_feats": [
+    "pg_passing_yards",
+    "implied_tt",
+    "l3_passing_yards",
+    "epa_db",
+    "pg_attempts",
+    "ypa"
+   ],
+   "mae_model": 62.59,
+   "mae_season_avg": 66.18,
+   "r_model": 0.302,
+   "r_season_avg": 0.242,
+   "n_test": 820,
+   "resid_sd": 80.54
+  },
+  "any_td": {
+   "predictors": [
+    {
+     "key": "pg_rush_rec_yds",
+     "label": "Scrimmage yards per game",
+     "r": 0.23,
+     "n": 19251
+    },
+    {
+     "key": "pg_any_td",
+     "label": "TDs per game",
+     "r": 0.173,
+     "n": 19251
+    },
+    {
+     "key": "pg_carries",
+     "label": "Carries per game",
+     "r": 0.158,
+     "n": 19251
+    },
+    {
+     "key": "avg_carry_share",
+     "label": "Carry share",
+     "r": 0.157,
+     "n": 19251
+    },
+    {
+     "key": "pg_rz_carries",
+     "label": "Carries inside the 10",
+     "r": 0.156,
+     "n": 19251
+    },
+    {
+     "key": "implied_tt",
+     "label": "Vegas implied team total",
+     "r": 0.11,
+     "n": 19251
+    },
+    {
+     "key": "team_spread",
+     "label": "Team favored by (spread)",
+     "r": 0.09,
+     "n": 19251
+    },
+    {
+     "key": "avg_target_share",
+     "label": "Target share",
+     "r": 0.088,
+     "n": 19251
+    },
+    {
+     "key": "pg_targets",
+     "label": "Targets per game",
+     "r": 0.087,
+     "n": 19251
+    },
+    {
+     "key": "pg_rz_targets",
+     "label": "Targets inside the 10",
+     "r": 0.07,
+     "n": 19251
+    }
+   ],
+   "model_feats": [
+    "pg_rush_rec_yds",
+    "pg_any_td",
+    "pg_carries",
+    "avg_carry_share",
+    "pg_rz_carries",
+    "implied_tt"
+   ],
+   "mae_model": 0.37,
+   "mae_season_avg": 0.37,
+   "r_model": 0.237,
+   "r_season_avg": 0.175,
+   "n_test": 4855,
+   "resid_sd": 0.44
+  }
+ },
+ "models": {
+  "rec_yds": {
+   "feats": [
+    "pg_receiving_yards",
+    "avg_target_share",
+    "pg_targets",
+    "avg_wopr",
+    "pg_receptions",
+    "l3_receiving_yards"
+   ],
+   "beta": [
+    0.2552784537060686,
+    22.356283303675124,
+    0.8552054889085094,
+    31.44001598932424,
+    1.073328823200744,
+    0.0917665144292007,
+    2.9433282483109218
+   ],
+   "resid_sd": 32.111358678387255
+  },
+  "receptions": {
+   "feats": [
+    "pg_receptions",
+    "pg_targets",
+    "avg_target_share",
+    "l3_targets",
+    "avg_wopr",
+    "implied_tt"
+   ],
+   "beta": [
+    0.476820921183171,
+    -0.06597713414399055,
+    6.984097163516972,
+    0.11813399813890132,
+    -0.3682490834198298,
+    0.025349297589094474,
+    -0.1262302178486257
+   ],
+   "resid_sd": 2.1040962595518056
+  },
+  "rush_yds": {
+   "feats": [
+    "pg_rushing_yards",
+    "l3_carries",
+    "l3_rushing_yards",
+    "pg_carries",
+    "avg_carry_share",
+    "pg_rz_carries"
+   ],
+   "beta": [
+    0.35282130706359205,
+    0.9916039587816935,
+    0.15003663883508825,
+    -1.7053004816075392,
+    61.07088700443762,
+    0.9651476595198173,
+    5.283775350171176
+   ],
+   "resid_sd": 34.4463921135361
+  },
+  "pass_yds": {
+   "feats": [
+    "pg_passing_yards",
+    "implied_tt",
+    "l3_passing_yards",
+    "epa_db",
+    "pg_attempts",
+    "ypa"
+   ],
+   "beta": [
+    -0.21493523079933932,
+    4.115301982379541,
+    0.08426473056613591,
+    17.161677544701103,
+    4.333068193757353,
+    13.878580724944397,
+    -76.24063427827724
+   ],
+   "resid_sd": 80.54262573775873
+  },
+  "any_td": {
+   "feats": [
+    "pg_rush_rec_yds",
+    "pg_any_td",
+    "pg_carries",
+    "avg_carry_share",
+    "pg_rz_carries",
+    "implied_tt"
+   ],
+   "beta": [
+    0.003018415017340051,
+    0.07936784556250905,
+    -0.010410522104903983,
+    0.40918128810577276,
+    0.0023992632523406835,
+    0.009407607794276684,
+    -0.14351060880984676
+   ],
+   "resid_sd": 0.43766526611187473
+  }
+ },
+ "labels": {
+  "pg_receiving_yards": "Receiving yards per game",
+  "l3_receiving_yards": "Receiving yards, last 3 games",
+  "pg_targets": "Targets per game",
+  "avg_target_share": "Target share",
+  "avg_air_yards_share": "Air-yards share",
+  "avg_wopr": "WOPR (target + air-yards share)",
+  "pg_receiving_air_yards": "Air yards per game",
+  "pg_receptions": "Receptions per game",
+  "ypt": "Yards per target",
+  "catch_rate": "Catch rate",
+  "rec_epa_t": "Receiving EPA per target",
+  "pg_rz_targets": "Targets inside the 10",
+  "pg_team_att": "Team pass attempts per game",
+  "implied_tt": "Vegas implied team total",
+  "team_spread": "Team favored by (spread)",
+  "rel_rec_allowed": "Opponent yards allowed to position",
+  "pre_ngs_sep": "NGS separation",
+  "pre_ngs_yacoe": "NGS YAC over expected",
+  "is_home": "Home game",
+  "l3_targets": "Targets, last 3 games",
+  "pg_rushing_yards": "Rushing yards per game",
+  "l3_rushing_yards": "Rushing yards, last 3 games",
+  "pg_carries": "Carries per game",
+  "l3_carries": "Carries, last 3 games",
+  "avg_carry_share": "Carry share",
+  "ypc": "Yards per carry",
+  "rush_epa_c": "Rush EPA per carry",
+  "pg_rz_carries": "Carries inside the 10",
+  "pg_team_car": "Team carries per game",
+  "rel_rush_allowed": "Opponent rush yards allowed to RBs",
+  "pre_ngs_ryoe": "NGS rush yards over expected",
+  "pre_ngs_box8": "NGS stacked-box rate",
+  "pg_passing_yards": "Passing yards per game",
+  "l3_passing_yards": "Passing yards, last 3 games",
+  "pg_attempts": "Pass attempts per game",
+  "ypa": "Yards per attempt",
+  "epa_db": "EPA per dropback",
+  "cpoe": "Completion % over expected",
+  "sack_rate": "Sack rate",
+  "adot": "Average depth of target",
+  "rel_pass_allowed": "Opponent pass yards allowed",
+  "pre_ngs_ttt": "NGS time to throw",
+  "pre_ngs_cpoe": "NGS completion % over expected",
+  "pg_any_td": "TDs per game",
+  "pg_rush_rec_yds": "Scrimmage yards per game"
+ }
+}

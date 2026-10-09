@@ -1,0 +1,564 @@
+{
+ "feat_mu": {
+  "n_pts": -0.0429282793096356,
+  "n_epa_play": 0.0018060736861245038,
+  "n_success": 0.0001809343804426753,
+  "n_early_epa": 0.0014142743841335606,
+  "n_pass_epa": 0.0014090143686783408,
+  "n_rush_epa": 0.0005228042696340784,
+  "n_sack_rate": -0.00011801659808399484,
+  "n_to": 9.54336569431571e-05,
+  "n_explosive": -8.745505080433811e-05,
+  "n_ppd": -0.002736758058854861
+ },
+ "feat_sd": {
+  "n_pts": 5.733575693327715,
+  "n_epa_play": 0.12107040905303995,
+  "n_success": 0.03965433362841743,
+  "n_early_epa": 0.0912795667830159,
+  "n_pass_epa": 0.1590528300119407,
+  "n_rush_epa": 0.05878841476630228,
+  "n_sack_rate": 0.019465435957704825,
+  "n_to": 0.21758048032769522,
+  "n_explosive": 0.018561803159184702,
+  "n_ppd": 0.4689267629236669
+ },
+ "research": [
+  {
+   "key": "pts",
+   "label": "Point differential",
+   "r_predict": 0.389,
+   "r_describe": 1.0,
+   "r_vs_spread": 0.022,
+   "pick_acc": 0.637,
+   "stability": 0.423,
+   "k_games": 6.9
+  },
+  {
+   "key": "epa_play",
+   "label": "EPA per play",
+   "r_predict": 0.385,
+   "r_describe": 0.937,
+   "r_vs_spread": 0.019,
+   "pick_acc": 0.629,
+   "stability": 0.422,
+   "k_games": 6.4
+  },
+  {
+   "key": "ppd",
+   "label": "Points per drive",
+   "r_predict": 0.38,
+   "r_describe": 0.945,
+   "r_vs_spread": 0.018,
+   "pick_acc": 0.627,
+   "stability": 0.414,
+   "k_games": 7.5
+  },
+  {
+   "key": "early_epa",
+   "label": "Early-down EPA",
+   "r_predict": 0.368,
+   "r_describe": 0.748,
+   "r_vs_spread": 0.028,
+   "pick_acc": 0.63,
+   "stability": 0.389,
+   "k_games": 8.9
+  },
+  {
+   "key": "win",
+   "label": "Win % (record)",
+   "r_predict": 0.362,
+   "r_describe": 0.775,
+   "r_vs_spread": 0.017,
+   "pick_acc": 0.624,
+   "stability": 0.384,
+   "k_games": 10.0
+  },
+  {
+   "key": "success",
+   "label": "Success rate",
+   "r_predict": 0.361,
+   "r_describe": 0.638,
+   "r_vs_spread": 0.037,
+   "pick_acc": 0.621,
+   "stability": 0.437,
+   "k_games": 7.2
+  },
+  {
+   "key": "pass_epa",
+   "label": "Pass EPA per dropback",
+   "r_predict": 0.36,
+   "r_describe": 0.866,
+   "r_vs_spread": 0.003,
+   "pick_acc": 0.635,
+   "stability": 0.386,
+   "k_games": 8.7
+  },
+  {
+   "key": "anya",
+   "label": "Adj. net yards per pass att (ANY/A)",
+   "r_predict": 0.356,
+   "r_describe": 0.788,
+   "r_vs_spread": 0.01,
+   "pick_acc": 0.625,
+   "stability": 0.367,
+   "k_games": 9.4
+  },
+  {
+   "key": "ypp",
+   "label": "Yards per play",
+   "r_predict": 0.351,
+   "r_describe": 0.663,
+   "r_vs_spread": 0.017,
+   "pick_acc": 0.616,
+   "stability": 0.407,
+   "k_games": 7.7
+  },
+  {
+   "key": "ypg",
+   "label": "Total yards per game",
+   "r_predict": 0.337,
+   "r_describe": 0.606,
+   "r_vs_spread": 0.013,
+   "pick_acc": 0.612,
+   "stability": 0.386,
+   "k_games": 8.7
+  },
+  {
+   "key": "explosive",
+   "label": "Explosive play rate",
+   "r_predict": 0.284,
+   "r_describe": 0.518,
+   "r_vs_spread": 0.012,
+   "pick_acc": 0.602,
+   "stability": 0.413,
+   "k_games": 11.4
+  },
+  {
+   "key": "third",
+   "label": "3rd-down conversion %",
+   "r_predict": 0.28,
+   "r_describe": 0.532,
+   "r_vs_spread": 0.001,
+   "pick_acc": 0.591,
+   "stability": 0.343,
+   "k_games": 19.2
+  },
+  {
+   "key": "rush_ypg",
+   "label": "Rushing yards per game",
+   "r_predict": 0.273,
+   "r_describe": 0.553,
+   "r_vs_spread": 0.026,
+   "pick_acc": 0.591,
+   "stability": 0.445,
+   "k_games": 11.6
+  },
+  {
+   "key": "rush_epa",
+   "label": "Rush EPA per carry",
+   "r_predict": 0.272,
+   "r_describe": 0.415,
+   "r_vs_spread": 0.051,
+   "pick_acc": 0.572,
+   "stability": 0.304,
+   "k_games": 23.6
+  },
+  {
+   "key": "sack_rate",
+   "label": "Sack rate (made vs allowed)",
+   "r_predict": 0.238,
+   "r_describe": 0.365,
+   "r_vs_spread": 0.016,
+   "pick_acc": 0.582,
+   "stability": 0.311,
+   "k_games": 11.3
+  },
+  {
+   "key": "to",
+   "label": "Turnover margin",
+   "r_predict": 0.231,
+   "r_describe": 0.56,
+   "r_vs_spread": 0.007,
+   "pick_acc": 0.601,
+   "stability": 0.174,
+   "k_games": 30.0
+  },
+  {
+   "key": "int_rate",
+   "label": "Interception rate",
+   "r_predict": 0.219,
+   "r_describe": 0.421,
+   "r_vs_spread": 0.021,
+   "pick_acc": 0.586,
+   "stability": 0.195,
+   "k_games": 30.0
+  },
+  {
+   "key": "top",
+   "label": "Time of possession",
+   "r_predict": 0.203,
+   "r_describe": 0.427,
+   "r_vs_spread": -0.01,
+   "pick_acc": 0.553,
+   "stability": 0.307,
+   "k_games": 25.4
+  },
+  {
+   "key": "rz_td",
+   "label": "Red-zone TD %",
+   "r_predict": 0.179,
+   "r_describe": 0.317,
+   "r_vs_spread": 0.008,
+   "pick_acc": 0.567,
+   "stability": 0.196,
+   "k_games": 30.0
+  },
+  {
+   "key": "pen",
+   "label": "Penalty yards",
+   "r_predict": -0.039,
+   "r_describe": 0.08,
+   "r_vs_spread": -0.022,
+   "pick_acc": 0.491,
+   "stability": 0.267,
+   "k_games": 30.0
+  }
+ ],
+ "market_r": 0.451,
+ "market_su_acc": 0.664,
+ "margin_features": [
+  "n_pts",
+  "n_epa_play",
+  "n_success",
+  "n_early_epa",
+  "n_pass_epa",
+  "n_rush_epa",
+  "n_sack_rate",
+  "n_to",
+  "n_explosive",
+  "n_ppd"
+ ],
+ "margin_beta": [
+  2.9627286271267677,
+  0.0,
+  1.6080022852794427,
+  0.7983202223780381,
+  0.0,
+  0.4011895750845503,
+  0.2275638304982632,
+  0.05310705676411487,
+  0.016601959452656297,
+  0.09363495656513171,
+  1.4365129500947569
+ ],
+ "margin_coef": {
+  "n_pts": 2.9627,
+  "n_epa_play": 0.0,
+  "n_success": 1.608,
+  "n_early_epa": 0.7983,
+  "n_pass_epa": 0.0,
+  "n_rush_epa": 0.4012,
+  "n_sack_rate": 0.2276,
+  "n_to": 0.0531,
+  "n_explosive": 0.0166,
+  "n_ppd": 0.0936,
+  "const": 1.4365
+ },
+ "margin_resid_sd": 13.162571586874655,
+ "ats_backtest": [
+  {
+   "threshold": 0,
+   "test_w": 275,
+   "test_l": 264,
+   "test_p": 5,
+   "train_w": 793,
+   "train_l": 743,
+   "train_p": 47
+  },
+  {
+   "threshold": 1.5,
+   "test_w": 170,
+   "test_l": 164,
+   "test_p": 3,
+   "train_w": 497,
+   "train_l": 457,
+   "train_p": 30
+  },
+  {
+   "threshold": 3,
+   "test_w": 93,
+   "test_l": 97,
+   "test_p": 3,
+   "train_w": 250,
+   "train_l": 235,
+   "train_p": 17
+  },
+  {
+   "threshold": 4.5,
+   "test_w": 45,
+   "test_l": 55,
+   "test_p": 1,
+   "train_w": 117,
+   "train_l": 108,
+   "train_p": 6
+  }
+ ],
+ "total_beta": [
+  5.621468929335971,
+  0.5263635333659074,
+  3.359547648165383,
+  -65.77397543751495
+ ],
+ "total_coef": {
+  "ppd_sum": 5.6215,
+  "pace": 0.5264,
+  "dome": 3.3595,
+  "const": -65.774
+ },
+ "ou_backtest": [
+  {
+   "threshold": 0,
+   "test_w": 270,
+   "test_l": 271,
+   "test_p": 3,
+   "train_w": 795,
+   "train_l": 771,
+   "train_p": 17
+  },
+  {
+   "threshold": 1.5,
+   "test_w": 174,
+   "test_l": 161,
+   "test_p": 1,
+   "train_w": 491,
+   "train_l": 478,
+   "train_p": 10
+  },
+  {
+   "threshold": 3,
+   "test_w": 85,
+   "test_l": 83,
+   "test_p": 0,
+   "train_w": 261,
+   "train_l": 264,
+   "train_p": 3
+  },
+  {
+   "threshold": 4.5,
+   "test_w": 41,
+   "test_l": 42,
+   "test_p": 0,
+   "train_w": 117,
+   "train_l": 105,
+   "train_p": 3
+  }
+ ],
+ "total_fill": {
+  "ppd_sum": 8.017716271735846,
+  "pace": 124.54496367287956,
+  "dome": 0.28679722046746686,
+  "const": 1.0
+ },
+ "ml_backtest": [
+  {
+   "threshold": 0.03,
+   "test": {
+    "threshold": 0.03,
+    "bets": 396,
+    "wins": 152,
+    "units": -28.6,
+    "roi": -0.072
+   },
+   "train": {
+    "threshold": 0.03,
+    "bets": 1187,
+    "wins": 436,
+    "units": -78.8,
+    "roi": -0.066
+   }
+  },
+  {
+   "threshold": 0.05,
+   "test": {
+    "threshold": 0.05,
+    "bets": 323,
+    "wins": 121,
+    "units": -21.6,
+    "roi": -0.067
+   },
+   "train": {
+    "threshold": 0.05,
+    "bets": 940,
+    "wins": 327,
+    "units": -69.5,
+    "roi": -0.074
+   }
+  },
+  {
+   "threshold": 0.08,
+   "test": {
+    "threshold": 0.08,
+    "bets": 234,
+    "wins": 85,
+    "units": -15.8,
+    "roi": -0.067
+   },
+   "train": {
+    "threshold": 0.08,
+    "bets": 591,
+    "wins": 190,
+    "units": -74.7,
+    "roi": -0.126
+   }
+  }
+ ],
+ "params": {
+  "n_epa_play": {
+   "k": 6.44636694368933,
+   "rho": 0.422448825814437,
+   "league_mean": 0.0
+  },
+  "n_success": {
+   "k": 7.206214992846111,
+   "rho": 0.4367201674078846,
+   "league_mean": 0.0
+  },
+  "n_pass_epa": {
+   "k": 8.66847619579701,
+   "rho": 0.3855180648535943,
+   "league_mean": 0.0
+  },
+  "n_rush_epa": {
+   "k": 23.62739670542475,
+   "rho": 0.303832457957354,
+   "league_mean": 0.0
+  },
+  "n_ypp": {
+   "k": 7.661857801923709,
+   "rho": 0.40662284895672896,
+   "league_mean": 0.0
+  },
+  "n_anya": {
+   "k": 9.358920103374189,
+   "rho": 0.36718789900585386,
+   "league_mean": 0.0
+  },
+  "n_explosive": {
+   "k": 11.410989105618754,
+   "rho": 0.4131561007451993,
+   "league_mean": 0.0
+  },
+  "n_sack_rate": {
+   "k": 11.280415791387297,
+   "rho": 0.3108152786863339,
+   "league_mean": 0.0
+  },
+  "n_int_rate": {
+   "k": 30.0,
+   "rho": 0.19541728395643357,
+   "league_mean": 0.0
+  },
+  "n_to": {
+   "k": 30.0,
+   "rho": 0.17410853549983996,
+   "league_mean": 0.0
+  },
+  "n_third": {
+   "k": 19.23306291125382,
+   "rho": 0.3425610476717525,
+   "league_mean": 0.0
+  },
+  "n_rz_td": {
+   "k": 30.0,
+   "rho": 0.19612805391356528,
+   "league_mean": 0.0
+  },
+  "n_ppd": {
+   "k": 7.478458974540288,
+   "rho": 0.41408811479449714,
+   "league_mean": 0.0
+  },
+  "n_early_epa": {
+   "k": 8.924534850956427,
+   "rho": 0.38940735941606747,
+   "league_mean": 0.0
+  },
+  "n_pts": {
+   "k": 6.945759599781646,
+   "rho": 0.4231975813573471,
+   "league_mean": 0.0
+  },
+  "n_win": {
+   "k": 10.008744337783682,
+   "rho": 0.38390794534826217,
+   "league_mean": 0.5
+  },
+  "n_ypg": {
+   "k": 8.666761433604348,
+   "rho": 0.38634062367387784,
+   "league_mean": 0.0
+  },
+  "n_rush_ypg": {
+   "k": 11.569772333393576,
+   "rho": 0.4454972888923123,
+   "league_mean": 0.0
+  },
+  "n_top": {
+   "k": 25.364582143664638,
+   "rho": 0.3071818400022811,
+   "league_mean": 0.0
+  },
+  "n_pen": {
+   "k": 30.0,
+   "rho": 0.2666881773410578,
+   "league_mean": 0.0
+  },
+  "o_ppd": {
+   "k": 5.616165861878524,
+   "rho": 0.41166920870586404,
+   "league_mean": 2.002728939597004
+  },
+  "d_ppd": {
+   "k": 15.812443203937306,
+   "rho": 0.27388737969158855,
+   "league_mean": 2.002728939597004
+  },
+  "o_plays": {
+   "k": 16.45648500961673,
+   "rho": 0.22655980064031683,
+   "league_mean": 62.07511540075535
+  },
+  "d_plays": {
+   "k": 30.0,
+   "rho": 0.20979171666063756,
+   "league_mean": 62.07511540075535
+  },
+  "o_proe": {
+   "k": 4.870054425780994,
+   "rho": 0.39134840623594613,
+   "league_mean": -1.1684310759692016
+  },
+  "o_epa_play": {
+   "k": 5.6406585340959206,
+   "rho": 0.4056804669084098,
+   "league_mean": -0.005849171440123833
+  },
+  "d_epa_play": {
+   "k": 12.09254366643915,
+   "rho": 0.2687191731148165,
+   "league_mean": -0.005849171440123833
+  },
+  "o_pts": {
+   "k": 6.522069682345835,
+   "rho": 0.3948297524464334,
+   "league_mean": 22.79290809903483
+  },
+  "d_pts": {
+   "k": 18.053939775757108,
+   "rho": 0.29050827454361206,
+   "league_mean": 22.79290809903483
+  }
+ },
+ "n_games": 2127
+}
