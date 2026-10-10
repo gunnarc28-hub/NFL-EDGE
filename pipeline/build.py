@@ -415,6 +415,7 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
 
 # ------------------------------------------------------------------ model pick record (pre-game info only)
 model_picks = []
+PRE_MM = {}
 for _, g in done.sort_values(['week', 'gameday', 'gametime']).iterrows():
     gid, h, a = g.game_id, g.home_team, g.away_team
     src = pregame_src(gid, h, a)
@@ -427,6 +428,7 @@ for _, g in done.sort_values(['week', 'gameday', 'gametime']).iterrows():
     else:
         qh_, qa_ = current_qb(h, g.home_qb_id if pd.notna(g.home_qb_id) else None)[1], current_qb(a, g.away_qb_id if pd.notna(g.away_qb_id) else None)[1]
     mm = model_margin(h, a, bool(g.neutral), src, g, qh_, qa_)
+    PRE_MM[gid] = mm
     margin = g.home_score - g.away_score
     base = {'week': int(g.week), 'game': gid, 'away': a, 'home': h, 'score': f"{a} {int(g.away_score)} - {h} {int(g.home_score)}"}
     su = h if mm > 0 else a
@@ -813,6 +815,217 @@ for p_ in player_trends:
 player_trends.sort(key=lambda x: -x['score'])
 team_trends.sort(key=lambda x: (-x['weeks'], x['kind'] != 'form'))
 
+# ------------------------------------------------------------------ high-chance picks
+PD = json.load(open(os.path.join(HERE, 'static', 'prop_dist.json')))
+HCR = json.load(open(os.path.join(HERE, 'static', 'high_chance_research.json')))
+STAT_COL = {'rec_yds': 'receiving_yards', 'receptions': 'receptions', 'rush_yds': 'rushing_yards', 'pass_yds': 'passing_yards'}
+STAT_WORD = {'rec_yds': 'receiving yards', 'receptions': 'catches', 'rush_yds': 'rushing yards', 'pass_yds': 'passing yards'}
+POS_WORD = {'WR': 'wide receivers', 'TE': 'tight ends', 'RB': 'running backs', 'QB': 'quarterbacks'}
+KEYCOL = {'rec_yds': 'recy', 'receptions': 'rec', 'rush_yds': 'rush', 'pass_yds': 'passy'}
+
+
+def chance(key, proj, t):
+    dist = PD['dists'][key]; grid = dist['grid']; bins = dist['bins']; cs = [b['center'] for b in bins]
+
+    def surv(b):
+        if t <= grid[0]:
+            return b['surv'][0]
+        if t >= grid[-1]:
+            return b['surv'][-1]
+        j = int(np.searchsorted(grid, t)) - 1
+        w = (t - grid[j]) / (grid[j + 1] - grid[j])
+        return b['surv'][j] * (1 - w) + b['surv'][j + 1] * w
+    if proj <= cs[0]:
+        return surv(bins[0])
+    if proj >= cs[-1]:
+        return surv(bins[-1])
+    k = int(np.searchsorted(cs, proj)) - 1
+    w = (proj - cs[k]) / (cs[k + 1] - cs[k])
+    return surv(bins[k]) * (1 - w) + surv(bins[k + 1]) * w
+
+
+def hc_eligible(r, key):
+    if (r.n_prior or 0) < 3:
+        return False
+    if key == 'pass_yds':
+        return r.position == 'QB' and (r.pg_attempts or 0) >= 25
+    if key == 'rush_yds':
+        return r.position == 'RB' and (r.avg_carry_share or 0) >= 0.45
+    if r.position not in (('WR', 'TE') if key == 'rec_yds' else ('WR', 'TE', 'RB')):
+        return False
+    return (r.avg_target_share or 0) >= 0.18 or (r.pg_targets or 0) >= 6
+
+
+def best_milestone(r):
+    row = r.to_dict(); best = None
+    for key in ('rec_yds', 'receptions', 'rush_yds', 'pass_yds'):
+        if not hc_eligible(r, key):
+            continue
+        proj = project(row, key)
+        if proj is None:
+            continue
+        pick = None
+        for t in PD['ladders'][key]:
+            p = chance(key, proj, t)
+            if p >= PD['p_min']:
+                pick = (p, key, t, proj)
+        if pick and (best is None or (pick[1] != 'receptions', pick[0]) > (best[1] != 'receptions', best[0])):
+            best = pick
+    return best
+
+
+def fair_odds(p):
+    return int(round(-100 * p / (1 - p))) if p >= 0.5 else int(round(100 * (1 - p) / p))
+
+
+def ordinal(n):
+    return f"{n}{'th' if 11 <= n % 100 <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+dvp = {}
+if len(p26):
+    _al = p26.groupby(['opponent_team', 'position', 'week']).agg(recy=('receiving_yards', 'sum'), rec=('receptions', 'sum'),
+                                                                 rush=('rushing_yards', 'sum'), passy=('passing_yards', 'sum')).reset_index()
+    _pg = _al.groupby(['opponent_team', 'position'])[['recy', 'rec', 'rush', 'passy']].mean().reset_index()
+    for pos_, col_ in (('WR', 'recy'), ('TE', 'recy'), ('RB', 'recy'), ('WR', 'rec'), ('TE', 'rec'), ('RB', 'rec'), ('RB', 'rush'), ('QB', 'passy')):
+        s_ = _pg[_pg.position == pos_].set_index('opponent_team')[col_].rank(ascending=False, method='min')
+        for tm_, rk_ in s_.items():
+            dvp[(tm_, pos_, col_)] = int(rk_)
+trend_by_player = {}
+for p_ in player_trends:
+    if p_['tone'] == 'up' and p_['sticky'] and p_['id'] not in trend_by_player:
+        trend_by_player[p_['id']] = p_
+
+
+def hc_reason(r, key, t, opp, team):
+    parts = [w for w in r.player_display_name.split(' ') if w.rstrip('.') not in ('Jr', 'Sr', 'II', 'III', 'IV', 'V')]
+    first = ' '.join(parts[1:]) if len(parts) > 1 else r.player_display_name
+    d_ = p26[(p26.player_id == r.player_id)].sort_values('week')
+    vals = d_[STAT_COL[key]].fillna(0).tolist()
+    hits = sum(1 for v in vals if v >= t)
+    avg = float(np.mean(vals)) if vals else None
+    l3 = float(np.mean(vals[-3:])) if len(vals) >= 3 else None
+    word = STAT_WORD[key]; fmt = (lambda v: f'{v:.1f}') if key == 'receptions' else (lambda v: f'{v:.0f}')
+    s1 = f"{first} has reached {t}+ {word} in {hits} of {len(vals)} games, averaging {fmt(avg)}"
+    if l3 is not None and avg and abs(l3 - avg) / max(avg, 1) >= 0.08:
+        s1 += f" ({fmt(l3)} over his last 3)"
+    s1 += '.'
+    if key == 'pass_yds':
+        s2 = f"He's throwing {r.pg_attempts:.0f} passes a game."
+    elif key == 'rush_yds':
+        s2 = f"He gets {r.avg_carry_share:.0%} of the team's carries ({r.pg_carries:.1f} a game)."
+    else:
+        s2 = f"He's seeing {r.pg_targets:.1f} targets a game ({r.avg_target_share:.0%} of the team's)."
+    extra = []
+    tr = trend_by_player.get(r.player_id)
+    if tr:
+        lbl = tr['label'].lower()
+        extra.append(f"His {lbl} {'has' if lbl.endswith('share') else 'have'} been up {tr['weeks']} straight weeks.")
+    rk = dvp.get((opp, r.position, KEYCOL[key]))
+    onick = TEAMS[opp][1] if opp in TEAMS else opp
+    if rk is not None and rk <= 10:
+        extra.append(f"The {onick} allow the {'' if rk == 1 else ordinal(rk) + '-'}most {'receiving yards' if key == 'rec_yds' else word} to {POS_WORD[r.position]}.")
+    if r.implied_tt and r.implied_tt >= 25.5:
+        extra.append(f"The {TEAMS[team][1]} are projected by the betting line to score {r.implied_tt:.1f} points.")
+    if rk is not None and rk >= 24:
+        extra.append(f"Tougher matchup: the {onick} allow the {'' if rk == 32 else ordinal(33 - rk) + '-'}fewest.")
+    return ' '.join([s1, s2] + extra[:1]), hits, len(vals), avg, l3
+
+
+hc_picks, hc_hist = [], []
+if 'feat' in globals() and len(p26):
+    # this week
+    for gm in games:
+        if gm['final']:
+            continue
+        for t, o in ((gm['away'], gm['home']), (gm['home'], gm['away'])):
+            c = cur[(cur.game_id == gm['id']) & (cur.team == t)]
+            for _, r in c.iterrows():
+                ist = inj_status.get(t + '|' + norm(r.player_display_name))
+                if (ist and ist['level'] in ('out', 'doubt', 'risk', 'ir')) or r.player_id in RESERVE_IDS or r.player_id in GONE_IDS:
+                    continue
+                bm = best_milestone(r)
+                if not bm:
+                    continue
+                p, key, thr, proj = bm
+                reason, hits, n, avg, l3 = hc_reason(r, key, thr, o, t)
+                hc_picks.append({'kind': 'player', 'id': r.player_id, 'name': r.player_display_name, 'pos': r.position, 'team': t, 'opp': o,
+                                 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'], 'key': key, 't': thr, 'p': p, 'fair': fair_odds(p),
+                                 'proj': proj, 'avg': avg, 'l3': l3, 'hits': [hits, n], 'reason': reason,
+                                 'label': f"{r.player_display_name} {thr}+ {STAT_WORD[key]}",
+                                 'inj': ({'level': ist['level'], 'outlook': ist['outlook']} if ist else None)})
+    hc_picks.sort(key=lambda x: -x['p'])
+    per_game, kept = {}, []
+    for x in hc_picks:
+        if per_game.get(x['game'], 0) >= 3:
+            continue
+        per_game[x['game']] = per_game.get(x['game'], 0) + 1; kept.append(x)
+    hc_picks = kept[:12]
+    # past weeks this season, picked the same way from what was known before each game
+    fin = feat[feat.game_id.isin(set(done.game_id)) & (feat.n_prior >= 3)]
+    hist_p = []
+    for _, r in fin.iterrows():
+        bm = best_milestone(r)
+        if bm:
+            p, key, thr, proj = bm
+            actual = r[STAT_COL[key]]
+            hist_p.append({'kind': 'player', 'week': int(r.week), 'game': r.game_id, 'name': r.player_display_name, 'team': r.team,
+                           'label': f"{r.player_display_name} {thr}+ {STAT_WORD[key]}", 'p': p, 'actual': float(actual),
+                           'result': 'W' if actual >= thr else 'L'})
+    hist_p.sort(key=lambda x: -x['p'])
+    wk_count = {}
+    for x in hist_p:
+        if wk_count.get(x['week'], 0) < 12:
+            wk_count[x['week']] = wk_count.get(x['week'], 0) + 1; hc_hist.append(x)
+# heavy favorites the model and the market both like, and underdog teaser legs
+for gm in games:
+    if gm['final']:
+        continue
+    m_ = gm['model']; mk = m_['mkt_wp_home']
+    for t, o, mp, kp, ml in ((gm['home'], gm['away'], m_['wp_home'], mk, gm['ml_home']), (gm['away'], gm['home'], 1 - m_['wp_home'], None if mk is None else 1 - mk, gm['ml_away'])):
+        if kp is not None and mp >= 0.75 and kp >= 0.75:
+            rt_, ro_ = teams[t]['ranks'].get('pd_g'), teams[o]['ranks'].get('pd_g')
+            qb_o = gm['qb_change']['home' if o == gm['home'] else 'away']
+            reason = f"The model gives the {teams[t]['nick']} {mp:.0%} and the betting market {kp:.0%}."
+            if rt_ and ro_:
+                reason += f" They rank {ordinal(rt_)} in point differential; the {teams[o]['nick']} rank {ordinal(ro_)}."
+            if qb_o:
+                reason += f" The {teams[o]['nick']} start {qb_o['starter']} in place of {qb_o['usual']}."
+            hc_picks.append({'kind': 'ml', 'team': t, 'opp': o, 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'], 'p': kp, 'model_p': mp,
+                             'odds': ml, 'fair': fair_odds(kp), 'reason': reason, 'label': f"{teams[t]['city']} {teams[t]['nick']} to win"})
+    for x in gm.get('teaser') or []:
+        if x['kind'] != 'dog':
+            continue
+        o = gm['home'] if x['team'] == gm['away'] else gm['away']
+        mm_t = m_['margin'] if x['team'] == gm['home'] else -m_['margin']
+        view = (f"The model has the {teams[x['team']]['nick']} winning by {mm_t:.1f}." if mm_t > 0 else
+                f"The model has the {teams[x['team']]['nick']} losing by {abs(mm_t):.1f}, inside the teased number." if -mm_t < x['to'] else
+                f"The model has the {teams[x['team']]['nick']} losing by {abs(mm_t):.1f}.")
+        reason = (f"Teasing the {teams[x['team']]['nick']} from {x['from']:+g} to {x['to']:+g} covers a loss by a field goal or a touchdown. "
+                  f"Since 2018, +1.5 to +2.5 underdogs teased six points won {x['rate']:.0%} of legs"
+                  f"{' when the total was 49 or less' if (gm['total'] or 99) <= 49 else ''}. {view}")
+        hc_picks.append({'kind': 'teaser', 'team': x['team'], 'opp': o, 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'],
+                         'p': x['rate'], 'from': x['from'], 'to': x['to'], 'fair': fair_odds(x['rate']), 'reason': reason,
+                         'label': f"{teams[x['team']]['nick']} {x['to']:+g} in a teaser (from {x['from']:+g})"})
+for _, g in done.iterrows():
+    if g.game_id not in PRE_MM or pd.isna(g.spread_line):
+        continue
+    ih, ia = am_prob(g.home_moneyline), am_prob(g.away_moneyline)
+    if ih and ia:
+        wp_h = ncdf(PRE_MM[g.game_id] / RESID); nv = ih / (ih + ia)
+        for t, mp, kp, won in ((g.home_team, wp_h, nv, g.home_score > g.away_score), (g.away_team, 1 - wp_h, 1 - nv, g.away_score > g.home_score)):
+            if mp >= 0.75 and kp >= 0.75:
+                hc_hist.append({'kind': 'ml', 'week': int(g.week), 'game': g.game_id, 'team': t, 'label': f"{teams[t]['nick']} to win",
+                                'p': kp, 'result': 'W' if won else 'L'})
+    for t, ln in ((g.home_team, -g.spread_line), (g.away_team, g.spread_line)):
+        if 1.5 <= ln <= 2.5:
+            mg = (g.home_score - g.away_score) * (1 if t == g.home_team else -1)
+            hc_hist.append({'kind': 'teaser', 'week': int(g.week), 'game': g.game_id, 'team': t, 'label': f"{teams[t]['nick']} {ln + 6:+g} (teased)",
+                            'p': SR['teaser']['dog_leg'], 'result': 'W' if mg + ln + 6 > 0 else 'L'})
+hc_hist.sort(key=lambda x: (-x['week'], x['kind'], -x['p']))
+high_chance = {'picks': hc_picks, 'history': hc_hist, 'research': HCR, 'p_min': PD['p_min']}
+print('high-chance picks:', len(hc_picks), 'history:', len(hc_hist))
+
 # ------------------------------------------------------------------ grading data
 grade_players = {}
 for pid, d in p26.groupby('player_id'):
@@ -847,7 +1060,7 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
                  'resid_sd': RESID, 'qb_mean': QB_MEAN},
         'teams': teams, 'games': games, 'injuries': injuries, 'stat_labels': STAT_LABEL,
         'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80]},
-        'model_picks': model_picks, 'prop_bins': BINS, 'research': research,
+        'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
         'grade': {'players': grade_players, 'games': results}}
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 tmp = OUT + '.tmp'

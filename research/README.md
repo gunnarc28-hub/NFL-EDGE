@@ -10,3 +10,5 @@ nflverse files in `raw/` and an empty `work/` folder.
 5. `06_extra_aggregates.py` – garbage-time-filtered efficiency and quarterback games.
 6. `07_spread_experiments.py` – walk-forward spread tests (opponent adjustment, garbage time, recency, QB ratings,
    rest and travel, pressure), key numbers, teasers, and the current model's weights (`model_v2.json`).
+7. `08_high_chance.py` – outcome distributions for player milestones (2018–2025) and the 2024–25 check that picks rated
+   80%+ hit about as often as promised (`prop_dist.json`, `high_chance_research.json`).

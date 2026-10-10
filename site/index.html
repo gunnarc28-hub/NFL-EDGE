@@ -290,6 +290,23 @@ th.sortable[aria-sort="ascending"]::after{content:" \25B2";font-size:9px} th.sor
 .fact p{margin:0;font-size:13px;color:var(--ink-2)}
 ul.plain{margin:0;padding-left:18px;color:var(--ink-2)}
 ul.plain li{margin:3px 0}
+.hc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px;align-items:start}
+.hc{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.hc.sel{box-shadow:var(--shadow),inset 0 0 0 2px var(--stripe)}
+.hc-top{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.hc-p{display:flex;flex-direction:column;line-height:1;gap:2px}
+.hc-p .big{font-family:var(--f-display);font-weight:900;font-size:40px}
+.hc-label{font-weight:700;font-size:15.5px;line-height:1.25}
+.hc-meter{height:6px;border-radius:3px;background:var(--muted-bg);overflow:hidden}
+.hc-meter span{display:block;height:100%;background:var(--win)}
+.hc-stats{display:flex;flex-wrap:wrap;gap:6px}
+.hc-why{margin:0;font-size:13.5px;color:var(--ink-2)}
+.hc-acts{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--rule);padding-top:10px}
+.hc-acts label{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:600;cursor:pointer}
+.parlay-bar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:15;background:var(--ink);color:var(--panel);border-radius:12px;
+  padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.parlay-bar .big{font-family:var(--f-display);font-weight:900;font-size:24px;line-height:1}
+.parlay-bar .btn{box-shadow:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -302,6 +319,7 @@ ul.plain li{margin:3px 0}
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" id="tab-week" data-view="week" aria-selected="true">This week</button>
+      <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance picks</button>
       <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
       <button class="tab" role="tab" id="tab-picks" data-view="picks" aria-selected="false">My picks<span class="cnt" id="pick-count"></span></button>
       <button class="tab" role="tab" id="tab-matters" data-view="matters" aria-selected="false">What matters</button>
@@ -312,6 +330,7 @@ ul.plain li{margin:3px 0}
 
 <main>
   <section class="view" id="v-week"></section>
+  <section class="view" id="v-hc" hidden></section>
   <section class="view" id="v-trends" hidden></section>
   <section class="view" id="v-picks" hidden></section>
   <section class="view" id="v-matters" hidden></section>
@@ -536,7 +555,17 @@ function trendMini(t){
 /* ---------- props ---------- */
 const PROP_LABEL = {pass_yds: 'Pass yds', rush_yds: 'Rush yds', rec_yds: 'Rec yds', receptions: 'Receptions', any_td: 'Anytime TD'};
 function mainProps(p){ return p.pos === 'QB' ? ['pass_yds'] : p.pos === 'RB' ? ['rush_yds', 'receptions'] : ['rec_yds', 'receptions']; }
+function survChance(key, proj, t){
+  const dist = (D.prop_dist || {})[key]; if (!dist) return null;
+  const grid = dist.grid, bins = dist.bins, cs = bins.map(b => b.center);
+  const surv = b => { if (t <= grid[0]) return b.surv[0]; if (t >= grid[grid.length - 1]) return b.surv[b.surv.length - 1];
+    let j = 0; while (grid[j + 1] < t) j++; const w = (t - grid[j]) / (grid[j + 1] - grid[j]); return b.surv[j] * (1 - w) + b.surv[j + 1] * w; };
+  if (proj <= cs[0]) return surv(bins[0]); if (proj >= cs[cs.length - 1]) return surv(bins[bins.length - 1]);
+  let k = 0; while (cs[k + 1] < proj) k++; const w = (proj - cs[k]) / (cs[k + 1] - cs[k]);
+  return surv(bins[k]) * (1 - w) + surv(bins[k + 1]) * w;
+}
 function overChance(key, proj, line){
+  if (proj != null && line !== '' && !isNaN(line) && D.prop_dist && D.prop_dist[key]) return survChance(key, proj, Math.floor(Number(line)) + 1);
   const bins = D.prop_bins[key]; if (!bins || proj == null || line === '' || isNaN(line)) return null;
   line = Number(line);
   let b = bins.find(b => proj >= b.lo && proj <= b.hi) || (proj < bins[0].lo ? bins[0] : bins[bins.length - 1]);
@@ -603,6 +632,70 @@ function renderWeek(){
       <button class="btn" data-addpick="">+ Add a pick</button></div>
     <div class="games">${shown.map(gameCard).join('') || '<div class="empty">No games match this filter.</div>'}</div>
 `;
+}
+
+/* ======================================================================
+   HIGH-CHANCE PICKS
+   ====================================================================== */
+let HC_SEL = new Set();
+function oddsNum(p){ return p >= 0.5 ? -Math.round(100 * p / (1 - p)) : Math.round(100 * (1 - p) / p); }
+function hcChips(x){
+  if (x.kind === 'player'){
+    const f = v => v == null ? '–' : (x.key === 'receptions' ? Number(v).toFixed(1) : Math.round(v));
+    return `<span class="pill ghost">Projection ${f(x.proj)}</span><span class="pill ghost">Avg ${f(x.avg)}</span>${x.l3 != null ? `<span class="pill ghost">Last 3 ${f(x.l3)}</span>` : ''}<span class="pill ${x.hits[0] === x.hits[1] ? 'win' : 'ghost'}">Hit in ${x.hits[0]} of ${x.hits[1]}</span>`;
+  }
+  if (x.kind === 'ml') return `<span class="pill ghost">Market ${pct(x.p)}</span><span class="pill ghost">Model ${pct(x.model_p)}</span><span class="pill ghost">Moneyline ${fmtOdds(x.odds)}</span>`;
+  return `<span class="pill ghost">${fmtLine(x.from)} → ${fmtLine(x.to)}</span><span class="pill ghost">Six-point teaser leg</span>`;
+}
+function hcCard(x, i){
+  const sel = HC_SEL.has(i);
+  const inj = x.inj && !['likely', 'ok'].includes(x.inj.level) ? `<span class="pill lvl-${x.inj.level}">${esc(x.inj.outlook.split(',')[0])}</span>` : '';
+  return `<article class="hc ${sel ? 'sel' : ''}">
+    <div class="hc-top"><div class="hc-p"><span class="big num">${Math.round(x.p * 100)}%</span><span class="small">chance</span></div>
+      <div style="min-width:0"><div class="hc-label">${esc(x.label)}</div>
+      <div class="small" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">${chip(x.team, 1)} vs ${chip(x.opp, 1)} <span>${esc(kick(x.kickoff))}</span></div></div></div>
+    <div class="hc-meter" aria-hidden="true"><span style="width:${(x.p * 100).toFixed(0)}%"></span></div>
+    <div class="hc-stats">${hcChips(x)}${inj}</div>
+    <p class="hc-why">${esc(x.reason)}</p>
+    <div class="hc-acts"><span class="small">Breaks even at <b>${fmtOdds(x.fair)}</b></span>
+      <span style="display:flex;gap:12px;align-items:center"><label><input type="checkbox" id="hcsel_${i}" data-hcsel="${i}" ${sel ? 'checked' : ''}> Parlay</label>
+      <button class="btn tiny" data-hcpick="${i}">+ Log pick</button></span></div>
+  </article>`;
+}
+function renderHC(){
+  const v = $('#v-hc'); const H = D.high_chance; if (!H){ v.innerHTML = ''; return; }
+  const R_ = H.research || {}, all = R_.all || {}, p3 = R_.parlay3 || {};
+  const picks = H.picks;
+  const players = picks.map((x, i) => [x, i]).filter(([x]) => x.kind === 'player');
+  const games = picks.map((x, i) => [x, i]).filter(([x]) => x.kind !== 'player');
+  const rec = k => { const l = H.history.filter(h => h.kind === k); return {w: l.filter(h => h.result === 'W').length, l: l.filter(h => h.result === 'L').length}; };
+  const rp = rec('player'), rt = rec('teaser'), rm = rec('ml');
+  const weeks = [...new Set(H.history.map(h => h.week))].sort((a, b) => b - a);
+  const legs = [...HC_SEL].map(i => picks[i]).filter(Boolean);
+  const P = legs.reduce((a, x) => a * x.p, 1);
+  const same = new Set(legs.map(x => x.game)).size < legs.length;
+  v.innerHTML = `
+    <div class="sec-head"><div><h1 class="h2">High-chance picks</h1>
+      <p class="lede">Player milestones the model gives an 80% or better chance, underdog teaser legs with a strong track record, and heavy favorites that the model and the betting market both back. A high chance isn't the same as a good bet: each card shows the price where it breaks even, so only bet it if your sportsbook pays better than that.</p></div></div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Tested on 2024–25</div><div class="v num">${pct(all.hit, 1)}</div><div class="small">of ${(all.n || 0).toLocaleString()} player picks rated 80%+ hit; the model expected ${pct(all.expected, 1)}</div></div>
+      <div class="tile"><div class="label">Player picks this season</div><div class="v num">${rp.w}-${rp.l}</div><div class="small">Graded from box scores</div></div>
+      <div class="tile"><div class="label">Teaser legs this season</div><div class="v num">${rt.w}-${rt.l}</div><div class="small">+1.5 to +2.5 underdogs teased six points${rm.w + rm.l ? ` · favorites ${rm.w}-${rm.l}` : ''}</div></div>
+      <div class="tile"><div class="label">3-leg parlays (2024–25)</div><div class="v num">${pct(p3.hit)}</div><div class="small">Top picks from different games all hit; expected ${pct(p3.expected)} (${p3.n || 0} weeks)</div></div>
+    </div>
+    <div class="sec-head"><h2 class="h3">Player milestones <span class="small">(${players.length})</span></h2><span class="small">Week ${WEEK} · the highest milestone each player clears 80% on</span></div>
+    ${players.length ? `<div class="hc-grid">${players.map(([x, i]) => hcCard(x, i)).join('')}</div>` : '<div class="empty">No player clears 80% on a milestone yet this week. Picks appear once players have three games of data.</div>'}
+    <div class="sec-head"><h2 class="h3">Game picks <span class="small">(${games.length})</span></h2><span class="small">Teaser legs and heavy favorites</span></div>
+    ${games.length ? `<div class="hc-grid">${games.map(([x, i]) => hcCard(x, i)).join('')}</div>` : '<div class="empty">No teaser spots or 75%+ favorites this week.</div>'}
+    ${legs.length ? `<div class="parlay-bar" role="region" aria-label="Parlay"><div><div class="big num">${pct(P)} chance</div>
+      <div style="font-size:12.5px;opacity:.85">${legs.length} leg${legs.length === 1 ? '' : 's'} · breaks even at ${fmtOdds(oddsNum(P))}${same ? ' · legs from the same game move together, so the true chance differs' : ''}</div></div>
+      <div style="display:flex;gap:8px"><button class="btn tiny stripe" data-hcparlay="">Log as parlay</button><button class="btn tiny" data-hcclear="">Clear</button></div></div>` : ''}
+    <div class="sec-head"><h2 class="h3">Past weeks</h2><span class="small">Picked the same way, using only what was known before each game</span></div>
+    ${weeks.length ? weeks.map(w => { const l = H.history.filter(h => h.week === w);
+      return `<details ${w === weeks[0] ? 'open' : ''}><summary class="small" style="cursor:pointer;padding:6px 0">Week ${w}: ${l.filter(h => h.result === 'W').length}-${l.filter(h => h.result === 'L').length}</summary>
+        <div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${l.map(h => `<div class="pk"><span class="rp ${h.result}">${h.result}</span>
+          <div><div class="d">${esc(h.label)}</div><div class="m">${h.kind === 'player' ? 'Player milestone' : h.kind === 'ml' ? 'Favorite to win' : 'Teaser leg'} · rated ${pct(h.p)}${h.actual != null ? ' · finished with ' + (Number.isInteger(h.actual) ? h.actual : h.actual.toFixed(0)) : ''}</div></div><div></div></div>`).join('')}</div></details>`; }).join('') :
+      '<div class="empty">Results show up here after this week\'s games.</div>'}`;
 }
 
 /* ======================================================================
@@ -688,7 +781,7 @@ const PT = {
   pass_att: {label: 'Pass attempts', cat: 'Player', idx: 1}, ints: {label: 'Interceptions', cat: 'Player', idx: 4}, rush_yds: {label: 'Rushing yards', cat: 'Player', idx: 6},
   carries: {label: 'Rush attempts', cat: 'Player', idx: 5}, rec_yds: {label: 'Receiving yards', cat: 'Player', idx: 10}, receptions: {label: 'Receptions', cat: 'Player', idx: 8},
   rush_rec: {label: 'Rush + rec yards', cat: 'Player', f: w => w[6] + w[10]}, any_td: {label: 'Anytime TD', cat: 'Player', f: w => w[7] + w[11]},
-  parlay: {label: 'Parlay', cat: 'Other'}, other: {label: 'Other', cat: 'Other'}
+  parlay: {label: 'Parlay', cat: 'Other'}, teaser: {label: 'Teaser', cat: 'Other'}, other: {label: 'Other', cat: 'Other'}
 };
 let PICKS = [], PICK_MODE = 'loading', DB = null, UID = null;
 function profit(p, r){ const u = Number(p.units) || 1, o = Number(p.odds) || -110; return r === 'W' ? u * (o > 0 ? o / 100 : 100 / Math.abs(o)) : r === 'L' ? -u : 0; }
@@ -875,7 +968,7 @@ function renderSheet(){
       ${needsLine ? `<div class="f"><label for="pk-line">${d.type === 'spread' ? 'Spread (your team)' : 'Line'}</label><input id="pk-line" type="number" step="0.5" inputmode="decimal" value="${esc(d.line)}" placeholder="${d.type === 'spread' ? '-2.5' : '64.5'}"></div>` : ''}
       <div class="f"><label for="pk-odds">Odds</label><input id="pk-odds" type="number" step="1" inputmode="numeric" value="${esc(d.odds)}"></div>
       <div class="f"><label for="pk-units">Units</label><input id="pk-units" type="number" step="0.25" min="0.25" inputmode="decimal" value="${esc(d.units)}"></div>
-      <div class="f full"><label for="pk-note">${d.type === 'parlay' ? 'Legs' : 'Note (optional)'}</label><input id="pk-note" type="text" value="${esc(d.note)}" placeholder="${d.type === 'parlay' ? 'e.g. MIN ML + Jefferson o64.5 + BUF -3' : ''}"></div>
+      <div class="f full"><label for="pk-note">${['parlay', 'teaser'].includes(d.type) ? 'Legs' : 'Note (optional)'}</label><input id="pk-note" type="text" value="${esc(d.note)}" placeholder="${d.type === 'parlay' ? 'e.g. MIN ML + Jefferson o64.5 + BUF -3' : ''}"></div>
       <div class="f full"><div class="hint" id="pk-hint">${def.cat === 'Other' ? 'You mark parlays and other bets as won or lost yourself.' : 'Grades automatically from the final score or box score.'}</div></div>
     </form>
     <div class="sheet-actions"><span class="note" id="pk-err" role="alert"></span><button class="btn primary" id="pk-save">Save pick</button></div>`;
@@ -1051,6 +1144,20 @@ document.addEventListener('click', async e => {
   }
   if (t.dataset.setres){ try { await setResult(t.dataset.setres, t.dataset.res); } catch(err){ toast('Could not update. Try again.'); } return; }
   if (t.dataset.prop){ PROP_SEL = t.dataset.prop; renderMatters(); return; }
+  if (t.dataset.hcpick){
+    const x = D.high_chance.picks[Number(t.dataset.hcpick)];
+    if (x.kind === 'player') openPick({week: x.week, game: x.game, type: x.key, player: x.id, side: 'O', line: x.t - 0.5, odds: x.fair});
+    else if (x.kind === 'ml') openPick({week: x.week, game: x.game, type: 'ml', team: x.team, odds: x.odds});
+    else openPick({week: x.week, game: x.game, type: 'teaser', note: x.label, odds: -120});
+    return;
+  }
+  if (t.hasAttribute('data-hcclear')){ HC_SEL.clear(); renderHC(); return; }
+  if (t.hasAttribute('data-hcparlay')){
+    const legs = [...HC_SEL].map(i => D.high_chance.picks[i]);
+    const P = legs.reduce((a, x) => a * x.p, 1);
+    openPick({week: WEEK, game: legs[0].game, type: legs.every(x => x.kind === 'teaser') ? 'teaser' : 'parlay', note: legs.map(x => x.label).join(' + '), odds: oddsNum(P)});
+    return;
+  }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#sheet').hidden) closePick();
@@ -1061,6 +1168,11 @@ $('#scrim').addEventListener('click', closePick);
 document.addEventListener('click', e => {
   const th = e.target.closest('th[data-sort]'); if (!th) return;
   const k = th.dataset.sort; TS = {k, dir: TS.k === k && TS.dir === 'desc' ? 'asc' : 'desc'}; store.set('ts', TS); renderTeams();
+});
+document.addEventListener('change', e => {
+  const el = e.target; if (!el.dataset || el.dataset.hcsel == null) return;
+  const i = Number(el.dataset.hcsel); el.checked ? HC_SEL.add(i) : HC_SEL.delete(i);
+  const y = window.scrollY; renderHC(); window.scrollTo({top: y});
 });
 document.addEventListener('input', e => {
   const el = e.target; if (!el.dataset || !el.dataset.oc) return;
@@ -1112,9 +1224,9 @@ async function checkForNewData(){
 document.addEventListener('visibilitychange', () => { if (!document.hidden){ checkForNewData(); liveScores(); } });
 
 /* ---------- boot ---------- */
-renderWeek(); renderTrends(); renderPicks(); renderMatters();
+renderWeek(); renderHC(); renderTrends(); renderPicks(); renderMatters();
 const startTab = location.hash.replace('#', '') || store.get('tab', 'week');
-if (['week', 'trends', 'picks', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
+if (['week', 'hc', 'trends', 'picks', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
 initPicks();
 liveScores();
 })();
