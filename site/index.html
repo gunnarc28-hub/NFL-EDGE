@@ -352,13 +352,76 @@ ul.plain li{margin:3px 0}
 .vchk{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--panel-2);border-radius:8px;padding:8px 10px}
 .vchk .fair{font-size:12.5px;color:var(--ink-2)}
 .vchk .fair b{font-family:var(--f-mono);font-weight:600;color:var(--ink)}
-.vchk label{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.vchk label,.vchk .vlab{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .vchk input{width:80px;font-family:var(--f-mono);padding:5px 8px}
 .vchk .ev{font-size:12.5px;font-weight:700;color:var(--ink-3);flex:1 1 180px}
 .vchk .ev.pos{color:var(--win)} .vchk .ev.thin{color:var(--warn)} .vchk .ev.neg{color:var(--loss)}
 @media (max-width:620px){ table.grid.tight th, table.grid.tight td{padding:8px 8px} }
 .mk-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px 14px;flex-wrap:wrap}
 .mk-head .small b{color:var(--ink-2)}
+/* ---------- +/− steppers ---------- */
+.stp{display:inline-flex;align-items:center;gap:4px}
+.stp input{width:76px;text-align:center}
+.stp-b{appearance:none;border:0;cursor:pointer;width:34px;height:34px;border-radius:7px;font-weight:800;font-size:18px;line-height:1;
+  background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1px var(--rule-2);flex:0 0 auto;touch-action:manipulation}
+.stp-b:active{background:var(--muted-bg)}
+.stp-b.stp-f{width:auto;padding:0 8px;font-size:13px}
+.form .stp{display:flex} .form .stp input{flex:1 1 auto;width:auto;min-width:64px}
+@media (max-width:620px){ .form .f.stpf{grid-column:1/-1} }
+
+/* ---------- compact game rows (phones) ---------- */
+.g-sum{display:none}
+@media (max-width:620px){
+  .games{gap:8px}
+  .game:not(.open) > :not(.g-sum){display:none!important}
+  .g-sum{display:flex;flex-direction:column;gap:3px;appearance:none;border:0;background:var(--panel);cursor:pointer;width:100%;padding:10px 12px;text-align:left}
+  .game.open .g-sum{border-bottom:1px solid var(--rule);background:var(--panel-2)}
+  .g-sum .r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .g-sum .mu{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14px;min-width:0}
+  .g-sum .mu .rc{font-family:var(--f-mono);font-size:11.5px;font-weight:500;color:var(--ink-3)}
+  .g-sum .rt{font-family:var(--f-display);font-weight:900;font-size:19px;line-height:1;white-space:nowrap}
+  .g-sum .r2{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+  .g-sum .r2 .pk2{font-weight:700;color:var(--stripe-ink);background:var(--stripe-bg);border-radius:4px;padding:1px 5px}
+  .g-sum .chev{margin-left:auto;color:var(--ink-3);font-size:13px}
+  .g-sum .lv{color:var(--loss);font-weight:700}
+}
+
+/* ---------- trend explorer ---------- */
+[data-chart]{cursor:pointer}
+.tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
+.tr .go{font-size:11.5px;font-weight:700;color:var(--info);white-space:nowrap}
+.pn [data-chart]{text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px}
+.chart-sheet{width:min(760px,calc(100% - 24px));gap:14px}
+.cs-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cs-sub{font-size:13px;color:var(--ink-3);margin-top:3px}
+.cs-pick{display:flex;flex-direction:column;gap:6px}
+.cs-pick .seg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.cs-pick .seg::-webkit-scrollbar{display:none}
+.cs-pick .seg button{white-space:nowrap}
+.cs-chart svg{display:block;width:100%;height:auto;overflow:visible}
+.cs-chart .ax{stroke:var(--rule);stroke-width:1}
+.cs-chart .yl,.cs-chart .xl{fill:var(--ink-3);font-size:11px;font-family:var(--f-mono)}
+.cs-chart .avg{stroke:var(--stripe-ink);stroke-width:1.5;stroke-dasharray:5 4}
+.cs-chart .avgt{fill:var(--stripe-ink);font-size:11px;font-weight:700;font-family:var(--f-body)}
+.cs-chart .ln{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linejoin:round}
+.cs-chart .ar{fill:var(--spark-fill)}
+.cs-chart .pt{fill:var(--panel);stroke:var(--ink);stroke-width:2}
+.cs-chart .pt.hi{fill:var(--win);stroke:var(--win)} .cs-chart .pt.lo{fill:var(--loss);stroke:var(--loss)}
+.cs-chart .pv{fill:var(--ink);font-size:11px;font-weight:700;font-family:var(--f-mono);text-anchor:middle}
+.cs-chart .sdiv{stroke:var(--rule-2);stroke-dasharray:2 3}
+.cs-chart .slab{fill:var(--ink-3);font-size:10.5px;font-weight:700;letter-spacing:.06em}
+.cs-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.cs-tiles .mc{background:var(--panel-2);border-radius:8px;padding:7px 9px;min-width:0}
+.cs-tiles .k{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.cs-tiles .v{font-family:var(--f-display);font-weight:900;font-size:21px;line-height:1.1}
+.cs-tbl{max-height:280px;overflow:auto;border:1px solid var(--rule);border-radius:10px}
+.cs-tbl table.grid th{position:sticky;top:0;background:var(--panel);z-index:1}
+.cs-tbl td.sel,.cs-tbl th.sel{background:var(--stripe-bg);font-weight:700}
+@media (max-width:620px){
+  .chart-sheet{top:auto;bottom:0;left:0;transform:none;width:100%;max-height:94%;border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+  .cs-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cs-tiles .mc:nth-child(n+4){display:none}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -393,6 +456,8 @@ ul.plain li{margin:3px 0}
 
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
+<div class="scrim" id="cscrim" hidden></div>
+<div class="sheet chart-sheet" id="csheet" role="dialog" aria-modal="true" aria-labelledby="cs-title" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
@@ -452,6 +517,38 @@ function spark(series, o){
     `<polyline points="${pts.join(' ')}" class="spark-line"/><circle cx="${x(vals.length - 1).toFixed(1)}" cy="${y(vals[vals.length - 1]).toFixed(1)}" r="2.8" class="spark-end"/></svg>`;
 }
 function xLink(name){ return 'https://x.com/search?q=' + encodeURIComponent('"' + name + '" injury') + '&f=live'; }
+
+/* ---------- +/− steppers: phone keypads often have no minus or plus key ---------- */
+// kind: odds (American, steps of 5, skips -100..+100), spread (0.5, either sign), line (1, so .5 lines stay .5), units (0.25, min 0.25)
+function stepWrap(input, kind){
+  const flip = kind === 'odds' || kind === 'spread';
+  return `<span class="stp" data-kind="${kind}"><button type="button" class="stp-b" data-stp="-1" aria-label="Lower">−</button>${input}<button type="button" class="stp-b" data-stp="1" aria-label="Higher">+</button>${flip ? '<button type="button" class="stp-b stp-f" data-stp="flip" aria-label="Switch between plus and minus">+/−</button>' : ''}</span>`;
+}
+const numOf = v => { const t = String(v == null ? '' : v).trim().replace(/[−–]/g, '-').replace(/^\+/, ''); return t === '' || isNaN(t) ? null : Number(t); };
+function stepInput(btn){
+  const box = btn.closest('.stp'), inp = box && box.querySelector('input'); if (!inp) return;
+  const kind = box.dataset.kind, act = btn.dataset.stp, cur = numOf(inp.value);
+  let v;
+  if (kind === 'odds'){
+    let base = cur != null && Math.abs(cur) >= 100 ? cur : (numOf(inp.placeholder) ?? -110);
+    if (cur == null && Math.abs(base) >= 100) base = Math.round(base / 5) * 5;
+    if (act === 'flip') v = cur == null ? -Math.abs(base) : -cur;
+    else if (cur == null || Math.abs(cur) < 100) v = base;
+    else { v = cur + 5 * Number(act); if (cur < 0 && v > -100) v = 100; else if (cur > 0 && v < 100) v = -105; }
+    inp.value = v > 0 ? '+' + v : String(v);
+  } else {
+    const step = kind === 'units' ? 0.25 : kind === 'line' ? 1 : 0.5;
+    const base = cur != null ? cur : (inp.dataset.proj && !isNaN(inp.dataset.proj) ? Math.floor(Number(inp.dataset.proj)) + 0.5 : (numOf(inp.placeholder) ?? (kind === 'units' ? 1 : 0)));
+    if (act === 'flip') v = -(cur ?? base);
+    else if (cur == null) v = base;
+    else v = cur + step * Number(act);
+    if (kind === 'line') v = Math.max(0, v);
+    if (kind === 'units') v = Math.max(0.25, v);
+    inp.value = String(Math.round(v * 100) / 100);
+  }
+  inp.dispatchEvent(new Event('input', {bubbles: true}));
+  inp.dispatchEvent(new Event('change', {bubbles: true}));
+}
 
 /* ---------- header ---------- */
 $('#m-week').innerHTML = `<strong>Week ${WEEK}</strong> · ${D.meta.season} season`;
@@ -566,7 +663,8 @@ function gameCard(g){
   else if (g.live) flags.push(`<span class="pill loss"><span class="dot"></span>Live · ${esc(g.live.detail || '')}</span>`);
   if (g.neutral) flags.push('<span class="pill info">Neutral site</span>');
   if (g.qb_change.away || g.qb_change.home) flags.push('<span class="pill warn">QB change</span>');
-  return `<article class="game" id="g-${g.id}" data-id="${g.id}">
+  return `<article class="game${GOPEN.has(g.id) ? ' open' : ''}" id="g-${g.id}" data-id="${g.id}">
+    ${gameSummary(g)}
     <div class="g-head"><div><div class="g-when">${esc(kick(g.kickoff))}</div><div class="g-where">${esc(g.stadium || '')}</div></div><div class="g-flags">${flags.join('')}</div></div>
     <div class="g-body">
       <div>${teamRow(g, 'away')}${teamRow(g, 'home')}</div>
@@ -577,6 +675,27 @@ function gameCard(g){
     <button class="g-more" data-more="${g.id}" aria-expanded="false" aria-controls="d-${g.id}"><span>Injuries, player props, trends and results</span><span aria-hidden="true">＋</span></button>
     <div class="g-detail" id="d-${g.id}" hidden></div>
   </article>`;
+}
+/* one tappable two-line row per game on phones; tapping opens the full card underneath */
+const GOPEN = new Set();
+function gameSummary(g){
+  const a = g.away, h = g.home, m = g.model;
+  let right;
+  if (g.final || g.live){ const src = g.final ? g : g.live; right = `${src.away_score ?? 0}–${src.home_score ?? 0}`; }
+  else if (g.spread == null) right = '<span class="small">No line</span>';
+  else if (g.spread === 0) right = 'PK';
+  else { const fav = g.spread > 0 ? h : a; right = `${fav} ${fmtLine(-Math.abs(g.spread))}`; }
+  const bits = [];
+  if (g.final) bits.push('<b>Final</b>');
+  else if (g.live) bits.push(`<span class="lv">● ${esc(g.live.detail || 'Live')}</span>`);
+  else bits.push(esc(kick(g.kickoff, {timeZoneName: undefined})));
+  if (!g.final && m.pick_ats) bits.push(`<span class="pk2">Model: ${m.pick_ats} ${fmtLine(lineFor(g, m.pick_ats))}</span>`);
+  else if (!g.final) bits.push(`Model ${pct(m.wp_home >= .5 ? m.wp_home : 1 - m.wp_home)} ${m.wp_home >= .5 ? h : a}`);
+  if (g.qb_change.away || g.qb_change.home) bits.push('<span style="color:var(--warn);font-weight:700">QB change</span>');
+  if (FAV.has(a) || FAV.has(h)) bits.push('<span style="color:var(--stripe-ink)">★</span>');
+  return `<button class="g-sum" data-gsum="${g.id}" aria-expanded="${GOPEN.has(g.id)}" aria-label="${esc(T[a].nick + ' at ' + T[h].nick)}, show details">
+    <span class="r1"><span class="mu">${chip(a, 1)}<span class="rc">${rec(T[a].rec)}</span><span class="small">@</span>${chip(h, 1)}<span class="rc">${rec(T[h].rec)}</span></span><span class="rt">${right}</span></span>
+    <span class="r2">${bits.join('<span aria-hidden="true">·</span>')}<span class="chev" aria-hidden="true">${GOPEN.has(g.id) ? '▲' : '▼'}</span></span></button>`;
 }
 const DETAIL_TABS = [['inj', 'Injuries'], ['props', 'Player props'], ['trends', 'Trends'], ['stats', 'All stats'], ['log', 'Results']];
 function detailHtml(g, which){
@@ -664,10 +783,10 @@ function propRow(g, p){
   const td = p.proj.any_td != null ? ` · TD ${pct(p.proj.any_td)} (fair ${fairOdds(p.proj.any_td)})` : '';
   const pt = D.trends.player.filter(x => x.id === p.id && x.sticky).slice(0, 1).map(x => `<span class="pill ${x.tone === 'up' ? 'win' : 'loss'}">${esc(x.label)} ${x.tone === 'up' ? '▲' : '▼'} ${x.weeks} wks</span>`).join('');
   return `<div class="prow">
-    <div style="min-width:0"><div class="pn">${esc(p.name)} <span class="small">${p.pos}</span>${inj}${pt}</div><div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div></div>
+    <div style="min-width:0"><div class="pn"><span data-chart="p|${esc(p.id)}|${CH_DEFAULT_FROM_PROP[k0] || ''}" role="button" tabindex="0" title="Open ${esc(p.name)}'s game-by-game chart">${esc(p.name)}</span> <span class="small">${p.pos}</span>${inj}${pt}</div><div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div></div>
     <div><div class="proj num">${k0 ? p.proj[k0] : '–'}<small>${k0 ? PROP_LABEL[k0] : ''}</small></div><div class="ps">${keys[1] ? PROP_LABEL[keys[1]] + ' ' + p.proj[keys[1]] : ''}</div></div>
     <div class="c-avg"><div class="ps">${avgTxt}${td}</div>
-      <div class="oc c-line"><input type="number" step="0.5" inputmode="decimal" id="ln_${esc(p.id)}_${k0}" data-oc="${k0}" data-proj="${p.proj[k0]}" aria-label="${esc(p.name)} ${PROP_LABEL[k0]} line" placeholder="Line"><span class="out" id="oc_${esc(p.id)}_${k0}">Enter a line</span><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div></div>
+      <div class="oc c-line">${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" id="ln_${esc(p.id)}_${k0}" data-oc="${k0}" data-proj="${p.proj[k0]}" aria-label="${esc(p.name)} ${PROP_LABEL[k0]} line" placeholder="Line">`, 'line')}<span class="out" id="oc_${esc(p.id)}_${k0}">Enter a line</span><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div></div>
     <div class="c-pick"><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div>
   </div>`;
 }
@@ -741,7 +860,7 @@ function evMsg(p, fair, raw){
 function valueBox(key, p, fair){
   const raw = MY_ODDS[key] || '', m = evMsg(p, fair, raw);
   return `<div class="vchk"><span class="fair">Fair price <b>${fmtOdds(fair)}</b></span>
-    <label>Your odds <input type="text" autocomplete="off" spellcheck="false" placeholder="${p >= 0.5 ? '-300' : '+250'}" data-odds="${esc(key)}" data-p="${p}" data-fair="${fair}" value="${esc(raw)}"></label>
+    <span class="vlab">Your odds ${stepWrap(`<input type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${fmtOdds(fair).replace('−', '-')}" data-odds="${esc(key)}" data-p="${p}" data-fair="${fair}" value="${esc(raw)}" aria-label="Your sportsbook odds">`, 'odds')}</span>
     <span class="ev ${m.c}" data-ev="${esc(key)}" aria-live="polite">${esc(m.t)}</span></div>`;
 }
 const oddsFor = (key, fair) => parseOdds(MY_ODDS[key]) ?? fair;
@@ -900,9 +1019,9 @@ function carryHtml(c, kind){
 function teamTrendRow(t){
   const isBin = ['su', 'ats', 'ou'].includes(t.metric);
   const viz = isBin ? `<span class="res">${t.series.map(s => `<i class="${t.metric === 'ou' ? (s[1] ? 'O' : 'U') : (s[1] ? 'W' : 'L')}"></i>`).join('')}</span>` : `<span class="${t.tone}">${spark(t.series, {w: 92, h: 28})}</span>`;
-  return `<div class="tr"><div>${chip(t.team, 1)}</div>
+  return `<div class="tr" data-chart="t|${t.team}|${t.metric || ''}" role="button" tabindex="0" aria-label="Open chart: ${esc(t.team + ' ' + t.label)}"><div>${chip(t.team, 1)}</div>
     <div style="min-width:0"><div class="tt">${esc(t.label)}</div>${t.detail ? `<div class="td">${esc(t.detail)}</div>` : ''}<div class="tc">${carryHtml(t.carry)}</div></div>
-    <div class="side"><span class="wk">${t.weeks} WKS</span>${viz}</div></div>`;
+    <div class="side"><span class="wk">${t.weeks} WKS</span>${viz}<span class="go">Chart ›</span></div></div>`;
 }
 function fmtMetric(m, v){
   if (v == null) return '–';
@@ -912,11 +1031,11 @@ function fmtMetric(m, v){
 function playerTrendRow(p){
   const rec = p.recent.map(v => fmtMetric(p.metric, v)).join(' → ');
   const inj = p.inj && !['likely', 'ok'].includes(p.inj.level) ? ` <span class="pill lvl-${p.inj.level}">${esc(p.inj.outlook.split(',')[0])}</span>` : '';
-  return `<div class="tr"><div>${chip(p.team, 1)}</div>
+  return `<div class="tr" data-chart="p|${esc(p.id)}|${p.metric}" role="button" tabindex="0" aria-label="Open chart: ${esc(p.name + ' ' + p.label)}"><div>${chip(p.team, 1)}</div>
     <div style="min-width:0"><div class="tt">${esc(p.name)} <span class="small">${p.pos}</span>: ${esc(p.label.toLowerCase())} ${p.tone === 'up' ? 'up' : 'down'}${inj}</div>
     <div class="td">Last ${p.weeks}: ${rec} · usual ${fmtMetric(p.metric, p.usual)}</div>
     <div class="tc">${p.carry ? carryHtml(p.carry) : (p.sticky ? '<span class="carry sticky">Usage trend: roles tend to stick</span>' : '')}</div></div>
-    <div class="side"><span class="wk">${p.weeks} WKS</span><span class="${p.tone}">${spark(p.series, {w: 92, h: 28, base: p.usual})}</span></div></div>`;
+    <div class="side"><span class="wk">${p.weeks} WKS</span><span class="${p.tone}">${spark(p.series, {w: 92, h: 28, base: p.usual})}</span><span class="go">Chart ›</span></div></div>`;
 }
 let TF = Object.assign({team: 'all', kind: 'all', pteam: 'all', pos: 'all', dir: 'all', metric: 'all'}, store.get('tf', {}));
 let TSHOW = {team: 12, player: 12};
@@ -929,7 +1048,7 @@ function renderTrends(){
   const league = Object.keys(lw).map(k => {
     const x = lw[k], last = x.series[x.series.length - 1];
     const tr = D.trends.league.find(t => t.key === k);
-    return `<div class="lg ${onKeys.has(k) ? 'on' : ''}"><div class="label">${esc(x.label)}</div>
+    return `<div class="lg ${onKeys.has(k) ? 'on' : ''}" data-chart="l|${k}|${k}" role="button" tabindex="0" aria-label="Open chart: ${esc(x.label)}"><div class="label">${esc(x.label)}</div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><span class="v num">${last ? fmtL(k, last[1]) : '–'}</span>
       <span class="${tr ? tr.tone : ''}">${spark(x.series, {w: 110, h: 34, base: x.base})}</span></div>
       <div class="small">Week ${last ? last[0] : '–'} · normal ${fmtL(k, x.base)} (2021–25)</div>
@@ -965,6 +1084,148 @@ function renderTrends(){
   $('#tf-team').value = TF.team; $('#tf-kind').value = TF.kind; $('#tf-pteam').value = TF.pteam; $('#tf-pos').value = TF.pos; $('#tf-dir').value = TF.dir; $('#tf-metric').value = TF.metric;
   ['team', 'kind', 'pteam', 'pos', 'dir', 'metric'].forEach(k => $('#tf-' + k).addEventListener('change', e => { TF[k] = e.target.value; store.set('tf', TF); TSHOW = {team: 12, player: 12}; renderTrends(); }));
 }
+
+/* ======================================================================
+   TREND EXPLORER: tap a trend to see the game-by-game chart, switch the stat and the window
+   ====================================================================== */
+const LOGS = D.trends.logs || {pcols: [], players: {}, tcols: [], teams: {}};
+const rowObj = (cols, r) => { const o = {}; cols.forEach((c, i) => o[c] = r[i]); return o; };
+const PSTATS = {
+  tgt: ['Targets', r => r.tgt, 'n'], rec: ['Receptions', r => r.rec, 'n'], recy: ['Receiving yards', r => r.recy, 'n'],
+  ts: ['Target share', r => r.ts, 'pct'], ays: ['Air yards share', r => r.ays, 'pct'], snap: ['Snap share', r => r.snap, 'pct'],
+  catch: ['Catch rate', r => r.tgt ? r.rec / r.tgt : null, 'pct'], ypr: ['Yards per catch', r => r.rec ? r.recy / r.rec : null, 'd1'],
+  car: ['Carries', r => r.car, 'n'], ry: ['Rushing yards', r => r.ry, 'n'], ypc: ['Yards per carry', r => r.car ? r.ry / r.car : null, 'd1'],
+  rr: ['Rush + rec yards', r => r.ry + r.recy, 'n'], td: ['Touchdowns', r => r.rtd + r.rectd, 'n'],
+  py: ['Passing yards', r => r.py, 'n'], att: ['Pass attempts', r => r.att, 'n'], cmp: ['Completions', r => r.cmp, 'n'],
+  cpct: ['Completion %', r => r.att ? r.cmp / r.att : null, 'pct'], ptd: ['Passing TDs', r => r.ptd, 'n'], int: ['Interceptions', r => r.int, 'n']};
+const PSTAT_BY_POS = {QB: ['py', 'att', 'cmp', 'cpct', 'ptd', 'int', 'ry', 'car'], RB: ['car', 'ry', 'ypc', 'tgt', 'rec', 'recy', 'rr', 'ts', 'snap', 'td'],
+  WR: ['rec', 'tgt', 'recy', 'ts', 'ays', 'snap', 'catch', 'ypr', 'td'], TE: ['rec', 'tgt', 'recy', 'ts', 'ays', 'snap', 'catch', 'ypr', 'td']};
+const TSTATS = {
+  pf: ['Points scored', r => r.pf, 'n'], pa: ['Points allowed', r => r.pa, 'n'], mg: ['Point margin', r => r.pf - r.pa, 's0'],
+  cov: ['Margin vs. the spread', r => r.line == null ? null : r.pf - r.pa - r.line, 's1'], tot: ['Total points vs. the line', r => r.tl == null ? null : r.pf + r.pa - r.tl, 's1'],
+  oe: ['Offense EPA per play', r => r.oe, 's2'], de: ['Defense EPA allowed', r => r.de, 's2'], osr: ['Success rate', r => r.osr, 'pct'], dsr: ['Success rate allowed', r => r.dsr, 'pct'],
+  ope: ['Pass EPA per dropback', r => r.ope, 's2'], ore: ['Rush EPA per carry', r => r.ore, 's2'], oy: ['Yards gained', r => r.oy, 'n'], dy: ['Yards allowed', r => r.dy, 'n']};
+const TREND2P = {targets: 'tgt', target_share: 'ts', receiving_yards: 'recy', carries: 'car', rushing_yards: 'ry', passing_yards: 'py', snap: 'snap'};
+const TREND2T = {su: 'mg', ats: 'cov', ou: 'tot', off_epa: 'oe', def_epa: 'de', pts: 'pf', opp_pts: 'pa'};
+const CH_DEFAULT_FROM_PROP = {pass_yds: 'py', rush_yds: 'ry', rec_yds: 'recy', receptions: 'rec'};
+const WINDOWS = [['l4', 'Last 4'], ['l8', 'Last 8'], ['season', 'This season'], ['all', 'Since last season']];
+let CH = null;
+function fmtV(f, v){
+  if (v == null || isNaN(v)) return '–';
+  if (f === 'pct') return (v * 100).toFixed(0) + '%';
+  if (f === 'd1') return v.toFixed(1);
+  if (f === 's0') return sign(v, 0); if (f === 's1') return sign(v, 1); if (f === 's2') return sign(v, 2);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+function chartSource(){
+  const SEASON = D.meta.season;
+  if (CH.kind === 'p'){
+    const P = LOGS.players[CH.id]; if (!P) return null;
+    const keys = PSTAT_BY_POS[P.p] || PSTAT_BY_POS.WR;
+    return {title: P.n, sub: `${P.p} · ${T[P.t] ? T[P.t].city + ' ' + T[P.t].nick : P.t}`, team: P.t, keys, defs: PSTATS, rows: P.rows.map(r => rowObj(LOGS.pcols, r)), season: SEASON};
+  }
+  if (CH.kind === 't'){
+    const L = LOGS.teams[CH.id]; if (!L) return null;
+    return {title: T[CH.id].city + ' ' + T[CH.id].nick, sub: `${rec(T[CH.id].rec)} · ATS ${ats(T[CH.id].ats)} · O/U ${ouR(T[CH.id].ou)}`, team: CH.id, keys: Object.keys(TSTATS), defs: TSTATS, rows: L.map(r => rowObj(LOGS.tcols, r)), season: SEASON};
+  }
+  const lw = D.trends.league_weekly, defs = {};
+  Object.keys(lw).forEach(k => { const f = lw[k].fmt; defs[k] = [lw[k].label, r => r[k], f === 'pts' ? 'd1' : f === 'pct' ? 'pct' : f === 'pp' ? 's1' : 's2']; });
+  const weeks = [...new Set(Object.values(lw).flatMap(x => x.series.map(s => s[0])))].sort((a, b) => a - b);
+  const rows = weeks.map(w => { const o = {s: SEASON, wk: w, opp: null}; Object.keys(lw).forEach(k => { const s = lw[k].series.find(z => z[0] === w); o[k] = s ? s[1] : null; }); return o; });
+  return {title: 'Whole league', sub: 'Every game each week, compared with 2021–25', keys: Object.keys(lw), defs, rows, season: SEASON, base: k => lw[k].base, league: true};
+}
+function openChart(spec){
+  const [kind, id, metric] = spec.split('|');
+  CH = {kind, id, stat: null, win: store.get('cwin', 'season')};
+  const src = chartSource(); if (!src){ toast('No game-by-game data for this one yet'); CH = null; return; }
+  CH.stat = kind === 'p' ? (TREND2P[metric] || CH_DEFAULT_FROM_PROP[metric] || metric) : kind === 't' ? (TREND2T[metric] || 'mg') : metric;
+  if (!src.keys.includes(CH.stat)) CH.stat = src.keys[0];
+  $('#cscrim').hidden = false; $('#csheet').hidden = false; document.body.style.overflow = 'hidden';
+  renderChart();
+  setTimeout(() => { const b = $('#cs-close'); if (b) b.focus(); }, 0);
+}
+function closeChart(){ $('#cscrim').hidden = true; $('#csheet').hidden = true; document.body.style.overflow = ''; CH = null; }
+function chartSvg(pts, f, base, seasonNow){
+  const box = $('#csheet'), W = Math.round(Math.max(320, Math.min(680, (box && box.clientWidth ? box.clientWidth - 30 : 680)))), H = W < 500 ? 220 : 250, L = 40, R = 12, TOP = 24, B = 34;
+  const vals = pts.map(p => p.v);
+  let lo = Math.min.apply(null, vals.concat(base != null ? [base] : [])), hi = Math.max.apply(null, vals.concat(base != null ? [base] : []));
+  if (['n', 'd1', 'pct'].includes(f) && lo >= 0) lo = 0;
+  if (hi === lo){ hi += 1; lo -= f === 'n' && lo === 0 ? 0 : 1; }
+  const padv = (hi - lo) * 0.08; hi += padv; if (lo < 0 || !['n', 'd1', 'pct'].includes(f)) lo -= padv;
+  const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
+  const y = v => TOP + (hi - v) * (H - TOP - B) / (hi - lo);
+  const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), nice = [1, 2, 2.5, 5, 10].map(m => m * mag).find(m => m >= raw) || raw;
+  const step = f === 'n' ? Math.max(1, Math.round(nice)) : nice;
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const ticks = []; for (let t = lo; t <= hi + step / 2; t += step) ticks.push(Math.round(t * 1e6) / 1e6);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart">`;
+  ticks.forEach(t => { s += `<line class="ax" x1="${L}" x2="${W - R}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/><text class="yl" x="${L - 6}" y="${(y(t) + 4).toFixed(1)}" text-anchor="end">${fmtV(f === 'n' ? 'd1' : f, t).replace(/\.0$/, '')}</text>`; });
+  // season divider
+  const firstNow = pts.findIndex(p => p.s === seasonNow);
+  if (firstNow > 0){ const xd = (x(firstNow - 1) + x(firstNow)) / 2; s += `<line class="sdiv" x1="${xd}" x2="${xd}" y1="${TOP - 14}" y2="${H - B}"/><text class="slab" x="${xd - 6}" y="${TOP - 8}" text-anchor="end">${seasonNow - 1}</text><text class="slab" x="${xd + 6}" y="${TOP - 8}">${seasonNow}</text>`; }
+  if (base != null) s += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
+  const line = pts.map((p, i) => x(i).toFixed(1) + ',' + y(p.v).toFixed(1));
+  if (pts.length > 1) s += `<path class="ar" d="M${x(0).toFixed(1)},${y(Math.max(lo, 0 > lo && 0 < hi ? 0 : lo)).toFixed(1)} L${line.join(' L')} L${x(pts.length - 1).toFixed(1)},${y(Math.max(lo, 0 > lo && 0 < hi ? 0 : lo)).toFixed(1)} Z"/><polyline class="ln" points="${line.join(' ')}"/>`;
+  const every = Math.max(1, Math.ceil(pts.length / (W < 500 ? 6 : 11)));
+  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+  pts.forEach((p, i) => {
+    const cls = pts.length > 2 && p.v === mx ? 'hi' : pts.length > 2 && p.v === mn ? 'lo' : '';
+    s += `<circle class="pt ${cls}" cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${pts.length > 20 ? 3.5 : 5}"><title>${esc(p.label + (p.opp ? ' vs ' + p.opp : '') + ': ' + fmtV(f, p.v))}</title></circle>`;
+    if (pts.length <= (W < 500 ? 8 : 12)) s += `<text class="pv" x="${x(i).toFixed(1)}" y="${(y(p.v) - 10).toFixed(1)}">${fmtV(f, p.v)}</text>`;
+    if (i % every === 0 || i === pts.length - 1) s += `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 16}" text-anchor="middle">${p.short}</text>${p.opp && pts.length <= (W < 500 ? 6 : 10) ? `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 29}" text-anchor="middle">${p.opp}</text>` : ''}`;
+  });
+  return s + '</svg>';
+}
+function renderChart(){
+  const src = chartSource(); if (!src) return;
+  const [label, fn, f] = src.defs[CH.stat];
+  let rows = src.rows.slice();
+  if (CH.win === 'season' || src.league) rows = rows.filter(r => r.s === src.season);
+  if (CH.win === 'l4') rows = rows.slice(-4); else if (CH.win === 'l8') rows = rows.slice(-8);
+  const pts = rows.map(r => ({v: fn(r), s: r.s, opp: r.opp, label: (r.s !== src.season ? r.s + ' ' : '') + 'Week ' + r.wk,
+    short: (r.s !== src.season ? "'" + String(r.s).slice(2) + ' ' : '') + 'W' + r.wk})).filter(p => p.v != null && !isNaN(p.v));
+  const avg = pts.length ? pts.reduce((a, p) => a + p.v, 0) / pts.length : null;
+  const base = src.league ? src.base(CH.stat) : (CH.kind === 't' && ['cov', 'tot', 'mg'].includes(CH.stat) ? 0 : avg);
+  const baseTxt = src.league ? 'normal (2021–25)' : base === 0 && CH.kind === 't' ? (CH.stat === 'mg' ? 'even' : 'the line') : 'average';
+  const last = pts[pts.length - 1], hiP = pts.reduce((a, p) => !a || p.v > a.v ? p : a, null), loP = pts.reduce((a, p) => !a || p.v < a.v ? p : a, null);
+  const wins = src.league ? [['l4', 'Last 4'], ['season', 'This season']] : WINDOWS;
+  if (src.league && !['l4', 'season'].includes(CH.win)) CH.win = 'season';
+  // the data table: newest first, the selected stat highlighted, other stats for context
+  const cols = src.keys.slice(0, src.league ? src.keys.length : 6); if (!cols.includes(CH.stat)) cols.push(CH.stat);
+  const tbl = rows.slice().reverse().map(r => `<tr><td>${r.s !== src.season ? r.s + ' ' : ''}Wk ${r.wk}</td>${src.league ? '' : `<td>${r.opp ? chip(r.opp, 1) : ''}</td>`}${cols.map(k => `<td class="r num ${k === CH.stat ? 'sel' : ''}">${fmtV(src.defs[k][2], src.defs[k][1](r))}</td>`).join('')}</tr>`).join('');
+  const note = CH.kind === 'p' && CH.stat === 'snap' ? 'Snap share is only available for this season.' : CH.kind === 't' && CH.stat === 'cov' ? 'Above zero means they covered the spread by that many points.' :
+    CH.kind === 't' && CH.stat === 'tot' ? 'Above zero means the game went over the total by that many points.' : '';
+  $('#csheet').innerHTML = `
+    <div class="cs-head"><div style="display:flex;gap:10px;align-items:center;min-width:0">${src.team ? chip(src.team) : ''}<div style="min-width:0"><h2 class="h3" id="cs-title">${esc(src.title)}</h2><div class="cs-sub">${esc(src.sub)}</div></div></div>
+      <button class="btn tiny" id="cs-close" data-cclose="">Close</button></div>
+    <div class="cs-pick"><div class="label">Stat</div><div class="seg" role="group" aria-label="Stat">${src.keys.map(k => `<button data-cstat="${k}" aria-pressed="${k === CH.stat}">${esc(src.defs[k][0])}</button>`).join('')}</div>
+      <div class="label">Timeline</div><div class="seg" role="group" aria-label="Timeline">${wins.map(([k, l]) => `<button data-cwin="${k}" aria-pressed="${k === CH.win}">${l}</button>`).join('')}</div></div>
+    <div><div class="h3" style="font-size:16px">${esc(label)} <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:500">· dashed line = ${baseTxt}${base != null ? ' ' + fmtV(f, base) : ''}</span></div>
+      <div class="cs-chart">${pts.length ? chartSvg(pts, f, base, src.season) : '<div class="empty">No games with this stat in this window.</div>'}</div>
+      ${note ? `<div class="note">${note}</div>` : ''}</div>
+    <div class="cs-tiles">
+      <div class="mc"><div class="k">${src.league ? 'Weekly avg' : 'Average'}</div><div class="v">${fmtV(f, avg)}</div></div>
+      <div class="mc"><div class="k">Last</div><div class="v">${last ? fmtV(f, last.v) : '–'}</div></div>
+      <div class="mc"><div class="k">Games</div><div class="v">${pts.length}</div></div>
+      <div class="mc"><div class="k">High</div><div class="v">${hiP ? fmtV(f, hiP.v) : '–'}</div></div>
+      <div class="mc"><div class="k">Low</div><div class="v">${loP ? fmtV(f, loP.v) : '–'}</div></div></div>
+    <div class="cs-tbl"><table class="grid tight"><thead><tr><th>${src.league ? 'Week' : 'Game'}</th>${src.league ? '' : '<th>Opp</th>'}${cols.map(k => `<th class="r ${k === CH.stat ? 'sel' : ''}">${esc(src.defs[k][0])}</th>`).join('')}</tr></thead><tbody>${tbl}</tbody></table></div>`;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-chart]'); if (c && !e.target.closest('button:not([data-chart]), a, input, select, label')){ openChart(c.dataset.chart); return; }
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.classList.contains('stp-b')){ stepInput(b); return; }
+  if (!CH) return;
+  if (b.dataset.cstat){ CH.stat = b.dataset.cstat; renderChart(); return; }
+  if (b.dataset.cwin){ CH.win = b.dataset.cwin; store.set('cwin', CH.win); renderChart(); return; }
+  if (b.hasAttribute('data-cclose')) closeChart();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && CH){ closeChart(); return; }
+  const c = e.target.closest && e.target.closest('[data-chart]');
+  if (c && (e.key === 'Enter' || e.key === ' ') && e.target === c){ e.preventDefault(); openChart(c.dataset.chart); }
+});
+$('#cscrim').addEventListener('click', closeChart);
 
 /* ======================================================================
    PICKS
@@ -1165,9 +1426,9 @@ function renderSheet(){
       ${def.cat === 'Player' ? `<div class="f full"><label for="pk-player">Player</label><select id="pk-player"><option value="">Choose a player</option>${pl.map(p => `<option value="${esc(p.id)}" ${p.id === d.player ? 'selected' : ''}>${esc(p.t)} · ${esc(p.n)} (${esc(p.p)})</option>`).join('')}</select></div>` : ''}
       ${needsTeam ? `<div class="f"><label for="pk-team">Team</label><select id="pk-team"><option value="${g.a}" ${d.team === g.a ? 'selected' : ''}>${g.a}</option><option value="${g.h}" ${d.team === g.h ? 'selected' : ''}>${g.h}</option></select></div>` : ''}
       ${needsSide ? `<div class="f"><label for="pk-side">Side</label><select id="pk-side"><option value="O" ${d.side === 'O' ? 'selected' : ''}>Over</option><option value="U" ${d.side === 'U' ? 'selected' : ''}>Under</option></select></div>` : ''}
-      ${needsLine ? `<div class="f"><label for="pk-line">${d.type === 'spread' ? 'Spread (your team)' : 'Line'}</label><input id="pk-line" type="number" step="0.5" inputmode="decimal" value="${esc(d.line)}" placeholder="${d.type === 'spread' ? '-2.5' : '64.5'}"></div>` : ''}
-      <div class="f"><label for="pk-odds">Odds</label><input id="pk-odds" type="number" step="1" inputmode="numeric" value="${esc(d.odds)}"></div>
-      <div class="f"><label for="pk-units">Units</label><input id="pk-units" type="number" step="0.25" min="0.25" inputmode="decimal" value="${esc(d.units)}"></div>
+      ${needsLine ? `<div class="f stpf"><label for="pk-line">${d.type === 'spread' ? 'Spread (your team)' : 'Line'}</label>${stepWrap(`<input id="pk-line" type="text" inputmode="decimal" autocomplete="off" value="${esc(d.line)}" placeholder="${d.type === 'spread' ? '-2.5' : '64.5'}">`, d.type === 'spread' ? 'spread' : 'line')}</div>` : ''}
+      <div class="f stpf"><label for="pk-odds">Odds</label>${stepWrap(`<input id="pk-odds" type="text" inputmode="numeric" autocomplete="off" value="${esc(d.odds === '' || d.odds == null ? '' : fmtOdds(Number(d.odds)).replace('−', '-'))}" placeholder="-110">`, 'odds')}</div>
+      <div class="f"><label for="pk-units">Units</label>${stepWrap(`<input id="pk-units" type="text" inputmode="decimal" autocomplete="off" value="${esc(d.units)}">`, 'units')}</div>
       <div class="f full"><label for="pk-note">${['parlay', 'teaser'].includes(d.type) ? 'Legs' : 'Note (optional)'}</label><input id="pk-note" type="text" value="${esc(d.note)}" placeholder="${d.type === 'parlay' ? 'e.g. MIN ML + Jefferson o64.5 + BUF -3' : ''}"></div>
       <div class="f full"><div class="hint" id="pk-hint">${def.cat === 'Other' ? 'You mark parlays and other bets as won or lost yourself.' : 'Grades automatically from the final score or box score.'}</div></div>
     </form>
@@ -1179,7 +1440,7 @@ function renderSheet(){
     if (key === 'type' && draft.type === 'total'){ const gg = D.grade.games[draft.game]; if (gg && gg.tl != null) draft.line = gg.tl; }
     if (['week', 'game', 'type', 'team'].includes(key)) renderSheet(); }); };
   bind('pk-week', 'week', true); bind('pk-game', 'game'); bind('pk-type', 'type'); bind('pk-player', 'player'); bind('pk-team', 'team'); bind('pk-side', 'side');
-  ['pk-line', 'pk-odds', 'pk-units', 'pk-note'].forEach(id => { const el = $('#' + id); if (el) el.addEventListener('input', e => { const k = id.slice(3); draft[k] = k === 'note' ? e.target.value : (e.target.value === '' ? '' : Number(e.target.value)); }); });
+  ['pk-line', 'pk-odds', 'pk-units', 'pk-note'].forEach(id => { const el = $('#' + id); if (el) el.addEventListener('input', e => { const k = id.slice(3); const n = numOf(e.target.value); draft[k] = k === 'note' ? e.target.value : (e.target.value.trim() === '' ? '' : (n == null ? NaN : n)); }); });
   $('#pk-close').addEventListener('click', closePick);
   $('#pk-save').addEventListener('click', savePick);
   $('#pk-form').addEventListener('submit', e => { e.preventDefault(); savePick(); });
@@ -1319,6 +1580,12 @@ function renderTeams(){
    ====================================================================== */
 document.addEventListener('click', async e => {
   const t = e.target.closest('button, a'); if (!t) return;
+  if (t.dataset.gsum){
+    const id = t.dataset.gsum, art = $('#g-' + id), open = !GOPEN.has(id);
+    open ? GOPEN.add(id) : GOPEN.delete(id); art.classList.toggle('open', open);
+    t.setAttribute('aria-expanded', String(open)); const ch = $('.chev', t); if (ch) ch.textContent = open ? '▲' : '▼';
+    return;
+  }
   if (t.dataset.wf){ weekFilter = t.dataset.wf; store.set('wf', weekFilter); renderWeek(); return; }
   if (t.dataset.fav){ const k = t.dataset.fav; FAV.has(k) ? FAV.delete(k) : FAV.add(k); store.set('fav', [...FAV]); $$(`[data-fav="${k}"]`).forEach(b => b.setAttribute('aria-pressed', String(FAV.has(k)))); if (!$('#v-week').hidden) renderWeek(); return; }
   if (t.dataset.more){
@@ -1329,7 +1596,7 @@ document.addEventListener('click', async e => {
   }
   if (t.dataset.dtab){ const g = D.games.find(x => x.id === t.dataset.g); $('#d-' + g.id).innerHTML = detailHtml(g, t.dataset.dtab); return; }
   if (t.dataset.injall){ const k = t.dataset.injall; injShowAll[k] = !injShowAll[k]; const det = t.closest('.g-detail'); const g = D.games.find(x => x.id === det.id.slice(2)); det.innerHTML = detailHtml(g, 'inj'); return; }
-  if (t.dataset.jump){ e.preventDefault(); weekFilter = 'all'; renderWeek(); const el = $('#g-' + t.dataset.jump); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
+  if (t.dataset.jump){ e.preventDefault(); weekFilter = 'all'; GOPEN.add(t.dataset.jump); renderWeek(); const el = $('#g-' + t.dataset.jump); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
   if (t.dataset.goto){ e.preventDefault(); show(t.dataset.goto); return; }
   if (t.dataset.tmore){ TSHOW[t.dataset.tmore] += 20; const y = window.scrollY; renderTrends(); window.scrollTo({top: y}); return; }
   if (t.hasAttribute('data-addpick')){ openPick(); return; }

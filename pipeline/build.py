@@ -1357,6 +1357,35 @@ for gid_, (fid_, fname_, _) in FIRST_TD.items():
         results[gid_]['ftd'] = fid_; results[gid_]['ftdn'] = fname_
 last_stats_date = (str(S[S.game_id.isin(p26.game_id)].gameday.max()) if len(p26) else None)
 
+# ------------------------------------------------------------------ chart data for the trend explorer
+# compact weekly logs: last season + this season, for every trend and prop player, and every team
+CHART_COLS = ['s', 'wk', 'opp', 'tgt', 'rec', 'recy', 'rectd', 'car', 'ry', 'rtd', 'att', 'cmp', 'py', 'ptd', 'int', 'ts', 'ays', 'snap']
+chart_ids = {p_['id'] for p_ in player_trends[:80]} | {p_['id'] for gm in games for p_ in gm['props']}
+snap_map = {(r.gsis_id, int(r.week)): float(r.offense_pct) for r in snap26.itertuples() if isinstance(r.gsis_id, str)}
+player_logs = {}
+for src in (p25, p26):
+    d_ = src[src.player_id.isin(chart_ids) & (src.season_type == 'REG')].sort_values(['season', 'week'])
+    for r in d_.itertuples():
+        e = player_logs.setdefault(r.player_id, {'n': r.player_display_name, 'p': r.position, 't': r.team, 'rows': []})
+        e['n'], e['p'], e['t'] = r.player_display_name, r.position, r.team
+        f0 = lambda v: 0 if pd.isna(v) else int(v)
+        f3 = lambda v: None if pd.isna(v) else round(float(v), 3)
+        e['rows'].append([int(r.season), int(r.week), r.opponent_team, f0(r.targets), f0(r.receptions), f0(r.receiving_yards), f0(r.receiving_tds),
+                          f0(r.carries), f0(r.rushing_yards), f0(r.rushing_tds), f0(r.attempts), f0(r.completions), f0(r.passing_yards),
+                          f0(r.passing_tds), f0(r.passing_interceptions), f3(r.target_share), f3(r.air_yards_share),
+                          (round(snap_map[(r.player_id, int(r.week))], 2) if int(r.season) == SEASON and (r.player_id, int(r.week)) in snap_map else None)])
+TEAM_COLS = ['s', 'wk', 'opp', 'pf', 'pa', 'oe', 'de', 'osr', 'dsr', 'ope', 'ore', 'oy', 'dy', 'line', 'tl']
+team_logs = {}
+_sched_reg = sched[(sched.season.isin([SEASON - 1, SEASON])) & (sched.game_type == 'REG')].set_index('game_id')
+for r in m_all[m_all.season.isin([SEASON - 1, SEASON])].sort_values(['season', 'week']).itertuples():
+    g_ = _sched_reg.loc[r.game_id] if r.game_id in _sched_reg.index else None
+    sp_ = None if g_ is None or pd.isna(g_.spread_line) else float(g_.spread_line) * (1 if r.home else -1)  # + = this team favored
+    tl_ = None if g_ is None or pd.isna(g_.total_line) else float(g_.total_line)
+    f3 = lambda v: None if pd.isna(v) else round(float(v), 3)
+    team_logs.setdefault(r.team, []).append([int(r.season), int(r.week), r.opp, int(r.pf), int(r.pa), f3(r.o_epa_play), f3(r.d_epa_play),
+                                             f3(r.o_success), f3(r.d_success), f3(r.o_pass_epa), f3(r.o_rush_epa), f3(r.o_ypg), f3(r.d_ypg), sp_, tl_])
+print('chart logs:', len(player_logs), 'players,', len(team_logs), 'teams')
+
 research = {'team': R['research'], 'market_r': R['market_r'], 'market_su_acc': R['market_su_acc'], 'n_games': R['n_games'],
             'margin_coef': R['margin_coef'], 'ats_backtest': R['ats_backtest'], 'ou_backtest': R['ou_backtest'], 'ml_backtest': R['ml_backtest'],
             'player': {k: {'predictors': v['predictors'], 'mae_model': v['mae_model'], 'mae_season_avg': v['mae_season_avg'],
@@ -1372,7 +1401,8 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
                              'ESPN injury status and expected return dates', 'ESPN scoreboard for live and final scores'],
                  'resid_sd': RESID, 'qb_mean': QB_MEAN},
         'teams': teams, 'games': games, 'injuries': injuries, 'stat_labels': STAT_LABEL,
-        'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80]},
+        'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80],
+                   'logs': {'pcols': CHART_COLS, 'players': player_logs, 'tcols': TEAM_COLS, 'teams': team_logs}},
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
         'long_shots': long_shots,
         'grade': {'players': grade_players, 'games': results}}
