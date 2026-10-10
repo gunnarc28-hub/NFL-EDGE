@@ -12,3 +12,6 @@ nflverse files in `raw/` and an empty `work/` folder.
    rest and travel, pressure), key numbers, teasers, and the current model's weights (`model_v2.json`).
 7. `08_high_chance.py` – outcome distributions for player milestones (2018–2025) and the 2024–25 check that picks rated
    80%+ hit about as often as promised (`prop_dist.json`, `high_chance_research.json`).
+8. `09_long_shots.py` – touchdown model (anytime, 2+, first scorer) and 100/300-yard chances, each tested season by
+   season on 2021–2025 with only earlier data, plus a replay of the weekly long-shot picks (`longshot_model.json`,
+   `longshot_research.json`).

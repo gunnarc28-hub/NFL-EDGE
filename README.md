@@ -1,7 +1,8 @@
 # NFL Edge
 
 NFL matchups with season and last-4 records, injury outlooks, trends that have lasted 2+ weeks, player prop
-projections, and a pick tracker that grades itself.
+projections, high-chance picks, plus-money long shots (anytime and first touchdown scorers, 2+ TDs, 100- and 300-yard
+games) with a check of your sportsbook's price, and a pick tracker that grades itself.
 
 **How it stays current:** a GitHub Action (`.github/workflows/update.yml`) runs every 30 minutes from August
 through February. It downloads the latest public data, rebuilds `site/data/data.json`, and redeploys the site.

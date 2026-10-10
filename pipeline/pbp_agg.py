@@ -125,3 +125,15 @@ def qb_frames(year, path):
                                                      week=('week', 'first')).reset_index()
     q['season'] = year
     return q
+
+
+def first_tds(path):
+    """First touchdown of each regular-season game in the file: scorer id, short name and team ('' when nobody scored)."""
+    p = pd.read_csv(path, usecols=['game_id', 'season_type', 'play_id', 'touchdown', 'td_player_id', 'td_player_name', 'td_team'], low_memory=False)
+    p = p[p.season_type == 'REG']
+    first = p[(p.touchdown == 1) & p.td_team.notna()].sort_values(['game_id', 'play_id']).groupby('game_id').head(1).set_index('game_id')
+    out = pd.DataFrame({'game_id': p.game_id.unique()})
+    out['first_td'] = out.game_id.map(first.td_player_id).fillna('')
+    out['first_td_name'] = out.game_id.map(first.td_player_name).fillna('')
+    out['first_td_team'] = out.game_id.map(first.td_team).fillna('')
+    return out
