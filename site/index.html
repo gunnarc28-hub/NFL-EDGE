@@ -16,7 +16,7 @@ img{max-width:100%}
 /* Layout: broadcast score bar in turf green with the yellow first-down stripe under it; white stat sheets below.
    Game cards sit in a two-up grid that stacks to one column on phones. The yellow stripe marks the betting line and model picks. */
 :root{
-  --bg:#EDF0EB; --panel:#FFFFFF; --panel-2:#F4F6F2; --ink:#111513; --ink-2:#46504A; --ink-3:#6E7A73;
+  --bg:#EDF0EB; --panel:#FFFFFF; --panel-2:#F4F6F2; --ink:#111513; --ink-2:#424C46; --ink-3:#616D66;
   --rule:#D8DED8; --rule-2:#BFC8C1;
   --turf:#17462F; --turf-2:#21583C; --on-turf:#F4F7F2; --on-turf-2:#BCD0C2;
   --stripe:#F4C400; --stripe-ink:#6A5500; --on-stripe:#161300; --stripe-bg:#FFF5C7;
@@ -75,6 +75,18 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .tabs::-webkit-scrollbar{display:none}
 .tab{appearance:none;background:none;border:0;cursor:pointer;color:var(--on-turf-2);font-family:var(--f-display);font-weight:800;
   font-size:18px;letter-spacing:.03em;text-transform:uppercase;padding:8px 10px 10px;white-space:nowrap;border-bottom:4px solid transparent;margin-bottom:-4px}
+@media (max-width:620px){
+  .bar-in{padding-block:8px 0;gap:2px}
+  .brand{font-size:24px}
+  .brand-row{align-items:center}
+  .brand-meta{gap:8px;font-size:11.5px}
+  .brand-meta #m-week{display:none}
+  .tabs{flex-wrap:wrap;gap:0 2px;overflow:visible;margin-bottom:2px}
+  .tab{font-size:14.5px;padding:5px 6px 5px;border-bottom-width:3px;margin-bottom:0;letter-spacing:.02em}
+  .xs-hide{display:none}
+  .tab[aria-selected="true"]{border-bottom-color:var(--stripe)}
+  .h2{font-size:23px}
+}
 .tab:hover{color:var(--on-turf)}
 .tab[aria-selected="true"]{color:var(--on-turf);border-bottom-color:var(--on-turf)}
 .tab .cnt{font-family:var(--f-mono);font-size:11px;font-weight:600;vertical-align:3px;margin-left:4px;color:var(--stripe)}
@@ -85,7 +97,7 @@ main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:22px 64px}
 .h2{font-family:var(--f-display);font-weight:800;font-size:26px;letter-spacing:.01em;text-transform:uppercase;line-height:1}
 .h3{font-family:var(--f-display);font-weight:800;font-size:19px;letter-spacing:.02em;text-transform:uppercase;line-height:1.1}
 .lede{color:var(--ink-2);max-width:68ch;margin:6px 0 0}
-.small{font-size:12.5px;color:var(--ink-3)}
+.small{font-size:13px;color:var(--ink-3)}
 .label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 
 /* ---------- chips, pills ---------- */
@@ -158,6 +170,31 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--info);outline-of
 .wp-mkt{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;background:var(--stripe);border-radius:1px;box-shadow:0 0 0 1px var(--panel)}
 .model-line{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
 .model-line b{color:var(--ink)}
+.mrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.mrow .mc{background:var(--panel-2);border-radius:8px;padding:7px 9px;min-width:0}
+.mrow .mc .k{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.mrow .mc .v{font-family:var(--f-display);font-weight:900;font-size:21px;line-height:1.1;margin-top:2px;white-space:nowrap}
+.mrow .mc .s{font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .mc.pick{background:var(--stripe-bg);box-shadow:inset 0 0 0 1.5px var(--stripe)}
+.mrow .mc.pick .k{color:var(--stripe-ink)}
+.mrow .mc.won{background:var(--win-bg)} .mrow .mc.won .k{color:var(--win)}
+.mrow .mc.lost{background:var(--loss-bg)} .mrow .mc.lost .k{color:var(--loss)}
+@media (max-width:620px){ .mrow{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.edges{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.edge{background:var(--panel);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0;border-top:4px solid var(--stripe)}
+.edge .big{font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1.05}
+.edge .d{font-size:13px;color:var(--ink-2)}
+.edge a{font-size:13px;font-weight:600;text-decoration:none;margin-top:2px}
+@media (max-width:620px){
+  .edges{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;margin-inline:-16px;padding:2px 16px 6px;scrollbar-width:none}
+  .edges::-webkit-scrollbar{display:none}
+  .edge{flex:0 0 80%;scroll-snap-align:start}
+  .edge .big{font-size:22px}
+}
+.absent{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-2);margin:4px 0 6px}
+.absent .pill{font-weight:600}
+.prow .c-line .btn{white-space:nowrap}
+.more{align-self:center}
 .pick-chip{display:inline-flex;align-items:center;gap:8px;background:var(--stripe);color:var(--on-stripe);border-radius:6px;padding:5px 9px;
   font-weight:700;font-size:13px}
 .pick-chip .k{font-family:var(--f-display);font-weight:900;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
@@ -174,6 +211,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--info);outline-of
 .tape .v{color:var(--ink-3);font-size:12px;margin-right:4px}
 
 .g-chips{display:flex;flex-wrap:wrap;gap:6px}
+.g-chips .pill{white-space:normal;line-height:1.25}
 .g-more{appearance:none;border:0;border-top:1px solid var(--rule);background:var(--panel-2);cursor:pointer;width:100%;padding:10px 14px;
   font-weight:700;font-size:13px;color:var(--ink-2);display:flex;justify-content:space-between;align-items:center}
 .g-more:hover{color:var(--ink)}
@@ -197,14 +235,17 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--info);outline-of
 .proj{font-family:var(--f-display);font-weight:900;font-size:21px;line-height:1}
 .proj small{font-family:var(--f-body);font-weight:600;font-size:11px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;margin-left:3px}
 .oc{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.oc input{width:72px}
+.oc input{width:76px}
 .oc .out{font-size:12.5px;font-weight:700;min-width:84px}
 .team-sub{display:flex;align-items:center;gap:8px;margin:6px 0 2px}
 @media (max-width:620px){
-  .prow{grid-template-columns:1fr auto;}
+  .prow{grid-template-columns:1fr auto;row-gap:6px}
   .prow .c-avg{grid-column:1/-1}
   .prow .c-line{grid-column:1/-1}
+  .prow .c-pick{display:none}
+  .prow .c-line .btn{display:inline-flex;margin-left:auto}
 }
+@media (min-width:621px){ .prow .c-line .btn{display:none} }
 
 /* ---------- trends ---------- */
 .trend-list{display:flex;flex-direction:column;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
@@ -330,7 +371,7 @@ ul.plain li{margin:3px 0}
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" id="tab-week" data-view="week" aria-selected="true">This week</button>
-      <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance picks</button>
+      <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance<span class="xs-hide"> picks</span></button>
       <button class="tab" role="tab" id="tab-ls" data-view="ls" aria-selected="false">Long shots</button>
       <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
       <button class="tab" role="tab" id="tab-picks" data-view="picks" aria-selected="false">My picks<span class="cnt" id="pick-count"></span></button>
@@ -476,24 +517,35 @@ function modelBlock(g){
   const wpA = 1 - m.wp_home, mk = m.mkt_wp_home;
   const fav = m.margin >= 0 ? h : a;
   const qb = [g.qb_change.away, g.qb_change.home].filter(Boolean);
-  let pickHtml;
+  const lineTeam = g.spread == null ? null : (g.spread >= 0 ? h : a);
+  const edgeTeam = m.spread_edge == null ? null : (m.spread_edge > 0 ? h : a);
+  const edgeAbs = m.spread_edge == null ? null : Math.abs(m.spread_edge);
+  let edgeCard, resultHtml = '';
   if (g.final){
-    const mp = D.model_picks.filter(p => p.game === g.id);
-    pickHtml = mp.map(p => `<span class="pill ${p.result === 'W' ? 'win' : p.result === 'L' ? 'loss' : ''}">${esc(p.type)}: ${esc(p.detail)} · ${p.result === 'W' ? 'Won' : p.result === 'L' ? 'Lost' : 'Push'}</span>`).join(' ');
+    const mp = D.model_picks.filter(p => p.game === g.id), sp = mp.find(p => p.type === 'Spread'), su = mp.find(p => p.type === 'Winner');
+    const cls = x => x ? (x.result === 'W' ? 'won' : x.result === 'L' ? 'lost' : '') : '';
+    edgeCard = sp ? `<div class="mc ${cls(sp)}"><div class="k">Model pick · ${sp.result === 'W' ? 'won' : sp.result === 'L' ? 'lost' : 'push'}</div><div class="v">${esc(sp.pick)} ${fmtLine(lineFor(g, sp.pick))}</div><div class="s">edge ${sp.edge.toFixed(1)} pts</div></div>`
+      : `<div class="mc"><div class="k">Edge</div><div class="v">${edgeAbs == null ? '–' : edgeAbs.toFixed(1)}</div><div class="s">${edgeAbs == null ? 'no line' : 'under 2.5 · no pick'}</div></div>`;
+    if (su) resultHtml = `<div class="small">Model had <b>${esc(su.pick)}</b> to win · ${su.result === 'W' ? 'right' : su.result === 'L' ? 'wrong' : 'tie'}${sp ? '' : ' · no spread pick'}</div>`;
   } else if (m.pick_ats){
-    const ln = lineFor(g, m.pick_ats);
-    pickHtml = `<span class="pick-chip"><span class="k">Model pick</span>${m.pick_ats} ${fmtLine(ln)}</span>`;
+    edgeCard = `<div class="mc pick"><div class="k">Model pick</div><div class="v">${m.pick_ats} ${fmtLine(lineFor(g, m.pick_ats))}</div><div class="s">${edgeAbs.toFixed(1)} pts vs the line</div></div>`;
   } else {
-    pickHtml = `<span class="nopick">No spread pick: model within 2.5 pts of the line</span>`;
+    edgeCard = `<div class="mc"><div class="k">Edge</div><div class="v">${edgeAbs == null ? '–' : (edgeTeam + ' ' + edgeAbs.toFixed(1))}</div><div class="s">${edgeAbs == null ? 'no line yet' : 'under 2.5 · no pick'}</div></div>`;
   }
   const ca = T[a].c1, chh = T[h].c1;
   return `<div class="wp">
-      <div class="wp-labels"><span>${a} ${pct(wpA)}</span><span class="small wp-mid">Model win chance${mk != null ? ' · yellow mark = betting market' : ''}</span><span>${pct(m.wp_home)} ${h}</span></div>
+      <div class="wp-labels"><span>${a} ${pct(wpA)}</span><span class="small wp-mid">Win chance${mk != null ? ' · yellow = market' : ''}</span><span>${pct(m.wp_home)} ${h}</span></div>
       <div class="wp-track" role="img" aria-label="Model gives ${h} ${pct(m.wp_home)} to win${mk != null ? ', market ' + pct(mk) : ''}">
         <span style="width:${(wpA * 100).toFixed(1)}%;background:${ca}"></span><span style="width:${(m.wp_home * 100).toFixed(1)}%;background:${chh}"></span>
         ${mk != null ? `<i class="wp-mkt" style="left:${((1 - mk) * 100).toFixed(1)}%"></i>` : ''}
       </div></div>
-    <div class="model-line"><span>Model: <b>${fav} by ${Math.abs(m.margin).toFixed(1)}</b> · Line: <b>${g.spread == null ? '–' : (g.spread >= 0 ? h : a) + ' ' + fmtLine(-Math.abs(g.spread))}</b> · Total <b>${g.total ?? '–'}</b> <span class="small">(stats-only total ${m.total.toFixed(1)})</span></span>${pickHtml}</div>
+    <div class="mrow">
+      <div class="mc"><div class="k">Line</div><div class="v">${lineTeam ? lineTeam + ' ' + fmtLine(-Math.abs(g.spread)) : '–'}</div><div class="s">${g.spread === 0 ? 'pick ’em' : lineTeam ? 'favored by ' + Math.abs(g.spread) : 'not posted yet'}</div></div>
+      <div class="mc"><div class="k">Model</div><div class="v">${fav} ${fmtLine(-Math.abs(m.margin))}</div><div class="s">wins by ${Math.abs(m.margin).toFixed(1)}</div></div>
+      ${edgeCard}
+      <div class="mc"><div class="k">Total</div><div class="v">${g.total ?? '–'}</div><div class="s">stats-only ${m.total.toFixed(1)}</div></div>
+    </div>
+    ${resultHtml}
     ${qb.map(q => `<div class="small">QB change: <b>${esc(q.starter)}</b> ${g.final ? 'started' : 'expected to start'} instead of ${esc(q.usual)}.${q.starter_rating != null ? ` The model adjusts for it, rating ${esc(q.starter.split(' ').slice(-1)[0])} at ${sign(q.starter_rating, 2)} EPA per dropback${q.usual_rating != null ? ` vs ${sign(q.usual_rating, 2)} for ${esc(q.usual.split(' ').slice(-1)[0])}` : ''}.` : ''}</div>`).join('')}`;
 }
 function gameChips(g){
@@ -506,7 +558,7 @@ function gameChips(g){
   (g.teaser || []).forEach(x => out.push(`<span class="pill ${x.kind === 'dog' ? 'win' : 'ghost'}" title="Six-point teaser leg">Teaser: ${x.team} ${fmtLine(x.from)} → ${fmtLine(x.to)} · legs like this won ${pct(x.rate)}${x.kind === 'fav' ? ', below break-even' : ''}</span>`));
   if (g.div) out.push('<span class="pill ghost">Division</span>');
   if (g.rest.home && g.rest.away && Math.abs(g.rest.home - g.rest.away) >= 3) out.push(`<span class="pill ghost">Rest: ${g.away} ${g.rest.away}d, ${g.home} ${g.rest.home}d</span>`);
-  return out.join('');
+  return out.slice(0, 6).join('');
 }
 function gameCard(g){
   const flags = [];
@@ -546,7 +598,7 @@ function injCol(t){
   const shown = showAll ? list : rel.filter(i => i.key || ['out', 'doubt', 'risk'].includes(i.level)).slice(0, 10);
   const rows = shown.map(i => `<div class="inj"><div class="top"><span class="who">${esc(i.name)} <small>${esc(i.pos)}${i.injury ? ' · ' + esc(i.injury) : ''}</small></span>
       <span class="pill lvl-${i.level}">${({out: 'Out', ir: i.outlook.startsWith('On PUP') ? 'PUP' : 'IR', doubt: 'Doubtful', risk: 'In doubt', gtd: 'Questionable', likely: 'Likely', ok: 'Active'})[i.level] || i.level}</span></div>
-      <div class="top"><span class="ol">${esc(i.outlook)}${i.practice ? ` · practice: ${i.practice}` : ''}</span><a class="x" href="${xLink(i.name)}" target="_blank" rel="noopener">Latest on X ↗</a></div></div>`).join('');
+      <div class="top"><span class="ol">${esc(i.outlook)}${i.practice && !/practice/i.test(i.outlook) ? ` · ${({DNP: 'did not practice', LP: 'limited practice', FP: 'full practice'})[i.practice] || i.practice}` : ''}</span><a class="x" href="${xLink(i.name)}" target="_blank" rel="noopener">Latest on X ↗</a></div></div>`).join('');
   return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)} · ${list.length} listed</span></div>
     ${rows || '<div class="note">No key players listed.</div>'}
     ${list.length > shown.length || showAll ? `<button class="btn link" data-injall="${t}">${showAll ? 'Show key players only' : 'Show all ' + list.length}</button>` : ''}</div>`;
@@ -597,9 +649,11 @@ function propsHtml(g){
   if (!g.props.length) return '<div class="note">Player projections are shown for games that have not been played yet.</div>';
   return [g.away, g.home].map(t => {
     const ps = g.props.filter(p => p.team === t);
-    return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}${ps[0] && ps[0].implied ? ` · Vegas implied total ${ps[0].implied}` : ''}</span></div>
+    const ab = (g.absent || {})[t] || [];
+    const absent = ab.length ? `<div class="absent"><span><b>Out:</b></span>${ab.map(a => `<span class="pill lvl-${a.level === 'ir' ? 'ir' : 'out'}" title="${esc(a.why || '')}">${esc(a.name)} <span style="font-weight:500">${esc(a.pos)} · ${esc(a.usage)}</span></span>`).join('')}<span class="small">— their touches are up for grabs</span></div>` : '';
+    return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}${ps[0] && ps[0].implied ? ` · Vegas implied total ${ps[0].implied}` : ''}</span></div>${absent}
       <div class="plist">${ps.map(p => propRow(g, p)).join('')}</div></div>`;
-  }).join('') + `<div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first). Type the sportsbook's line to see the chance of going over, based on how players with similar projections finished. These are estimates, not tested against real prop prices.</div>`;
+  }).join('') + `<div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first). Type the sportsbook's line to see the chance of going over, based on how players with similar projections finished. Players listed as out or doubtful are left off.</div>`;
 }
 function propRow(g, p){
   const keys = mainProps(p).filter(k => p.proj[k] != null);
@@ -613,12 +667,29 @@ function propRow(g, p){
     <div style="min-width:0"><div class="pn">${esc(p.name)} <span class="small">${p.pos}</span>${inj}${pt}</div><div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div></div>
     <div><div class="proj num">${k0 ? p.proj[k0] : '–'}<small>${k0 ? PROP_LABEL[k0] : ''}</small></div><div class="ps">${keys[1] ? PROP_LABEL[keys[1]] + ' ' + p.proj[keys[1]] : ''}</div></div>
     <div class="c-avg"><div class="ps">${avgTxt}${td}</div>
-      <div class="oc c-line"><input type="number" step="0.5" inputmode="decimal" id="ln_${esc(p.id)}_${k0}" data-oc="${k0}" data-proj="${p.proj[k0]}" aria-label="${esc(p.name)} ${PROP_LABEL[k0]} line" placeholder="Line"><span class="out" id="oc_${esc(p.id)}_${k0}">Enter a line</span></div></div>
-    <div><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div>
+      <div class="oc c-line"><input type="number" step="0.5" inputmode="decimal" id="ln_${esc(p.id)}_${k0}" data-oc="${k0}" data-proj="${p.proj[k0]}" aria-label="${esc(p.name)} ${PROP_LABEL[k0]} line" placeholder="Line"><span class="out" id="oc_${esc(p.id)}_${k0}">Enter a line</span><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div></div>
+    <div class="c-pick"><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div>
   </div>`;
 }
 
 /* ---------- week view ---------- */
+function edgesStrip(){
+  const tiles = [];
+  const live = D.games.filter(g => !g.final);
+  const sp = live.filter(g => g.model.pick_ats).sort((a, b) => Math.abs(b.model.spread_edge) - Math.abs(a.model.spread_edge))[0];
+  if (sp) tiles.push(`<div class="edge"><div class="label">Model's strongest spread pick</div><div class="big">${sp.model.pick_ats} ${fmtLine(lineFor(sp, sp.model.pick_ats))}</div>
+    <div class="d">${Math.abs(sp.model.spread_edge).toFixed(1)} pts better than the line · ${sp.away} @ ${sp.home}, ${esc(kick(sp.kickoff, {weekday: 'short', hour: 'numeric'}))}</div><a href="#" data-jump="${sp.id}">Open matchup →</a></div>`);
+  const tz = live.flatMap(g => (g.teaser || []).filter(x => x.kind === 'dog').map(x => ({g, x}))).sort((a, b) => b.x.rate - a.x.rate)[0];
+  if (tz) tiles.push(`<div class="edge"><div class="label">Best teaser leg</div><div class="big">${tz.x.team} ${fmtLine(tz.x.from)} → ${fmtLine(tz.x.to)}</div>
+    <div class="d">Legs like this won ${pct(tz.x.rate)} since 2018 · ${tz.g.away} @ ${tz.g.home}</div><a href="#" data-jump="${tz.g.id}">Open matchup →</a></div>`);
+  const hc = ((D.high_chance || {}).picks || []).filter(x => x.kind === 'player')[0];
+  if (hc) tiles.push(`<div class="edge"><div class="label">Safest player milestone</div><div class="big">${Math.round(hc.p * 100)}% · ${esc(hc.label)}</div>
+    <div class="d">Fair price ${fmtOdds(hc.fair)} · ${hc.hits[0]} of ${hc.hits[1]} games so far</div><a href="#" data-goto="hc">All high-chance picks →</a></div>`);
+  const ls = ((D.long_shots || {}).picks || []).filter(x => x.market === 'atd')[0];
+  if (ls) tiles.push(`<div class="edge"><div class="label">Top touchdown long shot</div><div class="big">${Math.round(ls.p * 100)}% · ${esc(ls.label)}</div>
+    <div class="d">Fair price ${fmtOdds(ls.fair)} · worth it if your book pays more</div><a href="#" data-goto="ls">All long shots →</a></div>`);
+  return tiles.length ? `<div class="edges">${tiles.join('')}</div>` : '';
+}
 let weekFilter = store.get('wf', 'all');
 function renderWeek(){
   const v = $('#v-week');
@@ -627,6 +698,7 @@ function renderWeek(){
   const nPicks = games.filter(g => !g.final && g.model.pick_ats).length;
   const nQB = games.filter(g => g.qb_change.home || g.qb_change.away).length;
   const nMis = games.filter(g => g.mismatches.length).length;
+  const nFinal = games.filter(g => g.final).length, nLive = games.filter(g => g.live).length;
   const glance = mine.map(g => {
     const t = FAV.has(g.away) ? g.away : g.home, o = t === g.away ? g.home : g.away;
     const m = g.model, wp = t === g.home ? m.wp_home : 1 - m.wp_home, ln = lineFor(g, t);
@@ -640,11 +712,12 @@ function renderWeek(){
     weekFilter === 'picks' ? !!g.model.pick_ats : weekFilter === 'teaser' ? (g.teaser || []).length > 0 : weekFilter === 'mismatch' ? g.mismatches.length > 0 : (g.qb_change.home || g.qb_change.away));
   v.innerHTML = `
     <div class="sec-head"><div><h1 class="h2">Week ${WEEK} matchups</h1>
-      <p class="lede">${games.length} games · ${games.filter(g => g.final).length} final · ${nPicks} model pick${nPicks === 1 ? '' : 's'} against the spread · ${nMis} stat mismatch${nMis === 1 ? '' : 'es'} · ${nQB} QB change${nQB === 1 ? '' : 's'}. Lines and odds are the consensus from the nflverse schedule feed, refreshed every 30 minutes, so check your book before betting.</p></div></div>
-    <details class="callout"><summary class="h3" style="cursor:pointer">How to read a card</summary><p class="small">Ranks are out of 32 (green = top 8, red = bottom 8). The colored bar is the model's win chance; the yellow mark is the betting market's. The model line comes from the team stats that predicted results best from 2018–2025. It picks winners about as well as the Vegas favorite (66%) but has not beaten the spread over time, so treat its picks as a second opinion. A stat mismatch flags a top-8 pass or run offense facing a bottom-8 defense in that phase. QB changes are flagged, and the model adjusts using each starter's rating.</p></details>
-    ${glance ? `<div class="glance">${glance}</div>` : `<div class="callout"><p class="small">Tap the ★ next to any team to pin its games here. Your starred teams are saved on this device.</p></div>`}
+      <p class="lede">${games.length} games${nFinal ? ` · ${nFinal} final` : ''}${nLive ? ` · ${nLive} live` : ''} · ${nPicks} model pick${nPicks === 1 ? '' : 's'} against the spread · ${nQB} QB change${nQB === 1 ? '' : 's'} · ${nMis} stat mismatch${nMis === 1 ? '' : 'es'}</p></div>
+      <details class="small"><summary style="cursor:pointer;font-weight:600;color:var(--info)">How to read a card</summary><p style="margin:6px 0 0;max-width:72ch">Each card shows the betting line, what the model thinks the line should be, and the gap between them: the model makes a spread pick only when it disagrees by 2.5 points or more. The colored bar is the model's win chance; the yellow mark is the betting market's. Ranks are out of 32 (green = top 8, red = bottom 8). A stat mismatch flags a top-8 pass or run offense facing a bottom-8 defense. The model picks winners about as often as the Vegas favorite and has not beaten the spread over time, so treat its picks as a second opinion. Lines are the consensus from the nflverse feed, refreshed every 30 minutes, so check your book.</p></details></div>
+    ${edgesStrip()}
+    ${glance ? `<div class="glance">${glance}</div>` : ''}
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter games">${filters.map(([k, l]) => `<button data-wf="${k}" aria-pressed="${weekFilter === k}">${l}</button>`).join('')}</div>
-      <button class="btn" data-addpick="">+ Add a pick</button></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${glance ? '' : '<span class="small">★ Star a team to pin its games up top</span>'}<button class="btn" data-addpick="">+ Add a pick</button></div></div>
     <div class="games">${shown.map(gameCard).join('') || '<div class="empty">No games match this filter.</div>'}</div>
 `;
 }
@@ -659,7 +732,7 @@ function parseOdds(v){
 function evOf(p, o){ return p * (o > 0 ? o / 100 : 100 / Math.abs(o)) - (1 - p); }
 function evMsg(p, fair, raw){
   const o = parseOdds(raw);
-  if (o == null) return {t: String(raw || '').trim() ? 'Use American odds, like +250 or -120' : "Type your sportsbook's odds to check the price", c: ''};
+  if (o == null) return {t: String(raw || '').trim() ? 'Use American odds, like +250 or -120' : "Enter your book's odds to see if the price is worth it", c: ''};
   const ev = evOf(p, o), c = Math.round(ev * 100);
   if (ev >= 0.05) return {t: `Good price: about +${c}\u00a2 back per $1 over time`, c: 'pos'};
   if (ev >= 0) return {t: `Thin edge: +${c}\u00a2 per $1, inside the model's margin of error`, c: 'thin'};
@@ -822,7 +895,7 @@ function carryHtml(c, kind){
   if (!c) return '';
   const diff = c.rate - c.base;
   const sticky = Math.abs(diff) >= 0.04;
-  return `<span class="carry ${sticky && diff > 0 ? 'sticky' : 'noise'}">${sticky && diff > 0 ? 'Usually continues' : 'Usually fades or random'}: ${Math.round(c.rate * 100)}% ${esc(c.next)} (normal ${Math.round(c.base * 100)}%)</span>`;
+  return `<span class="carry ${sticky && diff > 0 ? 'sticky' : 'noise'}">${sticky && diff > 0 ? 'Tends to continue' : 'No carry-over in the past'}: ${Math.round(c.rate * 100)}% ${esc(c.next)} vs ${Math.round(c.base * 100)}% normally</span>`;
 }
 function teamTrendRow(t){
   const isBin = ['su', 'ats', 'ou'].includes(t.metric);
@@ -846,6 +919,8 @@ function playerTrendRow(p){
     <div class="side"><span class="wk">${p.weeks} WKS</span><span class="${p.tone}">${spark(p.series, {w: 92, h: 28, base: p.usual})}</span></div></div>`;
 }
 let TF = Object.assign({team: 'all', kind: 'all', pteam: 'all', pos: 'all', dir: 'all', metric: 'all'}, store.get('tf', {}));
+let TSHOW = {team: 12, player: 12};
+const moreBtn = (kind, shown, total) => total > shown ? `<button class="btn more" data-tmore="${kind}">Show ${Math.min(20, total - shown)} more of ${total}</button>` : '';
 function renderTrends(){
   const v = $('#v-trends');
   const lw = D.trends.league_weekly;
@@ -877,16 +952,18 @@ function renderTrends(){
     <div class="sec-head"><h2 class="h3">Teams <span class="small">(${tt.length})</span></h2>
       <div class="filters"><select id="tf-team" aria-label="Team"><option value="all">All teams</option><option value="mine">★ My teams</option>${teamOpts}</select>
       <select id="tf-kind" aria-label="Trend type"><option value="all">All types</option><option value="form">Form (how they're playing)</option><option value="streak">Win/loss streaks</option><option value="betting">Betting streaks</option></select></div></div>
-    <div class="trend-list">${tt.map(teamTrendRow).join('') || '<div class="tr"><div></div><div class="note">No team trends match.</div><div></div></div>'}</div>
+    <div class="trend-list">${tt.slice(0, TSHOW.team).map(teamTrendRow).join('') || '<div class="tr"><div></div><div class="note">No team trends match.</div><div></div></div>'}</div>
+    ${moreBtn('team', TSHOW.team, tt.length)}
     <div class="sec-head"><h2 class="h3">Players <span class="small">(${pt.length})</span></h2>
       <div class="filters"><select id="tf-pteam" aria-label="Player team"><option value="all">All teams</option><option value="mine">★ My teams</option>${teamOpts}</select>
       <select id="tf-pos" aria-label="Position"><option value="all">All positions</option><option>QB</option><option>RB</option><option>WR</option><option>TE</option></select>
       <select id="tf-dir" aria-label="Direction"><option value="all">Rising and falling</option><option value="up">Rising</option><option value="down">Falling</option></select>
       <select id="tf-metric" aria-label="Metric"><option value="all">Usage and production</option><option value="usage">Usage only (targets, carries, snaps)</option><option value="prod">Production only (yards)</option></select></div></div>
-    <div class="trend-list">${pt.map(playerTrendRow).join('') || '<div class="tr"><div></div><div class="note">No player trends match.</div><div></div></div>'}</div>
+    <div class="trend-list">${pt.slice(0, TSHOW.player).map(playerTrendRow).join('') || '<div class="tr"><div></div><div class="note">No player trends match.</div><div></div></div>'}</div>
+    ${moreBtn('player', TSHOW.player, pt.length)}
     <div class="note">How a player trend is found: each game is compared with his usual level (last season's average weighted like 3 games, plus this season's earlier games). Rising means at least 20–30% and a few units above usual in every one of the last 2+ games; snap share needs +10 points. Team form compares each game's EPA per play with the team's pre-game rating.</div>`;
   $('#tf-team').value = TF.team; $('#tf-kind').value = TF.kind; $('#tf-pteam').value = TF.pteam; $('#tf-pos').value = TF.pos; $('#tf-dir').value = TF.dir; $('#tf-metric').value = TF.metric;
-  ['team', 'kind', 'pteam', 'pos', 'dir', 'metric'].forEach(k => $('#tf-' + k).addEventListener('change', e => { TF[k] = e.target.value; store.set('tf', TF); renderTrends(); }));
+  ['team', 'kind', 'pteam', 'pos', 'dir', 'metric'].forEach(k => $('#tf-' + k).addEventListener('change', e => { TF[k] = e.target.value; store.set('tf', TF); TSHOW = {team: 12, player: 12}; renderTrends(); }));
 }
 
 /* ======================================================================
@@ -1252,7 +1329,9 @@ document.addEventListener('click', async e => {
   }
   if (t.dataset.dtab){ const g = D.games.find(x => x.id === t.dataset.g); $('#d-' + g.id).innerHTML = detailHtml(g, t.dataset.dtab); return; }
   if (t.dataset.injall){ const k = t.dataset.injall; injShowAll[k] = !injShowAll[k]; const det = t.closest('.g-detail'); const g = D.games.find(x => x.id === det.id.slice(2)); det.innerHTML = detailHtml(g, 'inj'); return; }
-  if (t.dataset.jump){ weekFilter = 'all'; renderWeek(); const el = $('#g-' + t.dataset.jump); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
+  if (t.dataset.jump){ e.preventDefault(); weekFilter = 'all'; renderWeek(); const el = $('#g-' + t.dataset.jump); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
+  if (t.dataset.goto){ e.preventDefault(); show(t.dataset.goto); return; }
+  if (t.dataset.tmore){ TSHOW[t.dataset.tmore] += 20; const y = window.scrollY; renderTrends(); window.scrollTo({top: y}); return; }
   if (t.hasAttribute('data-addpick')){ openPick(); return; }
   if (t.dataset.pickprop){
     const g = D.games.find(x => x.id === t.dataset.g), key = t.dataset.key;

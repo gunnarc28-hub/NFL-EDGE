@@ -545,6 +545,67 @@ for t in injuries:
     injuries[t].sort(key=lambda x: (not x['key'], ORDER.get(x['level'], 9), x['name']))
 inj_status = {t + '|' + norm(x['name']): x for t, lst in injuries.items() for x in lst}
 
+# ------------------------------------------------------------------ touchdown model (shared by props and long shots)
+LSM = json.load(open(os.path.join(HERE, 'static', 'longshot_model.json')))
+LSR = json.load(open(os.path.join(HERE, 'static', 'longshot_research.json')))
+LS_RULES, LS_CAL, GTD = LSM['rules'], LSM['calibration'], LSM['game_td']
+LS_GROUP = {'atd': 'atd', 'ftd': 'ftd', 'td2': 'td2', 'rec100': 'yds100', 'rush100': 'yds100', 'pass300': 'pass300'}
+LS_PICK = {'atd': ('any_td', None), 'ftd': ('first_td', None), 'td2': ('td2', None), 'rec100': ('rec_yds', 99.5),
+           'rush100': ('rush_yds', 99.5), 'pass300': ('pass_yds', 299.5)}
+LS_WORD = {'atd': 'anytime TD', 'ftd': 'first TD', 'td2': '2+ TDs', 'rec100': '100+ receiving yards', 'rush100': '100+ rushing yards',
+           'pass300': '300+ passing yards'}
+_ftd = pbp_agg.first_tds(f'{RAW}/pbp_{SEASON}.csv.gz') if have_pbp.get(SEASON) else pd.DataFrame(columns=['game_id', 'first_td', 'first_td_name', 'first_td_team'])
+_ftd = _ftd[_ftd.game_id.isin(set(done.game_id))]          # only games that are over
+FIRST_TD = {r.game_id: (r.first_td, (FULLNAME.get(r.first_td) or r.first_td_name) if r.first_td else '', r.first_td_team) for r in _ftd.itertuples()}
+
+
+def nz(v):
+    return 0.0 if v is None or (isinstance(v, float) and not np.isfinite(v)) else float(v)
+
+
+def ls_cal(key, p):
+    """Rescaling chosen in research because it made held-out seasons more accurate ('none', 'linear' or 'curved')."""
+    c = LS_CAL.get(key)
+    if p is None or not c or c['kind'] == 'none':
+        return p
+    p_ = min(max(p, 1e-4), 1 - 1e-4); L = math.log(p_ / (1 - p_)); k = c['coef']
+    if c['kind'] == 'linear':
+        z = k[0] + k[1] * L
+    else:
+        if k[2] < 0:
+            L = min(L, -k[1] / (2 * k[2]))
+        z = k[0] + k[1] * L + k[2] * L * L
+    return 1 / (1 + math.exp(-z))
+
+
+def ls_td_eligible(r):
+    if nz(r.n_prior) < 3 or r.position not in ('QB', 'RB', 'WR', 'TE'):
+        return False
+    if r.position == 'QB':
+        return nz(r.pg_attempts) >= 20
+    return nz(r.pg_carries) >= 3 or nz(r.pg_targets) >= 2.5
+
+
+def atd_chance(r):
+    m = LSM['atd']; z = []
+    for f in m['feats']:
+        if f.startswith('is_'):
+            v = 1.0 if r.position == f[3:].upper() else 0.0
+        elif f in ('avg_carry_share', 'avg_target_share'):
+            v = nz(r[f])
+        else:
+            v = r[f]
+            if v is None or not np.isfinite(v):
+                return None
+        z.append((v - m['mu'][f]) / m['sd'][f])
+    return 1 / (1 + math.exp(-(float(np.dot(z, m['coef'])) + m['intercept'])))
+
+
+def game_tds(total):
+    return max(2.0, GTD['slope'] * (total if total else 44.0) + GTD['intercept'])
+
+
+
 # ------------------------------------------------------------------ players: projections and logs
 ngs = pa.load_ngs()
 p25 = pa.load_players([SEASON - 1]); p26 = p26_all
@@ -584,7 +645,7 @@ def r_(v, n=1):
     return None if v is None or not np.isfinite(v) else round(float(v), n)
 
 
-props_by_game = {}
+props_by_game, absent_by_game = {}, {}
 upcoming = [gm for gm in games if not gm['final']]
 if len(p26) and upcoming:
     cur_team = p26.sort_values('week').groupby('player_id').tail(1)[['player_id', 'player_display_name', 'position', 'team']]
@@ -601,14 +662,30 @@ if len(p26) and upcoming:
                 c = cur[(cur.game_id == gm['id']) & (cur.team == t) & (cur.n_prior >= 2)]
                 if c.empty:
                     continue
+
+                def available(r):
+                    ist = inj_status.get(t + '|' + norm(r.player_display_name))
+                    return not ((ist and ist['level'] in ('ir', 'out', 'doubt')) or r.player_id in RESERVE_IDS or r.player_id in GONE_IDS)
+                ok_ = c.apply(available, axis=1)
+                # regulars who are out, so the reader knows whose touches are up for grabs
+                for _, r in c[~ok_ & ((c.pg_carries >= 5) | (c.pg_targets >= 3) | (c.pg_attempts >= 15))].iterrows():
+                    if r.player_id in GONE_IDS:
+                        continue
+                    ist = inj_status.get(t + '|' + norm(r.player_display_name))
+                    usage_ = (f"{r.pg_attempts:.0f} passes a game" if r.position == 'QB' else f"{nz(r.avg_carry_share):.0%} of carries" if r.position == 'RB'
+                              else f"{nz(r.avg_target_share):.0%} of targets")
+                    absent_by_game.setdefault(gm['id'], {}).setdefault(t, []).append(
+                        {'name': r.player_display_name, 'pos': r.position, 'usage': usage_, 'level': ist['level'] if ist else 'ir',
+                         'why': (ist['injury'] if ist and ist.get('injury') else None)})
+                c = c[ok_]
+                if c.empty:
+                    continue
                 qb = c[c.position == 'QB'].sort_values('pg_attempts', ascending=False).head(1)
-                rb = c[(c.position == 'RB') & (c.pg_carries >= 5)].sort_values('pg_carries', ascending=False).head(2)
+                rb = c[(c.position == 'RB') & (c.pg_carries >= 3)].sort_values('pg_carries', ascending=False).head(2)
                 rc = c[c.position.isin(['WR', 'TE']) & (c.pg_targets >= 3)].sort_values('pg_targets', ascending=False).head(4)
                 for _, r in pd.concat([qb, rb, rc]).iterrows():
                     row = r.to_dict()
                     ist = inj_status.get(t + '|' + norm(r.player_display_name))
-                    if (ist and ist['level'] == 'ir') or r.player_id in RESERVE_IDS or r.player_id in GONE_IDS:
-                        continue
                     pos = r.position; pj = {}
                     if pos == 'QB':
                         pj['pass_yds'] = project(row, 'pass_yds')
@@ -619,8 +696,9 @@ if len(p26) and upcoming:
                         pj['any_td'] = project(row, 'any_td')
                     if pos in ('WR', 'TE'):
                         pj['rec_yds'] = project(row, 'rec_yds'); pj['receptions'] = project(row, 'receptions'); pj['any_td'] = project(row, 'any_td')
-                    if pj.get('any_td') is not None:
-                        pj['any_td'] = float(np.clip(pj['any_td'], 0.02, 0.85))
+                    if pos != 'QB':
+                        td_p = ls_cal('atd', atd_chance(r))
+                        pj['any_td'] = td_p if td_p is not None else (float(np.clip(pj['any_td'], 0.02, 0.85)) if pj.get('any_td') is not None else None)
                     snap_now, snap_series = snap_info(r.player_id)
                     out.append({'id': r.player_id, 'name': r.player_display_name, 'pos': pos, 'team': t, 'gp': int(r.n_prior),
                                 'proj': {k: r_(v, 2 if k == 'any_td' else 1) for k, v in pj.items()},
@@ -638,6 +716,7 @@ if len(p26) and upcoming:
             props_by_game[gm['id']] = out
 for gm in games:
     gm['props'] = props_by_game.get(gm['id'], [])
+    gm['absent'] = absent_by_game.get(gm['id'], {})
 
 # ------------------------------------------------------------------ trends (must last 2+ weeks)
 CARRY = {r['trend']: r for r in TR['team'] + TR['player']}
@@ -1027,65 +1106,6 @@ high_chance = {'picks': hc_picks, 'history': hc_hist, 'research': HCR, 'p_min': 
 print('high-chance picks:', len(hc_picks), 'history:', len(hc_hist))
 
 # ------------------------------------------------------------------ long shots: touchdowns and big games at plus money
-LSM = json.load(open(os.path.join(HERE, 'static', 'longshot_model.json')))
-LSR = json.load(open(os.path.join(HERE, 'static', 'longshot_research.json')))
-LS_RULES, LS_CAL, GTD = LSM['rules'], LSM['calibration'], LSM['game_td']
-LS_GROUP = {'atd': 'atd', 'ftd': 'ftd', 'td2': 'td2', 'rec100': 'yds100', 'rush100': 'yds100', 'pass300': 'pass300'}
-LS_PICK = {'atd': ('any_td', None), 'ftd': ('first_td', None), 'td2': ('td2', None), 'rec100': ('rec_yds', 99.5),
-           'rush100': ('rush_yds', 99.5), 'pass300': ('pass_yds', 299.5)}
-LS_WORD = {'atd': 'anytime TD', 'ftd': 'first TD', 'td2': '2+ TDs', 'rec100': '100+ receiving yards', 'rush100': '100+ rushing yards',
-           'pass300': '300+ passing yards'}
-_ftd = pbp_agg.first_tds(f'{RAW}/pbp_{SEASON}.csv.gz') if have_pbp.get(SEASON) else pd.DataFrame(columns=['game_id', 'first_td', 'first_td_name', 'first_td_team'])
-_ftd = _ftd[_ftd.game_id.isin(set(done.game_id))]          # only games that are over
-FIRST_TD = {r.game_id: (r.first_td, (FULLNAME.get(r.first_td) or r.first_td_name) if r.first_td else '', r.first_td_team) for r in _ftd.itertuples()}
-
-
-def nz(v):
-    return 0.0 if v is None or (isinstance(v, float) and not np.isfinite(v)) else float(v)
-
-
-def ls_cal(key, p):
-    """Rescaling chosen in research because it made held-out seasons more accurate ('none', 'linear' or 'curved')."""
-    c = LS_CAL.get(key)
-    if p is None or not c or c['kind'] == 'none':
-        return p
-    p_ = min(max(p, 1e-4), 1 - 1e-4); L = math.log(p_ / (1 - p_)); k = c['coef']
-    if c['kind'] == 'linear':
-        z = k[0] + k[1] * L
-    else:
-        if k[2] < 0:
-            L = min(L, -k[1] / (2 * k[2]))
-        z = k[0] + k[1] * L + k[2] * L * L
-    return 1 / (1 + math.exp(-z))
-
-
-def ls_td_eligible(r):
-    if nz(r.n_prior) < 3 or r.position not in ('QB', 'RB', 'WR', 'TE'):
-        return False
-    if r.position == 'QB':
-        return nz(r.pg_attempts) >= 20
-    return nz(r.pg_carries) >= 3 or nz(r.pg_targets) >= 2.5
-
-
-def atd_chance(r):
-    m = LSM['atd']; z = []
-    for f in m['feats']:
-        if f.startswith('is_'):
-            v = 1.0 if r.position == f[3:].upper() else 0.0
-        elif f in ('avg_carry_share', 'avg_target_share'):
-            v = nz(r[f])
-        else:
-            v = r[f]
-            if v is None or not np.isfinite(v):
-                return None
-        z.append((v - m['mu'][f]) / m['sd'][f])
-    return 1 / (1 + math.exp(-(float(np.dot(z, m['coef'])) + m['intercept'])))
-
-
-def game_tds(total):
-    return max(2.0, GTD['slope'] * (total if total else 44.0) + GTD['intercept'])
-
-
 def ls_probs(r, total):
     """Chances for one player in one game: anytime TD, 2+ TDs, first TD scorer, and 100/300-yard games where he qualifies."""
     out = {}
@@ -1175,10 +1195,10 @@ def ls_writeup(c, game_rank):
     if mk in ('atd', 'td2', 'ftd'):
         chips.append(f"TD in {k} of {n}")
         rz = nz(r.pg_rz_carries) + nz(r.pg_rz_targets)
-        chips.append(f"{rz:.1f} touches inside the 10 per game")
+        chips.append(f"{rz:.1f} touches inside the 10 per game" if rz >= 0.05 else "No touches inside the 10 yet")
         chips.append(f"Carry share {nz(r.avg_carry_share):.0%}" if r.position == 'RB' else (f"{nz(r.pg_carries):.1f} runs per game" if r.position == 'QB' else f"Target share {nz(r.avg_target_share):.0%}"))
         if itt:
-            chips.append(f"Team total {itt:.1f}")
+            chips.append(f"Team total {itt:g}")
         if mk == 'atd':
             s1 = (f"{sur} has scored in {k} of {n} games this season ({tot} total)." if k else
                   f"{sur} is still looking for his first touchdown after {n} games.")
@@ -1242,6 +1262,8 @@ def ls_writeup(c, game_rank):
     if itt and itt >= 25.5:
         extra.append(f"The betting line projects the {nick} for {itt:.1f} points.")
     chips = [f"Projection {c['proj']:.0f}", f"Avg {avg:.0f}"] + ([f"Last 3 {l3:.0f}"] if l3 is not None else []) + [f"{thr}+ in {hits} of {len(vals)}"]
+    if itt:
+        chips.append(f"Team total {itt:g}")
     return ' '.join([s1, s2] + extra[:1]), chips
 
 
