@@ -386,6 +386,56 @@ ul.plain li{margin:3px 0}
   .g-sum .lv{color:var(--loss);font-weight:700}
 }
 
+
+/* ---------- trends hero and sub-tabs ---------- */
+.th{position:relative;overflow:hidden;border-radius:14px;color:var(--on-turf);padding:18px 18px 16px;background-color:var(--turf);
+  background-image:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),rgba(255,255,255,.07) calc(10% - 2px) 10%),
+  radial-gradient(120% 90% at 100% 0%,rgba(244,196,0,.16),transparent 55%);box-shadow:var(--shadow),inset 0 -4px 0 var(--stripe)}
+.th::after{content:"";position:absolute;right:-30px;top:-30px;width:190px;height:190px;border-radius:50%;
+  background:repeating-radial-gradient(circle,rgba(255,255,255,.07) 0 2px,transparent 2px 16px);pointer-events:none}
+.th-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 24px;flex-wrap:wrap;position:relative;z-index:1}
+.th-k{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--stripe)}
+.th-h{font-family:var(--f-display);font-weight:900;font-size:44px;line-height:.9;text-transform:uppercase;letter-spacing:.01em}
+.th-p{margin:0;max-width:52ch;font-size:13.5px;color:var(--on-turf-2)}
+.th-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px;position:relative;z-index:1}
+.tcard{appearance:none;border:0;cursor:pointer;text-align:left;border-radius:11px;padding:11px 12px 10px;display:flex;flex-direction:column;gap:3px;min-width:0;
+  background:rgba(255,255,255,.08);color:var(--on-turf);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:background .15s,transform .15s}
+.tcard:hover{background:rgba(255,255,255,.14)}
+.tcard[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:inset 0 4px 0 var(--stripe),0 6px 18px rgba(0,0,0,.25);transform:translateY(-2px)}
+.tc-l{font-family:var(--f-display);font-weight:800;font-size:17px;letter-spacing:.05em;text-transform:uppercase}
+.tc-n{font-family:var(--f-display);font-weight:900;font-size:40px;line-height:.95}
+.tc-s{font-size:12px;font-weight:600;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-s .up{color:#5BD38F} .tc-s .dn{color:#FF8A7E}
+.tcard[aria-selected="true"] .tc-s .up{color:var(--win)} .tcard[aria-selected="true"] .tc-s .dn{color:var(--loss)}
+.tsplit{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px;margin-top:4px;background:rgba(255,255,255,.1)}
+.tsplit i{display:block;height:100%}
+.tc-g{margin-top:4px;opacity:.9}
+.tc-g .spark-line{stroke:var(--stripe)} .tc-g .spark-end{fill:var(--stripe)} .tc-g .spark-area{fill:rgba(244,196,0,.12)}
+.tcard[aria-selected="true"] .tc-g .spark-line{stroke:var(--ink)} .tcard[aria-selected="true"] .tc-g .spark-end{fill:var(--ink)} .tcard[aria-selected="true"] .tc-g .spark-area{fill:var(--spark-fill)}
+.tbody{display:flex;flex-direction:column;gap:18px}
+.tnote{margin:0;font-size:13.5px;color:var(--ink-2);background:var(--panel);border-radius:10px;padding:11px 14px;box-shadow:var(--shadow);border-left:4px solid var(--stripe)}
+.spot{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 18px;align-items:center;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;position:relative;overflow:hidden}
+.spot::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--win)}
+.spot.down::before{background:var(--loss)}
+.spot-l{display:flex;flex-direction:column;gap:4px;min-width:0}
+.spot-n{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1;text-transform:uppercase}
+.spot-c b{font-family:var(--f-display);font-size:20px;color:var(--win)} .spot.down .spot-c b{color:var(--loss)}
+.spot-c{font-size:13.5px;color:var(--ink-2)}
+.spot .go{font-size:12.5px;font-weight:700;color:var(--info)}
+.spot-g .spark-line{stroke-width:2.4} .spot.up .spark-line{stroke:var(--win)} .spot.down .spark-line{stroke:var(--loss)}
+.spot.up .spark-end{fill:var(--win)} .spot.down .spark-end{fill:var(--loss)}
+.lg .go{font-size:11.5px;font-weight:700;color:var(--info);align-self:flex-end}
+@media (max-width:620px){
+  .th{padding:14px 12px 12px;border-radius:12px}
+  .th-h{font-size:34px} .th-p{font-size:12.5px}
+  .th-tabs{gap:6px;margin-top:12px}
+  .tcard{padding:9px 8px 8px}
+  .tc-l{font-size:13.5px} .tc-n{font-size:30px} .tc-s{font-size:10.5px;white-space:normal}
+  .tc-g{display:none}
+  .spot{grid-template-columns:1fr}
+  .spot-g svg{width:100%;height:70px}
+  .spot-n{font-size:21px}
+}
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -1040,49 +1090,87 @@ function playerTrendRow(p){
 let TF = Object.assign({team: 'all', kind: 'all', pteam: 'all', pos: 'all', dir: 'all', metric: 'all'}, store.get('tf', {}));
 let TSHOW = {team: 12, player: 12};
 const moreBtn = (kind, shown, total) => total > shown ? `<button class="btn more" data-tmore="${kind}">Show ${Math.min(20, total - shown)} more of ${total}</button>` : '';
+let TSUB = store.get('tsub', 'players');
+function splitBar(parts){
+  const tot = parts.reduce((a, p) => a + p[0], 0) || 1;
+  return `<span class="tsplit" aria-hidden="true">${parts.filter(p => p[0]).map(p => `<i style="flex:${p[0]};background:${p[1]}"></i>`).join('')}</span>`;
+}
+function spotlight(kind, x){
+  if (!x) return '';
+  const isP = kind === 'p', series = x.series || [];
+  const chg = isP ? (x.metric === 'snap' ? sign(x.pct * 100, 0) + ' pts' : sign(x.pct * 100, 0) + '%') : x.weeks + ' straight';
+  const sub = isP ? `${esc(x.label)} · last ${x.weeks}: ${x.recent.map(v => fmtMetric(x.metric, v)).join(' → ')} · usual ${fmtMetric(x.metric, x.usual)}` : esc(x.detail || x.label);
+  return `<div class="spot ${x.tone}" data-chart="${isP ? 'p|' + esc(x.id) + '|' + x.metric : 't|' + x.team + '|' + (x.metric || '')}" role="button" tabindex="0" aria-label="Open chart: ${esc(isP ? x.name : x.team)}">
+    <div class="spot-l"><div class="label">${isP ? 'Biggest mover' : 'Longest form trend'}</div>
+      <div class="spot-n">${chip(x.team)} <span>${esc(isP ? x.name : T[x.team].city + ' ' + T[x.team].nick)}</span></div>
+      <div class="spot-c"><b>${x.tone === 'up' ? '▲' : '▼'} ${chg}</b> ${isP ? '' : esc(x.label)}</div>
+      <div class="small">${sub}</div><span class="go">Open chart ›</span></div>
+    <div class="spot-g">${spark(series, {w: 260, h: 86, base: isP ? x.usual : undefined})}</div></div>`;
+}
 function renderTrends(){
   const v = $('#v-trends');
   const lw = D.trends.league_weekly;
   const onKeys = new Set(D.trends.league.map(x => x.key));
   const fmtL = (k, val) => { const f = lw[k].fmt; return f === 'pts' ? val.toFixed(1) : f === 'pct' ? (val * 100).toFixed(k === 'sack' ? 1 : 0) + '%' : f === 'pp' ? sign(val, 1) + ' pts' : sign(val, 3); };
-  const league = Object.keys(lw).map(k => {
-    const x = lw[k], last = x.series[x.series.length - 1];
-    const tr = D.trends.league.find(t => t.key === k);
-    return `<div class="lg ${onKeys.has(k) ? 'on' : ''}" data-chart="l|${k}|${k}" role="button" tabindex="0" aria-label="Open chart: ${esc(x.label)}"><div class="label">${esc(x.label)}</div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><span class="v num">${last ? fmtL(k, last[1]) : '–'}</span>
-      <span class="${tr ? tr.tone : ''}">${spark(x.series, {w: 110, h: 34, base: x.base})}</span></div>
-      <div class="small">Week ${last ? last[0] : '–'} · normal ${fmtL(k, x.base)} (2021–25)</div>
-      ${tr ? `<div class="carry ${tr.kind === 'betting' ? 'noise' : 'sticky'}">${esc(tr.label)}${tr.kind === 'betting' ? '. League betting swings have not carried over.' : ''}</div>` : '<div class="small">No 2+ week trend</div>'}</div>`;
-  }).join('');
-  const teamOpts = Object.keys(T).sort().map(t => `<option value="${t}">${t} ${esc(T[t].nick)}</option>`).join('');
-  let tt = D.trends.team.filter(t => (TF.team === 'all' || (TF.team === 'mine' ? FAV.has(t.team) : t.team === TF.team)) && (TF.kind === 'all' || t.kind === TF.kind));
-  let pt = D.trends.player.filter(p => (TF.pteam === 'all' || (TF.pteam === 'mine' ? FAV.has(p.team) : p.team === TF.pteam)) &&
-    (TF.pos === 'all' || p.pos === TF.pos) && (TF.dir === 'all' || p.tone === TF.dir) && (TF.metric === 'all' || (TF.metric === 'usage' ? p.sticky : !p.sticky)));
+  const AP = D.trends.player, AT = D.trends.team, AL = D.trends.league;
+  const pUp = AP.filter(p => p.tone === 'up').length, pDn = AP.length - pUp;
+  const tk = k => AT.filter(t => t.kind === k).length;
   const pc = D.research.trend_carry.player, tc = D.research.trend_carry.team;
   const fc = lbl => pc.find(r => r.trend === lbl) || tc.find(r => r.trend === lbl) || {};
-  v.innerHTML = `
-    <div class="sec-head"><div><h1 class="h2">Trends that have lasted 2+ weeks</h1>
-      <p class="lede">A trend only shows up here once it has held for at least two straight games. Each one is checked against 2018–2025 to show whether that kind of trend has tended to continue.</p></div></div>
-    <div class="callout"><div class="h3">What history says</div>
-      <p><b>Player usage trends stick.</b> A running back with more carries than usual two weeks in a row stayed above his average ${pct(fc('Carries above his average 2+ straight').rate)} of the time the next week, compared with ${pct(fc('Carries above his average 2+ straight').base)} normally. Targets above average 3 straight: ${pct(fc('Targets above his average 3+ straight').rate)} vs ${pct(fc('Targets above his average 3+ straight').base)}.</p>
-      <p><b>Team betting streaks don't.</b> Teams that covered 2 straight covered the next game ${pct(fc('Covered 2+ straight').rate)} of the time. Teams whose games went over 3 straight saw the next one go over ${pct(fc('Games went over 3+ straight').rate)} (normal ${pct(fc('Games went over 3+ straight').base)}).</p></div>
-    <div class="sec-head"><h2 class="h3">League</h2></div>
-    <div class="lg-grid">${league}</div>
-    <div class="sec-head"><h2 class="h3">Teams <span class="small">(${tt.length})</span></h2>
-      <div class="filters"><select id="tf-team" aria-label="Team"><option value="all">All teams</option><option value="mine">★ My teams</option>${teamOpts}</select>
-      <select id="tf-kind" aria-label="Trend type"><option value="all">All types</option><option value="form">Form (how they're playing)</option><option value="streak">Win/loss streaks</option><option value="betting">Betting streaks</option></select></div></div>
-    <div class="trend-list">${tt.slice(0, TSHOW.team).map(teamTrendRow).join('') || '<div class="tr"><div></div><div class="note">No team trends match.</div><div></div></div>'}</div>
-    ${moreBtn('team', TSHOW.team, tt.length)}
-    <div class="sec-head"><h2 class="h3">Players <span class="small">(${pt.length})</span></h2>
-      <div class="filters"><select id="tf-pteam" aria-label="Player team"><option value="all">All teams</option><option value="mine">★ My teams</option>${teamOpts}</select>
-      <select id="tf-pos" aria-label="Position"><option value="all">All positions</option><option>QB</option><option>RB</option><option>WR</option><option>TE</option></select>
-      <select id="tf-dir" aria-label="Direction"><option value="all">Rising and falling</option><option value="up">Rising</option><option value="down">Falling</option></select>
-      <select id="tf-metric" aria-label="Metric"><option value="all">Usage and production</option><option value="usage">Usage only (targets, carries, snaps)</option><option value="prod">Production only (yards)</option></select></div></div>
-    <div class="trend-list">${pt.slice(0, TSHOW.player).map(playerTrendRow).join('') || '<div class="tr"><div></div><div class="note">No player trends match.</div><div></div></div>'}</div>
-    ${moreBtn('player', TSHOW.player, pt.length)}
-    <div class="note">How a player trend is found: each game is compared with his usual level (last season's average weighted like 3 games, plus this season's earlier games). Rising means at least 20–30% and a few units above usual in every one of the last 2+ games; snap share needs +10 points. Team form compares each game's EPA per play with the team's pre-game rating.</div>`;
-  $('#tf-team').value = TF.team; $('#tf-kind').value = TF.kind; $('#tf-pteam').value = TF.pteam; $('#tf-pos').value = TF.pos; $('#tf-dir').value = TF.dir; $('#tf-metric').value = TF.metric;
-  ['team', 'kind', 'pteam', 'pos', 'dir', 'metric'].forEach(k => $('#tf-' + k).addEventListener('change', e => { TF[k] = e.target.value; store.set('tf', TF); TSHOW = {team: 12, player: 12}; renderTrends(); }));
+  const lgPts = lw.pts ? lw.pts.series : [];
+  const cards = [
+    ['players', 'Players', AP.length, `<span class="up">▲ ${pUp}</span> <span class="dn">▼ ${pDn}</span>`, splitBar([[pUp, 'var(--win)'], [pDn, 'var(--loss)']]), (AP[0] || {}).series],
+    ['teams', 'Teams', AT.length, `${tk('form')} form · ${tk('streak') + tk('betting')} streaks`, splitBar([[tk('form'), 'var(--stripe)'], [tk('streak'), 'var(--on-turf-2)'], [tk('betting'), 'var(--info)']]), (AT.find(t => t.kind === 'form') || {}).series],
+    ['league', 'League', AL.length, `of ${Object.keys(lw).length} stats off normal`, splitBar([[AL.length, 'var(--stripe)'], [Object.keys(lw).length - AL.length, 'rgba(255,255,255,.18)']]), lgPts]];
+  const hero = `<section class="th" aria-label="Trend sections">
+      <div class="th-top"><div><div class="th-k">Week ${WEEK} · held 2+ straight games</div><h1 class="th-h">Trends</h1></div>
+        <p class="th-p">Each trend is checked against 2018–2025 to show whether that kind of run has tended to continue. Tap any one for the game-by-game chart.</p></div>
+      <div class="th-tabs" role="tablist">${cards.map(([k, l, n, sub, bar, ser]) => `<button class="tcard" role="tab" data-tsub="${k}" aria-selected="${TSUB === k}">
+          <span class="tc-l">${l}</span><span class="tc-n num">${n}</span><span class="tc-s">${sub}</span>${bar}
+          ${ser && ser.length > 1 ? `<span class="tc-g">${spark(ser, {w: 120, h: 30})}</span>` : ''}</button>`).join('')}</div></section>`;
+  const teamOpts = Object.keys(T).sort().map(t => `<option value="${t}">${t} ${esc(T[t].nick)}</option>`).join('');
+  let body = '';
+  if (TSUB === 'league'){
+    const league = Object.keys(lw).map(k => {
+      const x = lw[k], last = x.series[x.series.length - 1];
+      const tr = AL.find(t => t.key === k);
+      return `<div class="lg ${onKeys.has(k) ? 'on' : ''}" data-chart="l|${k}|${k}" role="button" tabindex="0" aria-label="Open chart: ${esc(x.label)}"><div class="label">${esc(x.label)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px"><span class="v num">${last ? fmtL(k, last[1]) : '–'}</span>
+        <span class="${tr ? tr.tone : ''}">${spark(x.series, {w: 110, h: 34, base: x.base})}</span></div>
+        <div class="small">Week ${last ? last[0] : '–'} · normal ${fmtL(k, x.base)} (2021–25)</div>
+        ${tr ? `<div class="carry ${tr.kind === 'betting' ? 'noise' : 'sticky'}">${esc(tr.label)}${tr.kind === 'betting' ? '. League betting swings have not carried over.' : ''}</div>` : '<div class="small">No 2+ week trend</div>'}<span class="go">Chart ›</span></div>`;
+    }).join('');
+    body = `<p class="tnote">Highlighted cards are running above or below their 2021–25 normal for 2+ straight weeks. Scoring and play-style shifts tend to hold; league-wide betting swings (overs, favorites covering) have not.</p>
+      <div class="lg-grid">${league}</div>`;
+  } else if (TSUB === 'teams'){
+    const tt = AT.filter(t => (TF.team === 'all' || (TF.team === 'mine' ? FAV.has(t.team) : t.team === TF.team)) && (TF.kind === 'all' || t.kind === TF.kind));
+    const lead = AT.filter(t => t.kind === 'form').sort((a, b) => b.weeks - a.weeks)[0];
+    body = `${spotlight('t', lead)}
+      <p class="tnote"><b>Betting streaks don't carry over.</b> Teams that covered 2 straight covered the next game ${pct(fc('Covered 2+ straight').rate)} of the time; after 3 straight overs, the next game went over ${pct(fc('Games went over 3+ straight').rate)} (normal ${pct(fc('Games went over 3+ straight').base)}). Form trends, built on EPA per play, are the ones worth reading.</p>
+      <div class="sec-head"><h2 class="h3">Team trends <span class="small">(${tt.length})</span></h2>
+        <div class="filters"><select id="tf-team" aria-label="Team"><option value="all">All teams</option><option value="mine">★ My teams</option>${teamOpts}</select>
+        <select id="tf-kind" aria-label="Trend type"><option value="all">All types</option><option value="form">Form (how they're playing)</option><option value="streak">Win/loss streaks</option><option value="betting">Betting streaks</option></select></div></div>
+      <div class="trend-list">${tt.slice(0, TSHOW.team).map(teamTrendRow).join('') || '<div class="tr"><div></div><div class="note">No team trends match.</div><div></div></div>'}</div>
+      ${moreBtn('team', TSHOW.team, tt.length)}
+      <div class="note">Team form compares each game's EPA per play with the team's pre-game rating.</div>`;
+  } else {
+    const pt = AP.filter(p => (TF.pteam === 'all' || (TF.pteam === 'mine' ? FAV.has(p.team) : p.team === TF.pteam)) &&
+      (TF.pos === 'all' || p.pos === TF.pos) && (TF.dir === 'all' || p.tone === TF.dir) && (TF.metric === 'all' || (TF.metric === 'usage' ? p.sticky : !p.sticky)));
+    body = `${spotlight('p', AP[0])}
+      <p class="tnote"><b>Usage trends stick.</b> A back with more carries than usual two weeks running stayed above his average ${pct(fc('Carries above his average 2+ straight').rate)} of the time the next week (normally ${pct(fc('Carries above his average 2+ straight').base)}). Targets above average 3 straight: ${pct(fc('Targets above his average 3+ straight').rate)} vs ${pct(fc('Targets above his average 3+ straight').base)}.</p>
+      <div class="sec-head"><h2 class="h3">Player trends <span class="small">(${pt.length})</span></h2>
+        <div class="filters"><select id="tf-pteam" aria-label="Player team"><option value="all">All teams</option><option value="mine">★ My teams</option>${teamOpts}</select>
+        <select id="tf-pos" aria-label="Position"><option value="all">All positions</option><option>QB</option><option>RB</option><option>WR</option><option>TE</option></select>
+        <select id="tf-dir" aria-label="Direction"><option value="all">Rising and falling</option><option value="up">Rising</option><option value="down">Falling</option></select>
+        <select id="tf-metric" aria-label="Metric"><option value="all">Usage and production</option><option value="usage">Usage only (targets, carries, snaps)</option><option value="prod">Production only (yards)</option></select></div></div>
+      <div class="trend-list">${pt.slice(0, TSHOW.player).map(playerTrendRow).join('') || '<div class="tr"><div></div><div class="note">No player trends match.</div><div></div></div>'}</div>
+      ${moreBtn('player', TSHOW.player, pt.length)}
+      <div class="note">How a player trend is found: each game is compared with his usual level (last season's average weighted like 3 games, plus this season's earlier games). Rising means at least 20–30% and a few units above usual in every one of the last 2+ games; snap share needs +10 points.</div>`;
+  }
+  v.innerHTML = hero + `<div class="tbody" id="t-body">${body}</div>`;
+  const setv = (id, val) => { const el = $('#' + id); if (el) el.value = val; };
+  setv('tf-team', TF.team); setv('tf-kind', TF.kind); setv('tf-pteam', TF.pteam); setv('tf-pos', TF.pos); setv('tf-dir', TF.dir); setv('tf-metric', TF.metric);
+  ['team', 'kind', 'pteam', 'pos', 'dir', 'metric'].forEach(k => { const el = $('#tf-' + k); if (el) el.addEventListener('change', e => { TF[k] = e.target.value; store.set('tf', TF); TSHOW = {team: 12, player: 12}; renderTrends(); }); });
 }
 
 /* ======================================================================
@@ -1232,6 +1320,8 @@ document.addEventListener('click', e => {
   const c = e.target.closest('[data-chart]'); if (c && !e.target.closest('button:not([data-chart]), a, input, select, label')){ openChart(c.dataset.chart); return; }
   const b = e.target.closest('button'); if (!b) return;
   if (b.classList.contains('stp-b')){ stepInput(b); return; }
+  if (b.dataset.tsub){ TSUB = b.dataset.tsub; store.set('tsub', TSUB); TSHOW = {team: 12, player: 12}; renderTrends();
+    const hero = $('#v-trends .th'); if (hero && hero.getBoundingClientRect().top < 0) hero.scrollIntoView({block: 'start'}); return; }
   if (!CH) return;
   if (b.dataset.cstat){ CH.stat = b.dataset.cstat; renderChart(); return; }
   if (b.dataset.cwin){ CH.win = b.dataset.cwin; store.set('cwin', CH.win); renderChart(); return; }
