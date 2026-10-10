@@ -88,7 +88,7 @@ def run_len(flags):
 # ------------------------------------------------------------------ downloads
 print('Season', SEASON)
 fetch(f'{BASE}/schedules/games.csv', f'{RAW}/games.csv')
-have_pbp = {y: fetch(f'{BASE}/pbp/play_by_play_{y}.csv.gz', f'{RAW}/pbp_{y}.csv.gz', required=(y < SEASON)) for y in (SEASON - 1, SEASON)}
+have_pbp = {y: fetch(f'{BASE}/pbp/play_by_play_{y}.csv.gz', f'{RAW}/pbp_{y}.csv.gz', required=(y == SEASON - 1)) for y in (SEASON - 2, SEASON - 1, SEASON)}
 have_ps = {y: fetch(f'{BASE}/stats_player/stats_player_week_{y}.csv', f'{RAW}/stats_player_week_{y}.csv', required=(y < SEASON)) for y in (SEASON - 1, SEASON)}
 have_inj = fetch(f'{BASE}/injuries/injuries_{SEASON}.csv', f'{RAW}/injuries_{SEASON}.csv', required=False)
 have_rost = fetch(f'{BASE}/weekly_rosters/roster_weekly_{SEASON}.csv', f'{RAW}/roster_weekly_{SEASON}.csv', required=False)
@@ -101,15 +101,18 @@ PR = json.load(open(os.path.join(HERE, 'static', 'player_research.json')))
 TR = json.load(open(os.path.join(HERE, 'static', 'trend_research.json')))
 BINS = json.load(open(os.path.join(HERE, 'static', 'prop_bins.json')))
 STYLE_BASE = json.load(open(os.path.join(HERE, 'static', 'league_style_baseline.json')))
+M2 = json.load(open(os.path.join(HERE, 'static', 'model_v2.json')))
+SR = json.load(open(os.path.join(HERE, 'static', 'spread_research.json')))
 params = R['params']
 
 # ------------------------------------------------------------------ team games and metrics
 tgs, rzs = [], []
 for y in (SEASON - 1, SEASON):
-    if have_pbp[y]:
+    if have_pbp.get(y):
         tg_y, rz_y = pbp_agg.season_frames(y, f'{RAW}/pbp_{y}.csv.gz')
         tgs.append(tg_y); rzs.append(rz_y)
 tg_all = pd.concat(tgs, ignore_index=True)
+qb_g = pd.concat([pbp_agg.qb_frames(y, f'{RAW}/pbp_{y}.csv.gz') for y in (SEASON - 2, SEASON - 1, SEASON) if have_pbp.get(y)], ignore_index=True)
 rz_all = pd.concat(rzs, ignore_index=True)
 m_all = metrics.add_pregame(metrics.team_metric_frame(tg_all), params)
 m26 = m_all[m_all.season == SEASON].copy()
@@ -188,10 +191,26 @@ beta = np.array(R['margin_beta']); coef, const = beta[:-1], beta[-1]
 RESID = R['margin_resid_sd']; TBETA = np.array(R['total_beta'])
 
 
-def model_margin(h, a, neutral=False, src=None):
+TZ = M2['tz']; QBP = M2['qb']; M2F = M2['features']; M2B = np.array(M2['beta']); M2I = M2['intercept']; RESID = M2['resid_sd']
+
+
+def situation(g):
+    hr = g.home_rest if pd.notna(g.home_rest) else 7; ar = g.away_rest if pd.notna(g.away_rest) else 7
+    th, ta = TZ.get(g.home_team, -5), TZ.get(g.away_team, -5)
+    return {'rest_diff': float(np.clip(hr - ar, -7, 7)), 'bye_diff': int(hr >= 13) - int(ar >= 13),
+            'short_diff': int(hr <= 5) - int(ar <= 5), 'tz_diff': th - ta,
+            'west_early': 1 if (ta <= -7 and th == -4 and str(g.gametime).startswith('13')) else 0,
+            'altitude': 1 if g.home_team == 'DEN' else 0, 'neutral_i': 1 if bool(g.neutral) else 0}
+
+
+def model_margin(h, a, neutral=False, src=None, g=None, qb_h=None, qb_a=None):
     src = src or POST
-    z = np.array([((src[f][h] - src[f][a]) - MU[f]) / SD[f] for f in FEATS])
-    return float(z @ coef + (0 if neutral else const))
+    x = {f: src[f][h] - src[f][a] for f in FEATS}
+    x['qb_diff'] = (qb_h if qb_h is not None else QB_MEAN) - (qb_a if qb_a is not None else QB_MEAN)
+    x.update(situation(g) if g is not None else {'rest_diff': 0, 'bye_diff': 0, 'short_diff': 0, 'tz_diff': 0, 'west_early': 0,
+                                                    'altitude': 0, 'neutral_i': 1 if neutral else 0})
+    z = np.array([(x[f] - M2['mu'][f]) / M2['sd'][f] for f in M2F])
+    return float(z @ M2B + M2I)
 
 
 def model_total(h, a, roof, src=None):
@@ -202,9 +221,58 @@ def model_total(h, a, roof, src=None):
     return float(np.array([ppd_sum, pace, dome, 1.0]) @ TBETA)
 
 
+QB_MEAN = M2['qb_mean_starter']
+qb_g = qb_g.merge(sched[['game_id', 'gameday']], on='game_id', how='left').sort_values(['gameday', 'game_id'])
+starter_ids = {}
+for _, r in sched[sched.season.between(SEASON - 2, SEASON)].iterrows():
+    starter_ids[(r.game_id, r.home_team)] = r.home_qb_id if pd.notna(r.home_qb_id) else None
+    starter_ids[(r.game_id, r.away_team)] = r.away_qb_id if pd.notna(r.away_qb_id) else None
+top_db = qb_g.sort_values('db', ascending=False).groupby(['game_id', 'posteam']).head(1).set_index(['game_id', 'posteam'])
+QB_NAME = dict(zip(qb_g.qb, qb_g.name))
+_names = pd.concat([pd.read_csv(f'{RAW}/stats_player_week_{y}.csv', usecols=['player_id', 'player_display_name', 'position'], low_memory=False)
+                    for y in (SEASON - 1, SEASON) if have_ps.get(y)], ignore_index=True).drop_duplicates('player_id', keep='last')
+FULLNAME = dict(zip(_names.player_id, _names.player_display_name))
+QB_ID_BY_NAME = dict(zip(_names[_names.position == 'QB'].player_display_name, _names[_names.position == 'QB'].player_id))
+_hist = {}            # qb -> list of (season, dropbacks, epa)
+_qb_pre = {}          # (game_id, team) -> (qb id, rating entering that game)
+
+
+def qb_rating(qb, season):
+    h = [(s, d, e) for s, d, e in _hist.get(qb, []) if season - s <= QBP['seasons_back']]
+    num = sum(e * QBP['season_decay'] ** (season - s) for s, d, e in h)
+    den = sum(d * QBP['season_decay'] ** (season - s) for s, d, e in h)
+    return (QBP['k'] * QBP['target'] + num) / (QBP['k'] + den)
+
+
+for gid, d in qb_g.groupby('game_id', sort=False):
+    season = int(d.season.iloc[0])
+    for team in d.posteam.unique():
+        q = starter_ids.get((gid, team)) or (top_db.loc[(gid, team), 'qb'] if (gid, team) in top_db.index else None)
+        if q:
+            _qb_pre[(gid, team)] = (q, qb_rating(q, season))
+    for _, r in d.iterrows():
+        _hist.setdefault(r.qb, []).append((season, r.db, r.qb_epa))
+last_starter = {}
+for (gid, team), (q, _) in sorted(_qb_pre.items(), key=lambda kv: str(kv[0][0])):
+    last_starter[team] = q
+
+
+def current_qb(team, listed_id=None):
+    q = listed_id if (listed_id and isinstance(listed_id, str)) else last_starter.get(team)
+    if not q:
+        return None, QB_MEAN
+    return q, qb_rating(q, SEASON)
+
+
+def qb_name(q, fallback=None):
+    return FULLNAME.get(q) or fallback or QB_NAME.get(q) or 'Unknown QB'
+
+
 for t in TEAMS:
-    z = np.array([POST[f][t] / SD[f] for f in FEATS])
-    teams[t]['power'] = float(z @ coef)
+    q, qr = current_qb(t)
+    POST_AVG = {f: {t: POST[f][t], 'AVG': 0.0} for f in FEATS}
+    teams[t]['power'] = model_margin(t, 'AVG', True, POST_AVG, None, qr, QB_MEAN)
+    teams[t]['qb'] = {'name': qb_name(q), 'rating': qr} if q else None
 
 hm = m26[m26.home == 1].set_index('game_id'); am = m26[m26.home == 0].set_index('game_id')
 
@@ -291,8 +359,14 @@ games = []
 for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
     h, a = g.home_team, g.away_team
     neutral = bool(g.neutral)
-    srcg = (pregame_src(g.game_id, h, a) if g.final else None) or POST
-    mm = model_margin(h, a, neutral, srcg); wp = ncdf(mm / RESID); mt = model_total(h, a, g.roof, srcg)
+    pre_src = pregame_src(g.game_id, h, a) if g.final else None
+    srcg = pre_src or POST
+    if pre_src is not None and (g.game_id, h) in _qb_pre and (g.game_id, a) in _qb_pre:
+        (qh_id, qh), (qa_id, qa) = _qb_pre[(g.game_id, h)], _qb_pre[(g.game_id, a)]
+    else:
+        qh_id, qh = current_qb(h, g.home_qb_id if pd.notna(g.home_qb_id) else None)
+        qa_id, qa = current_qb(a, g.away_qb_id if pd.notna(g.away_qb_id) else None)
+    mm = model_margin(h, a, neutral, srcg, g, qh, qa); wp = ncdf(mm / RESID); mt = model_total(h, a, g.roof, srcg)
     ih, ia = am_prob(g.home_moneyline), am_prob(g.away_moneyline)
     nv_h = ih / (ih + ia) if ih and ia else None
     spread = float(g.spread_line) if pd.notna(g.spread_line) else None
@@ -302,8 +376,21 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
     qbc = {'home': qb_change(h, g.home_qb_name if pd.notna(g.home_qb_name) else None),
            'away': qb_change(a, g.away_qb_name if pd.notna(g.away_qb_name) else None)}
     pick_ats = None
-    if s_edge is not None and abs(s_edge) >= 2.5 and not (qbc['home'] or qbc['away']):
+    if s_edge is not None and abs(s_edge) >= 2.5:
         pick_ats = h if s_edge > 0 else a
+    for side_, qid_, qr_ in (('home', qh_id, qh), ('away', qa_id, qa)):
+        if qbc[side_]:
+            usual_id = QB_ID_BY_NAME.get(qbc[side_]['usual'])
+            qbc[side_]['starter_rating'] = qr_
+            qbc[side_]['usual_rating'] = qb_rating(usual_id, SEASON) if usual_id else None
+    teaser = []
+    if spread is not None:
+        for t_, ln_ in ((h, -spread), (a, spread)):
+            if -8.5 <= ln_ <= -7.5:
+                teaser.append({'team': t_, 'from': ln_, 'to': ln_ + 6, 'kind': 'fav', 'rate': SR['teaser']['fav_leg'], 'n': SR['teaser']['fav_n']})
+            if 1.5 <= ln_ <= 2.5:
+                teaser.append({'team': t_, 'from': ln_, 'to': ln_ + 6, 'kind': 'dog',
+                               'rate': SR['teaser']['dog_leg_lowtotal'] if (total or 99) <= 49 else SR['teaser']['dog_leg'], 'n': SR['teaser']['dog_n']})
     mism = []
     for off, de, unit in (('off_pass', 'def_pass', 'pass'), ('off_rush', 'def_rush', 'run')):
         for o_t, d_t in ((h, a), (a, h)):
@@ -321,7 +408,9 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
         'qb_home': g.home_qb_name if pd.notna(g.home_qb_name) else None, 'qb_away': g.away_qb_name if pd.notna(g.away_qb_name) else None,
         'model': {'margin': mm, 'wp_home': wp, 'total': mt, 'spread_edge': s_edge, 'total_edge': t_edge, 'mkt_wp_home': nv_h,
                   'pick_ats': pick_ats, 'pick_total': None, 'pick_su': h if mm > 0 else a},
-        'mismatches': mism, 'qb_change': qbc,
+        'mismatches': mism, 'qb_change': qbc, 'teaser': teaser,
+        'qb': {'home': {'name': qb_name(qh_id, g.home_qb_name if pd.notna(g.home_qb_name) else None), 'rating': qh},
+               'away': {'name': qb_name(qa_id, g.away_qb_name if pd.notna(g.away_qb_name) else None), 'rating': qa}},
         'rest': {'home': None if pd.isna(g.home_rest) else int(g.home_rest), 'away': None if pd.isna(g.away_rest) else int(g.away_rest)}})
 
 # ------------------------------------------------------------------ model pick record (pre-game info only)
@@ -333,7 +422,11 @@ for _, g in done.sort_values(['week', 'gameday', 'gametime']).iterrows():
         if int(g.week) != WEEK:
             continue
         src = POST     # final per the scoreboard but not in play-by-play yet, so current ratings are still pre-game
-    mm = model_margin(h, a, bool(g.neutral), src)
+    if (gid, h) in _qb_pre and (gid, a) in _qb_pre:
+        qh_, qa_ = _qb_pre[(gid, h)][1], _qb_pre[(gid, a)][1]
+    else:
+        qh_, qa_ = current_qb(h, g.home_qb_id if pd.notna(g.home_qb_id) else None)[1], current_qb(a, g.away_qb_id if pd.notna(g.away_qb_id) else None)[1]
+    mm = model_margin(h, a, bool(g.neutral), src, g, qh_, qa_)
     margin = g.home_score - g.away_score
     base = {'week': int(g.week), 'game': gid, 'away': a, 'home': h, 'score': f"{a} {int(g.away_score)} - {h} {int(g.home_score)}"}
     su = h if mm > 0 else a
@@ -342,7 +435,7 @@ for _, g in done.sort_values(['week', 'gameday', 'gametime']).iterrows():
     if pd.isna(g.spread_line):
         continue
     edge = mm - g.spread_line
-    if abs(edge) >= 2.5 and not (qb_change_at(h, g.home_qb_name, g.week) or qb_change_at(a, g.away_qb_name, g.week)):
+    if abs(edge) >= 2.5:
         side = h if edge > 0 else a
         line = -g.spread_line if side == h else g.spread_line
         cov = margin - g.spread_line
@@ -734,6 +827,7 @@ for pid, d in p26.groupby('player_id'):
 results = {g.game_id: {'wk': int(g.week), 'a': g.away_team, 'h': g.home_team,
                        'as': None if pd.isna(g.away_score) else int(g.away_score), 'hs': None if pd.isna(g.home_score) else int(g.home_score),
                        'sp': None if pd.isna(g.spread_line) else float(g.spread_line), 'tl': None if pd.isna(g.total_line) else float(g.total_line),
+                       'mlh': None if pd.isna(g.home_moneyline) else int(g.home_moneyline), 'mla': None if pd.isna(g.away_moneyline) else int(g.away_moneyline),
                        'k': kickoff_iso(g)} for _, g in S.iterrows()}
 last_stats_date = (str(S[S.game_id.isin(p26.game_id)].gameday.max()) if len(p26) else None)
 
@@ -741,7 +835,8 @@ research = {'team': R['research'], 'market_r': R['market_r'], 'market_su_acc': R
             'margin_coef': R['margin_coef'], 'ats_backtest': R['ats_backtest'], 'ou_backtest': R['ou_backtest'], 'ml_backtest': R['ml_backtest'],
             'player': {k: {'predictors': v['predictors'], 'mae_model': v['mae_model'], 'mae_season_avg': v['mae_season_avg'],
                            'r_model': v['r_model'], 'r_season_avg': v['r_season_avg'], 'n_test': v['n_test']} for k, v in PR['props'].items()},
-            'trend_carry': {'team': TR['team'], 'player': TR['player']}}
+            'trend_carry': {'team': TR['team'], 'player': TR['player']},
+            'spread': SR, 'model_v2': {'walk_forward': M2['walk_forward'], 'favorites_su': M2['favorites_su']}}
 STAT_LABEL = {'pd_g': 'Point diff / game', 'off_epa': 'EPA per play', 'def_epa': 'EPA per play allowed'}
 
 data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec='seconds'),
@@ -749,7 +844,7 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
                  'sources': ['nflverse play-by-play, player stats, schedules and lines', 'NFL Next Gen Stats (via nflverse)',
                              'Pro Football Reference snap counts (via nflverse)', 'NFL official injury report (via nflverse)',
                              'ESPN injury status and expected return dates', 'ESPN scoreboard for live and final scores'],
-                 'resid_sd': RESID},
+                 'resid_sd': RESID, 'qb_mean': QB_MEAN},
         'teams': teams, 'games': games, 'injuries': injuries, 'stat_labels': STAT_LABEL,
         'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80]},
         'model_picks': model_picks, 'prop_bins': BINS, 'research': research,

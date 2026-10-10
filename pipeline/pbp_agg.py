@@ -108,3 +108,20 @@ def season_frames(year, path):
     prz['season'] = year
     return tg, prz
 
+
+
+QB_USE = ['game_id', 'season', 'week', 'season_type', 'posteam', 'play_type', 'epa', 'two_point_attempt', 'qb_dropback',
+          'passer_player_id', 'rusher_player_id', 'passer_player_name', 'rusher_player_name']
+
+
+def qb_frames(year, path):
+    """Dropbacks and EPA per quarterback per game (sacks and scrambles included)."""
+    p = pd.read_csv(path, usecols=QB_USE, low_memory=False)
+    p = p[(p.season_type == 'REG') & p.play_type.isin(['pass', 'run']) & (p.two_point_attempt != 1) & p.epa.notna()
+          & p.posteam.notna() & (p.qb_dropback == 1)].copy()
+    p['qb'] = p.passer_player_id.fillna(p.rusher_player_id)
+    p['qb_name'] = p.passer_player_name.fillna(p.rusher_player_name)
+    q = p.groupby(['game_id', 'posteam', 'qb']).agg(db=('epa', 'size'), qb_epa=('epa', 'sum'), name=('qb_name', 'first'),
+                                                     week=('week', 'first')).reset_index()
+    q['season'] = year
+    return q

@@ -449,8 +449,6 @@ function modelBlock(g){
   } else if (m.pick_ats){
     const ln = lineFor(g, m.pick_ats);
     pickHtml = `<span class="pick-chip"><span class="k">Model pick</span>${m.pick_ats} ${fmtLine(ln)}</span>`;
-  } else if (qb.length){
-    pickHtml = `<span class="nopick">No spread pick: QB change</span>`;
   } else {
     pickHtml = `<span class="nopick">No spread pick: model within 2.5 pts of the line</span>`;
   }
@@ -462,7 +460,7 @@ function modelBlock(g){
         ${mk != null ? `<i class="wp-mkt" style="left:${((1 - mk) * 100).toFixed(1)}%"></i>` : ''}
       </div></div>
     <div class="model-line"><span>Model: <b>${fav} by ${Math.abs(m.margin).toFixed(1)}</b> · Line: <b>${g.spread == null ? '–' : (g.spread >= 0 ? h : a) + ' ' + fmtLine(-Math.abs(g.spread))}</b> · Total <b>${g.total ?? '–'}</b> <span class="small">(stats-only total ${m.total.toFixed(1)})</span></span>${pickHtml}</div>
-    ${qb.map(q => `<div class="small">QB change: <b>${esc(q.starter)}</b> ${g.final ? 'started' : 'expected to start'} (${q.starter_starts} start${q.starter_starts === 1 ? '' : 's'} this year) instead of ${esc(q.usual)}. The model's ratings are built mostly on ${esc(q.usual.split(' ').slice(-1)[0])}'s games.</div>`).join('')}`;
+    ${qb.map(q => `<div class="small">QB change: <b>${esc(q.starter)}</b> ${g.final ? 'started' : 'expected to start'} instead of ${esc(q.usual)}.${q.starter_rating != null ? ` The model adjusts for it, rating ${esc(q.starter.split(' ').slice(-1)[0])} at ${sign(q.starter_rating, 2)} EPA per dropback${q.usual_rating != null ? ` vs ${sign(q.usual_rating, 2)} for ${esc(q.usual.split(' ').slice(-1)[0])}` : ''}.` : ''}</div>`).join('')}`;
 }
 function gameChips(g){
   const out = [];
@@ -471,6 +469,7 @@ function gameChips(g){
   if (keyInj[0] + keyInj[1]) out.push(`<span class="pill warn">Key injuries: ${g.away} ${keyInj[0]} · ${g.home} ${keyInj[1]}</span>`);
   const tr = D.trends.team.filter(t => (t.team === g.away || t.team === g.home) && t.kind !== 'betting');
   tr.slice(0, 2).forEach(t => out.push(`<span class="pill ${t.tone === 'up' ? 'win' : 'loss'}">${t.team} ${esc(t.label.toLowerCase())}</span>`));
+  (g.teaser || []).forEach(x => out.push(`<span class="pill ${x.kind === 'dog' ? 'win' : 'ghost'}" title="Six-point teaser leg">Teaser: ${x.team} ${fmtLine(x.from)} → ${fmtLine(x.to)} · legs like this won ${pct(x.rate)}${x.kind === 'fav' ? ', below break-even' : ''}</span>`));
   if (g.div) out.push('<span class="pill ghost">Division</span>');
   if (g.rest.home && g.rest.away && Math.abs(g.rest.home - g.rest.away) >= 3) out.push(`<span class="pill ghost">Rest: ${g.away} ${g.rest.away}d, ${g.home} ${g.rest.home}d</span>`);
   return out.join('');
@@ -592,13 +591,13 @@ function renderWeek(){
       <span class="small">${g.final ? 'Final' : 'Model win chance ' + pct(wp)}</span></div>
       <button class="btn link" data-jump="${g.id}">Open matchup</button></div>`;
   }).join('');
-  const filters = [['all', 'All games'], ['mine', '★ My teams'], ['picks', 'Model picks'], ['mismatch', 'Mismatches'], ['qb', 'QB changes']];
+  const filters = [['all', 'All games'], ['mine', '★ My teams'], ['picks', 'Model picks'], ['teaser', 'Teaser spots'], ['mismatch', 'Mismatches'], ['qb', 'QB changes']];
   const shown = games.filter(g => weekFilter === 'all' ? true : weekFilter === 'mine' ? (FAV.has(g.home) || FAV.has(g.away)) :
-    weekFilter === 'picks' ? !!g.model.pick_ats : weekFilter === 'mismatch' ? g.mismatches.length > 0 : (g.qb_change.home || g.qb_change.away));
+    weekFilter === 'picks' ? !!g.model.pick_ats : weekFilter === 'teaser' ? (g.teaser || []).length > 0 : weekFilter === 'mismatch' ? g.mismatches.length > 0 : (g.qb_change.home || g.qb_change.away));
   v.innerHTML = `
     <div class="sec-head"><div><h1 class="h2">Week ${WEEK} matchups</h1>
       <p class="lede">${games.length} games · ${games.filter(g => g.final).length} final · ${nPicks} model pick${nPicks === 1 ? '' : 's'} against the spread · ${nMis} stat mismatch${nMis === 1 ? '' : 'es'} · ${nQB} QB change${nQB === 1 ? '' : 's'}. Lines and odds are the consensus from the nflverse schedule feed, refreshed every 30 minutes, so check your book before betting.</p></div></div>
-    <details class="callout"><summary class="h3" style="cursor:pointer">How to read a card</summary><p class="small">Ranks are out of 32 (green = top 8, red = bottom 8). The colored bar is the model's win chance; the yellow mark is the betting market's. The model line comes from the team stats that predicted results best from 2018–2025. It picks winners about as well as the Vegas favorite (66%) but has not beaten the spread over time, so treat its picks as a second opinion. A stat mismatch flags a top-8 pass or run offense facing a bottom-8 defense in that phase. QB changes are flagged because the ratings can't see them.</p></details>
+    <details class="callout"><summary class="h3" style="cursor:pointer">How to read a card</summary><p class="small">Ranks are out of 32 (green = top 8, red = bottom 8). The colored bar is the model's win chance; the yellow mark is the betting market's. The model line comes from the team stats that predicted results best from 2018–2025. It picks winners about as well as the Vegas favorite (66%) but has not beaten the spread over time, so treat its picks as a second opinion. A stat mismatch flags a top-8 pass or run offense facing a bottom-8 defense in that phase. QB changes are flagged, and the model adjusts using each starter's rating.</p></details>
     ${glance ? `<div class="glance">${glance}</div>` : `<div class="callout"><p class="small">Tap the ★ next to any team to pin its games here. Your starred teams are saved on this device.</p></div>`}
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter games">${filters.map(([k, l]) => `<button data-wf="${k}" aria-pressed="${weekFilter === k}">${l}</button>`).join('')}</div>
       <button class="btn" data-addpick="">+ Add a pick</button></div>
@@ -710,6 +709,17 @@ function gradePick(p){
   if (p.type === 'any_td') return {r: val > 0 ? 'W' : 'L', actual: val};
   return ou(val);
 }
+function impProb(o){ o = Number(o); return o < 0 ? -o / (-o + 100) : 100 / (o + 100); }
+function clvOf(p){
+  const g = D.grade.games[p.game]; if (!g) return null;
+  const started = g.hs != null || (g.k && Date.now() > new Date(g.k).getTime());
+  let out = null;
+  if (p.type === 'spread' && g.sp != null && p.line != null){ const close = p.team === g.h ? -g.sp : g.sp; out = {v: Number(p.line) - close, txt: fmtLine(close), unit: 'pts'}; }
+  else if (p.type === 'total' && g.tl != null && p.line != null){ out = {v: p.side === 'O' ? g.tl - Number(p.line) : Number(p.line) - g.tl, txt: String(g.tl), unit: 'pts'}; }
+  else if (p.type === 'ml'){ const cl = p.team === g.h ? g.mlh : g.mla; if (cl != null) out = {v: (impProb(cl) - impProb(p.odds)) * 100, txt: fmtOdds(cl), unit: '%'}; }
+  if (out) out.closed = started;
+  return out;
+}
 function describePick(p){
   const g = D.grade.games[p.game] || {};
   const def = PT[p.type] || {label: p.type};
@@ -758,6 +768,9 @@ function renderPicks(){
       <div class="tile"><div class="label">Win rate</div><div class="v num">${s.pct == null ? '–' : pct(s.pct, 1)}</div><div class="small">Break-even at −110: 52.4%</div></div>
       <div class="tile"><div class="label">Units</div><div class="v num ${s.units > 0 ? 'pos' : s.units < 0 ? 'neg' : ''}">${sign(s.units, 2)}</div><div class="small">ROI ${s.roi == null ? '–' : pct(s.roi, 1)}</div></div>
       <div class="tile"><div class="label">Pending</div><div class="v num">${s.pend}</div></div>
+      ${(() => { const cl = PICKS.map(clvOf).filter(c => c && c.closed && c.unit === 'pts'); if (!cl.length) return `<div class="tile"><div class="label">Beat the closing line</div><div class="v num">–</div><div class="small">Shows once your spread or total picks kick off</div></div>`;
+        const beat = cl.filter(c => c.v > 0).length, avg = cl.reduce((a, c) => a + c.v, 0) / cl.length;
+        return `<div class="tile"><div class="label">Beat the closing line</div><div class="v num ${avg > 0 ? 'pos' : avg < 0 ? 'neg' : ''}">${beat}/${cl.length}</div><div class="small">Average ${sign(avg, 1)} pts on spreads and totals. The best early sign of a real edge.</div></div>`; })()}
     </div>
     ${PICKS.length ? `<div class="sec-head"><h2 class="h3">Record by bet type</h2>${cats.map(([c, x]) => `<span class="pill ghost">${c}: ${x.W}-${x.L}${x.P ? '-' + x.P : ''}${x.pct != null ? ' · ' + pct(x.pct) : ''}</span>`).join(' ')}</div>
       <div class="tbl-wrap"><table class="grid"><thead><tr><th>Type</th><th class="r">W-L-P</th><th class="r">Win %</th><th>Win rate vs. break-even</th><th class="r">Units</th><th class="r">Pending</th></tr></thead><tbody>${typeRows}</tbody></table></div>
@@ -789,11 +802,13 @@ function renderPicks(){
 function pickRow(p){
   const r = p._r;
   const g = D.grade.games[p.game] || {};
+  const c = clvOf(p);
+  const clvTxt = c ? ` · ${c.closed ? 'closing' : 'line now'} ${c.txt}: <b style="color:${c.v > 0 ? 'var(--win)' : c.v < 0 ? 'var(--loss)' : 'inherit'}">${c.v > 0 ? 'you beat it by ' : c.v < 0 ? 'you trail it by ' : 'same as yours'}${c.v ? Math.abs(c.v).toFixed(1) + (c.unit === 'pts' ? ' pts' : ' pts of win chance') : ''}</b>` : '';
   const actual = p._actual != null ? ` · result: ${p.type === 'spread' || p.type === 'ml' ? (p._actual > 0 ? 'won by ' + p._actual : p._actual < 0 ? 'lost by ' + Math.abs(p._actual) : 'tied') : p._actual}` : '';
   const manualable = (PT[p.type] || {}).cat === 'Other' || r === 'V' || p.manual;
   return `<div class="pk"><span class="rp ${r || 'pending'}">${r || '···'}</span>
     <div style="min-width:0"><div class="d">${esc(describePick(p))}</div>
-      <div class="m">${esc((PT[p.type] || {}).label || p.type)} · Wk ${p.week}${g.a ? ' · ' + g.a + ' @ ' + g.h : ''} · ${fmtOdds(Number(p.odds))} · ${p.units}u${r ? ' · ' + sign(profit(p, r), 2) + 'u' : ''}${actual}${r === 'V' ? ' · no stats found, set the result' : ''}${p.note && p.type !== 'other' && p.type !== 'parlay' ? ' · ' + esc(p.note) : ''}</div></div>
+      <div class="m">${esc((PT[p.type] || {}).label || p.type)} · Wk ${p.week}${g.a ? ' · ' + g.a + ' @ ' + g.h : ''} · ${fmtOdds(Number(p.odds))} · ${p.units}u${r ? ' · ' + sign(profit(p, r), 2) + 'u' : ''}${actual}${r === 'V' ? ' · no stats found, set the result' : ''}${clvTxt}${p.note && p.type !== 'other' && p.type !== 'parlay' ? ' · ' + esc(p.note) : ''}</div></div>
     <div class="acts">${manualable ? ['W', 'L', 'P'].map(x => `<button class="btn tiny" data-setres="${esc(p.id)}" data-res="${x}" aria-pressed="${p.manual === x}">${x}</button>`).join('') : ''}
       <button class="btn tiny" data-delpick="${esc(p.id)}" aria-label="Delete pick">Delete</button></div></div>`;
 }
@@ -813,7 +828,7 @@ function modelRecordHtml(){
     return `<details><summary class="small" style="cursor:pointer;padding:8px 0">Week ${w}: ${l.filter(p => p.type === 'Spread').map(p => p.result).join('') ? 'spread ' + l.filter(p => p.type === 'Spread' && p.result === 'W').length + '-' + l.filter(p => p.type === 'Spread' && p.result === 'L').length + ' · ' : ''}winners ${l.filter(p => p.type === 'Winner' && p.result === 'W').length}-${l.filter(p => p.type === 'Winner' && p.result === 'L').length}</summary>
       <div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${l.map(p => `<div class="pk"><span class="rp ${p.result}">${p.result}</span><div><div class="d">${esc(p.detail)}</div><div class="m">${esc(p.type)} · ${esc(p.score)}</div></div><div></div></div>`).join('')}</div></details>`;
   }).join('');
-  return `<div class="sec-head"><div><h2 class="h3">Model's record</h2><p class="lede">Every pick the model would have made this season using only the data available before each game. Spread picks need a 2.5-point disagreement with the line and no QB change.</p></div></div>
+  return `<div class="sec-head"><div><h2 class="h3">Model's record</h2><p class="lede">Every pick the model would have made this season using only the data available before each game. Spread picks need a 2.5-point disagreement with the line.</p></div></div>
     <div class="tiles">${sm}</div>
     <div>${pend.length ? `<div class="label" style="margin:6px 0">Pending this week</div><div class="g-chips">${pend.map(p => `<span class="pill ${p.type === 'Spread' ? 'stripe' : 'ghost'}">${esc(p.type)}: ${esc(p.detail)}</span>`).join('')}</div>` : ''}${rows}</div>`;
 }
@@ -946,20 +961,40 @@ function renderMatters(){
     <div class="bars">${pBars}<div class="axis"><span></span><span class="ticks"><span>0</span><span>.25</span><span>.55</span></span><span></span></div></div>
     <div class="note">Projection model for this prop uses the top non-tracking stats. Out of sample (2024–25, ${P.n_test.toLocaleString()} player-games): r = ${P.r_model.toFixed(2)} vs ${P.r_season_avg.toFixed(2)} for the plain season average; average miss ${P.mae_model} vs ${P.mae_season_avg}.</div>
 
-    <div class="sec-head"><div><h2 class="h3">How good is the model?</h2><p class="lede">Built on the top team stats with weights fit on 2018–2023 and tested on 2024–2025 games it never saw.</p></div></div>
+    <div class="sec-head"><div><h2 class="h3">How good is the model?</h2><p class="lede">The model uses the top team stats plus each starting quarterback's rating and rest and travel. Tested on 2020–2025, with each season predicted only from the seasons before it.</p></div></div>
     <div class="facts">
-      <div class="fact"><div class="label">Picking winners</div><div class="v">66%</div><p>Same as always taking the Vegas favorite (${pct(R.market_su_acc)}). This season: ${w.filter(p => p.result === 'W').length}-${w.filter(p => p.result === 'L').length}.</p></div>
-      <div class="fact"><div class="label">Against the spread</div><div class="v">${pct(a0.test_w / (a0.test_w + a0.test_l), 1)}</div><p>On every game; ${pct(a3.test_w / (a3.test_w + a3.test_l), 1)} when it disagreed with the line by 3+. You need 52.4% to profit at −110. This season: ${sp.filter(p => p.result === 'W').length}-${sp.filter(p => p.result === 'L').length}.</p></div>
-      <div class="fact"><div class="label">Moneyline value bets</div><div class="v">${pct(ml[1].test.roi, 1)}</div><p>Return when betting sides the model rated 5+ points of win probability better than the market (${ml[1].test.bets} bets). The market prices this data in.</p></div>
+      <div class="fact"><div class="label">Picking winners</div><div class="v">${pct(R.model_v2.walk_forward.su, 1)}</div><p>Taking the Vegas favorite every time picked ${pct(R.model_v2.favorites_su, 1)} over the same games. This season: ${w.filter(p => p.result === 'W').length}-${w.filter(p => p.result === 'L').length}.</p></div>
+      <div class="fact"><div class="label">Against the spread</div><div class="v">${pct(R.model_v2.walk_forward['0'].pct, 1)}</div><p>Over ${(R.model_v2.walk_forward['0'].w + R.model_v2.walk_forward['0'].l).toLocaleString()} games. You need 52.4% to profit at −110, and luck alone moves a sample this size about 2.5 points. This season: ${sp.filter(p => p.result === 'W').length}-${sp.filter(p => p.result === 'L').length}.</p></div>
+      <div class="fact"><div class="label">Moneyline value bets</div><div class="v">${pct(ml[1].test.roi, 1)}</div><p>Return from an earlier version when betting sides it rated 5+ points of win probability better than the market (${ml[1].test.bets} bets).</p></div>
       <div class="fact"><div class="label">Totals</div><div class="v">${pct(ou0.test_w / (ou0.test_w + ou0.test_l), 1)}</div><p>Over/under accuracy from team stats alone, so the model shows a stats-only total for context and makes no total picks.</p></div>
     </div>
 
+    ${spreadTests(R.spread)}
     <div class="sec-head"><div><h2 class="h3">Do 2+ week trends continue?</h2><p class="lede">How often each kind of trend carried into the next game, 2018–2025.</p></div></div>
     <div class="tbl-wrap"><table class="grid"><thead><tr><th>Trend</th><th>Next game</th><th class="r">Rate</th><th class="r">Normal</th><th class="r">Diff (pts)</th><th class="r">Times</th></tr></thead><tbody>${carryRows}</tbody></table></div>
 
     <div class="callout"><div class="h3">Sources and method</div>
       <ul class="plain">${D.meta.sources.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
       <p class="small">Team ratings blend last season (pulled toward average by how stable each stat is year to year) with this season's games. EPA (expected points added) and success rate come from nflverse play-by-play. Data refreshes automatically about every 30 minutes; this copy was built ${esc(kick(D.meta.asof, {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}))}.</p></div>`;
+}
+
+function spreadTests(S){
+  if (!S || !S.variants) return '';
+  const order = ['Current model', 'Opponent-adjusted efficiency', 'Garbage time removed', 'Recent games weighted more', 'Starting QB rating added', 'Rest, travel and situation added', 'Pressure rates added', 'All of the above'];
+  const label = {'Current model': 'Stats only (first version)', 'Opponent-adjusted efficiency': 'Adjusted for opponent strength', 'Garbage time removed': 'Garbage time removed',
+    'Recent games weighted more': 'Recent games weighted more', 'Starting QB rating added': 'Starting-QB rating added', 'Rest, travel and situation added': 'Rest, travel and situation added',
+    'Pressure rates added': 'Pass-rush and pass-block pressure added', 'All of the above': 'All combined'};
+  const rows = order.filter(k => S.variants[k]).map(k => { const v = S.variants[k];
+    return `<tr><td style="white-space:normal">${label[k]}</td><td class="r num">${pct(v.su, 1)}</td><td class="r num">${pct(v['0'].pct, 1)}</td><td class="r num">${pct(v['3.0'].pct, 1)}</td></tr>`; }).join('');
+  const T_ = S.teaser, K = S.key, sp = S.splits || {};
+  return `<div class="sec-head"><div><h2 class="h3">Can it beat the spread?</h2><p class="lede">Each fix tested on ${(S.variants['Current model']['0'].w + S.variants['Current model']['0'].l).toLocaleString()} games from 2020–2025, predicting each season only from earlier ones. Fixes that help pick winners don't help against the spread, because the betting line already prices them in.</p></div></div>
+    <div class="tbl-wrap"><table class="grid"><thead><tr><th>Version</th><th class="r">Picks winners</th><th class="r">Covers, all games</th><th class="r">Covers, 3+ pt edge</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="facts">
+      <div class="fact"><div class="label">Half a point at 3</div><div class="v">${pct(K.p_fav_by_3_when_line_near_3)}</div><p>Games lined near 3 that the favorite won by exactly 3. Getting +3.5 instead of +3 turns those pushes into wins, so shopping for the better number beats any model tweak.</p></div>
+      <div class="fact"><div class="label">Teaser legs: underdogs</div><div class="v">${pct(T_.dog_leg, 1)}</div><p>Six-point teasers taking +1.5 to +2.5 underdogs up through 3 and 7 won ${pct(T_.dog_leg, 1)} of legs (${T_.dog_n} games, 2018–25; ${pct(T_.dog_leg_lowtotal, 1)} when the total was 49 or less). A two-team teaser at −120 needs ${pct(T_.breakeven_2team_minus120, 1)} per leg.</p></div>
+      <div class="fact"><div class="label">Teaser legs: favorites</div><div class="v">${pct(T_.fav_leg, 1)}</div><p>Teasing −7.5 to −8.5 favorites down to −1.5 or −2.5 won ${pct(T_.fav_leg, 1)} of legs (${T_.fav_n} games), below break-even.</p></div>
+      <div class="fact"><div class="label">Worth watching</div><div class="v">${pct((sp['Road underdogs'] || {}).rate, 1)}</div><p>Road underdogs' cover rate, 2018–25 (${((sp['Road underdogs'] || {}).n || 0).toLocaleString()} games). Division underdogs: ${pct((sp['Division underdogs'] || {}).rate, 1)}. Close to break-even, so not proven.</p></div>
+    </div>`;
 }
 
 /* ======================================================================

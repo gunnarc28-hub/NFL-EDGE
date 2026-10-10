@@ -14,7 +14,8 @@ Every visit loads the newest build, and live scores come straight from ESPN whil
 - `pipeline/build.py`: rebuilds the data. Sources: nflverse (play-by-play, player stats, schedules and lines, official
   injury reports, snap counts, Next Gen Stats) and ESPN (injury status, expected return dates, live scores).
 - `pipeline/static/`: the research the model is built on (2017–2025): which team and player stats predict results,
-  model weights, backtests, and how often 2+ week trends carried into the next game.
+  model weights, spread backtests, teaser and key-number history, and how often 2+ week trends carried into the next game.
+- `research/`: the scripts that produced those files.
 
 ## Run the build yourself
 
