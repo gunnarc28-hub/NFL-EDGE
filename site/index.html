@@ -1144,7 +1144,7 @@ function openChart(spec){
   renderChart();
   setTimeout(() => { const b = $('#cs-close'); if (b) b.focus(); }, 0);
 }
-function closeChart(){ $('#cscrim').hidden = true; $('#csheet').hidden = true; document.body.style.overflow = ''; CH = null; }
+function closeChart(){ $('#cscrim').hidden = true; $('#csheet').hidden = true; $('#csheet').innerHTML = ''; document.body.style.overflow = ''; CH = null; }
 function chartSvg(pts, f, base, seasonNow){
   const box = $('#csheet'), W = Math.round(Math.max(320, Math.min(680, (box && box.clientWidth ? box.clientWidth - 30 : 680)))), H = W < 500 ? 220 : 250, L = 40, R = 12, TOP = 24, B = 34;
   const vals = pts.map(p => p.v);
@@ -1178,6 +1178,9 @@ function chartSvg(pts, f, base, seasonNow){
 }
 function renderChart(){
   const src = chartSource(); if (!src) return;
+  // remember scroll positions so switching stats doesn't jump the button rows, the panel or the table
+  const sh = $('#csheet'), segs = $$('.cs-pick .seg', sh).map(x => x.scrollLeft), tb = $('.cs-tbl', sh);
+  const keep = {top: sh.scrollTop, segs, tbl: tb ? tb.scrollTop : 0, tblX: tb ? tb.scrollLeft : 0, had: segs.length > 0};
   const [label, fn, f] = src.defs[CH.stat];
   let rows = src.rows.slice();
   if (CH.win === 'season' || src.league) rows = rows.filter(r => r.s === src.season);
@@ -1210,6 +1213,14 @@ function renderChart(){
       <div class="mc"><div class="k">High</div><div class="v">${hiP ? fmtV(f, hiP.v) : '–'}</div></div>
       <div class="mc"><div class="k">Low</div><div class="v">${loP ? fmtV(f, loP.v) : '–'}</div></div></div>
     <div class="cs-tbl"><table class="grid tight"><thead><tr><th>${src.league ? 'Week' : 'Game'}</th>${src.league ? '' : '<th>Opp</th>'}${cols.map(k => `<th class="r ${k === CH.stat ? 'sel' : ''}">${esc(src.defs[k][0])}</th>`).join('')}</tr></thead><tbody>${tbl}</tbody></table></div>`;
+  const segs2 = $$('.cs-pick .seg', sh);
+  if (keep.had){
+    segs2.forEach((x, i) => x.scrollLeft = keep.segs[i] || 0);
+    sh.scrollTop = keep.top; const tb2 = $('.cs-tbl', sh); if (tb2){ tb2.scrollTop = keep.tbl; tb2.scrollLeft = keep.tblX; }
+  } else {
+    // first open: bring the selected stat into view
+    segs2.forEach(x => { const on = $('button[aria-pressed="true"]', x); if (on) x.scrollLeft = Math.max(0, on.offsetLeft - x.offsetLeft - 16); });
+  }
 }
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-chart]'); if (c && !e.target.closest('button:not([data-chart]), a, input, select, label')){ openChart(c.dataset.chart); return; }
