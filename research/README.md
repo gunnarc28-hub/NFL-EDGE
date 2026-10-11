@@ -15,3 +15,6 @@ nflverse files in `raw/` and an empty `work/` folder.
 8. `09_long_shots.py` – touchdown model (anytime, 2+, first scorer) and 100/300-yard chances, each tested season by
    season on 2021–2025 with only earlier data, plus a replay of the weekly long-shot picks (`longshot_model.json`,
    `longshot_research.json`).
+9. `10_units_backtest.py` – units won or lost following the model's picks from 2020–2025, graded at real prices:
+   spread picks at −110, moneylines at the closing price (`units_research.json`). Run after 07, which saves the
+   walk-forward predictions to `work/`.

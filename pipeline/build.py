@@ -1374,6 +1374,50 @@ long_shots = {'picks': ls_picks, 'history': ls_hist, 'rules': LS_RULES,
                            'atd_by_position': LSR.get('atd_by_position')}}
 print('long shots:', len(ls_picks), {g_: sum(1 for x in ls_picks if x['group'] == g_) for g_ in LS_RULES}, 'history:', len(ls_hist))
 
+# ------------------------------------------------------------------ units: what following the model's picks would have won or lost
+# Real prices only: spread picks at -110, moneylines at the closing price from the schedule feed.
+UR = json.load(open(os.path.join(HERE, 'static', 'units_research.json')))
+SPREAD_WIN = 100 / 110
+
+
+def _pay(o):
+    return o / 100 if o > 0 else 100 / abs(o)
+
+
+def _grade(res, win):
+    return win if res == 'W' else (-1.0 if res == 'L' else 0.0)
+
+
+def units_season(bets, keys):
+    """bets: (week, strategy, profit). Cumulative units by week, the same shape as the replay block."""
+    weeks = sorted({b[0] for b in bets})
+    out = {'span': str(SEASON), 'timeline': [[SEASON, w] for w in weeks], 'series': {}, 'summary': {}, 'by_season': {}}
+    for k in keys:
+        bk = [b for b in bets if b[1] == k]
+        per = [sum(b[2] for b in bk if b[0] == w) for w in weeks]
+        out['series'][k] = [round(float(v), 2) for v in np.cumsum(per)] if weeks else []
+        w_, l_ = sum(1 for b in bk if b[2] > 0), sum(1 for b in bk if b[2] < 0)
+        out['summary'][k] = {'bets': len(bk), 'w': w_, 'l': l_, 'p': len(bk) - w_ - l_, 'units': round(float(sum(b[2] for b in bk)), 2),
+                             'roi': round(float(sum(b[2] for b in bk)) / len(bk), 4) if bk else None}
+    return out
+
+
+mb = []
+for x in model_picks:
+    if x['type'] == 'Spread':
+        mb.append((x['week'], 'spread', _grade(x['result'], SPREAD_WIN)))
+        continue
+    o = x['ml_h'] if x['pick'] == x['home'] else x['ml_a']
+    if o is not None:
+        mb.append((x['week'], 'ml', _grade(x['result'], _pay(o))))
+    if x['mkt_h'] is not None:
+        for side, gap, o2 in ((x['home'], x['wp_h'] - x['mkt_h'], x['ml_h']), (x['away'], x['mkt_h'] - x['wp_h'], x['ml_a'])):
+            if gap >= 0.05 and o2 is not None:
+                r_ = 'P' if x['margin'] == 0 else ('W' if (x['margin'] > 0) == (side == x['home']) else 'L')
+                mb.append((x['week'], 'value', _grade(r_, _pay(o2))))
+units = {'model': {'season': units_season(mb, ['spread', 'ml', 'value']), 'replay': UR['model']}}
+print('model units this season:', {k: v['units'] for k, v in units['model']['season']['summary'].items()})
+
 # ------------------------------------------------------------------ grading data
 grade_players = {}
 for pid, d in p26.groupby('player_id'):
@@ -1471,7 +1515,7 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
         'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80],
                    'logs': {'pcols': CHART_COLS, 'players': player_logs, 'tcols': TEAM_COLS, 'teams': team_logs}},
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
-        'long_shots': long_shots, 'matchups': matchups,
+        'long_shots': long_shots, 'matchups': matchups, 'units': units,
         'grade': {'players': grade_players, 'games': results}}
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 tmp = OUT + '.tmp'
