@@ -451,8 +451,12 @@ for _, g in done.sort_values(['week', 'gameday', 'gametime']).iterrows():
     margin = g.home_score - g.away_score
     base = {'week': int(g.week), 'game': gid, 'away': a, 'home': h, 'score': f"{a} {int(g.away_score)} - {h} {int(g.home_score)}"}
     su = h if mm > 0 else a
+    ih_, ia_ = am_prob(g.home_moneyline), am_prob(g.away_moneyline)
     model_picks.append({**base, 'type': 'Winner', 'pick': su, 'detail': f"{su} to win (model {abs(mm):.1f})",
-                        'result': 'P' if margin == 0 else ('W' if (margin > 0) == (su == h) else 'L')})
+                        'result': 'P' if margin == 0 else ('W' if (margin > 0) == (su == h) else 'L'),
+                        'margin': margin, 'wp_h': ncdf(mm / RESID), 'mkt_h': (ih_ / (ih_ + ia_)) if ih_ and ia_ else None,
+                        'ml_h': None if pd.isna(g.home_moneyline) else int(g.home_moneyline),
+                        'ml_a': None if pd.isna(g.away_moneyline) else int(g.away_moneyline)})
     if pd.isna(g.spread_line):
         continue
     edge = mm - g.spread_line
@@ -1071,10 +1075,11 @@ if 'feat' in globals() and len(p26):
                            'label': f"{r.player_display_name} {thr}+ {STAT_WORD[key]}", 'p': p, 'actual': float(actual),
                            'result': 'W' if actual >= thr else 'L'})
     hist_p.sort(key=lambda x: -x['p'])
-    wk_count = {}
+    wk_count, gm_count = {}, {}
     for x in hist_p:
-        if wk_count.get(x['week'], 0) < 12:
-            wk_count[x['week']] = wk_count.get(x['week'], 0) + 1; hc_hist.append(x)
+        if wk_count.get(x['week'], 0) < 12 and gm_count.get(x['game'], 0) < 3:
+            wk_count[x['week']] = wk_count.get(x['week'], 0) + 1; gm_count[x['game']] = gm_count.get(x['game'], 0) + 1
+            x['fair'] = fair_odds(x['p']); hc_hist.append(x)
 # heavy favorites the model and the market both like, and underdog teaser legs
 for gm in games:
     if gm['final']:
@@ -1113,13 +1118,14 @@ for _, g in done.iterrows():
         wp_h = ncdf(PRE_MM[g.game_id] / RESID); nv = ih / (ih + ia)
         for t, mp, kp, won in ((g.home_team, wp_h, nv, g.home_score > g.away_score), (g.away_team, 1 - wp_h, 1 - nv, g.away_score > g.home_score)):
             if mp >= 0.75 and kp >= 0.75:
+                o_ = g.home_moneyline if t == g.home_team else g.away_moneyline
                 hc_hist.append({'kind': 'ml', 'week': int(g.week), 'game': g.game_id, 'team': t, 'label': f"{teams[t]['nick']} to win",
-                                'p': kp, 'result': 'W' if won else 'L'})
+                                'p': kp, 'odds': None if pd.isna(o_) else int(o_), 'result': 'W' if won else ('P' if g.home_score == g.away_score else 'L')})
     for t, ln in ((g.home_team, -g.spread_line), (g.away_team, g.spread_line)):
         if 1.5 <= ln <= 2.5:
             mg = (g.home_score - g.away_score) * (1 if t == g.home_team else -1)
             hc_hist.append({'kind': 'teaser', 'week': int(g.week), 'game': g.game_id, 'team': t, 'label': f"{teams[t]['nick']} {ln + 6:+g} (teased)",
-                            'p': SR['teaser']['dog_leg'], 'result': 'W' if mg + ln + 6 > 0 else 'L'})
+                            'p': SR['teaser']['dog_leg'], 'result': 'W' if mg + ln + 6 > 0 else ('P' if mg + ln + 6 == 0 else 'L')})
 hc_hist.sort(key=lambda x: (-x['week'], x['kind'], -x['p']))
 high_chance = {'picks': hc_picks, 'history': hc_hist, 'research': HCR, 'p_min': PD['p_min']}
 print('high-chance picks:', len(hc_picks), 'history:', len(hc_hist))
@@ -1355,6 +1361,65 @@ long_shots = {'picks': ls_picks, 'history': ls_hist, 'rules': LS_RULES,
                            'atd_by_position': LSR.get('atd_by_position')}}
 print('long shots:', len(ls_picks), {g_: sum(1 for x in ls_picks if x['group'] == g_) for g_ in LS_RULES}, 'history:', len(ls_hist))
 
+# ------------------------------------------------------------------ units: what following each pick list would have won or lost
+UR = json.load(open(os.path.join(HERE, 'static', 'units_research.json')))
+SPREAD_WIN, TEASE_LEG = 100 / 110, math.sqrt(1 + 100 / 120) - 1
+
+
+def _pay(o):
+    return o / 100 if o > 0 else 100 / abs(o)
+
+
+def _grade(res, win):
+    return win if res == 'W' else (-1.0 if res == 'L' else 0.0)
+
+
+def units_season(bets, keys):
+    """bets: (week, strategy, profit, fair-price p or None). Cumulative units by week, same shape as the replay blocks."""
+    weeks = sorted({b[0] for b in bets})
+    out = {'span': str(SEASON), 'timeline': [[SEASON, w] for w in weeks], 'series': {}, 'summary': {}, 'by_season': {}}
+    for k in keys:
+        bk = [b for b in bets if b[1] == k]
+        per = [sum(b[2] for b in bk if b[0] == w) for w in weeks]
+        out['series'][k] = [round(float(v), 2) for v in np.cumsum(per)] if weeks else []
+        w_, l_ = sum(1 for b in bk if b[2] > 0), sum(1 for b in bk if b[2] < 0)
+        sm = {'bets': len(bk), 'w': w_, 'l': l_, 'p': len(bk) - w_ - l_, 'units': round(float(sum(b[2] for b in bk)), 2),
+              'roi': round(float(sum(b[2] for b in bk)) / len(bk), 4) if bk else None}
+        if bk and all(b[3] is not None for b in bk):
+            won = sum(b[2] for b in bk if b[2] > 0)
+            sm.update({'cushion': round(1 - l_ / won, 4) if won > 0 else None, 'hit': round(w_ / len(bk), 4), 'rated': round(float(np.mean([b[3] for b in bk])), 4)})
+        out['summary'][k] = sm
+    return out
+
+
+mb = []
+for x in model_picks:
+    if x['type'] == 'Spread':
+        mb.append((x['week'], 'spread', _grade(x['result'], SPREAD_WIN), None))
+        continue
+    o = x['ml_h'] if x['pick'] == x['home'] else x['ml_a']
+    if o is not None:
+        mb.append((x['week'], 'ml', _grade(x['result'], _pay(o)), None))
+    if x['mkt_h'] is not None:
+        for side, gap, o2 in ((x['home'], x['wp_h'] - x['mkt_h'], x['ml_h']), (x['away'], x['mkt_h'] - x['wp_h'], x['ml_a'])):
+            if gap >= 0.05 and o2 is not None:
+                r_ = 'P' if x['margin'] == 0 else ('W' if (x['margin'] > 0) == (side == x['home']) else 'L')
+                mb.append((x['week'], 'value', _grade(r_, _pay(o2)), None))
+hb = []
+for x in hc_hist:
+    if x['kind'] == 'player':
+        hb.append((x['week'], 'player', _grade(x['result'], (1 - x['p']) / x['p']), x['p']))
+    elif x['kind'] == 'teaser':
+        hb.append((x['week'], 'teaser', _grade(x['result'], TEASE_LEG), None))
+    elif x.get('odds') is not None:
+        hb.append((x['week'], 'ml', _grade(x['result'], _pay(x['odds'])), None))
+lb = [(x['week'], k, _grade(x['result'], (1 - x['p']) / x['p']), x['p']) for x in ls_hist for k in ('all', x['market'] if x['market'] in ('atd', 'ftd', 'td2', 'pass300') else 'yds100')]
+units = {'model': {'season': units_season(mb, ['spread', 'ml', 'value']), 'replay': UR['model']},
+         'hc': {'season': units_season(hb, ['player', 'teaser', 'ml']), 'replay': UR['hc']},
+         'ls': {'season': units_season(lb, ['all', 'atd', 'ftd', 'td2', 'yds100', 'pass300']), 'replay': UR['ls']},
+         'tease_leg_price': UR['tease_leg_price']}
+print('units this season:', {k: {s: v['season']['summary'][s]['units'] for s in v['season']['summary']} for k, v in units.items() if isinstance(v, dict)})
+
 # ------------------------------------------------------------------ grading data
 grade_players = {}
 for pid, d in p26.groupby('player_id'):
@@ -1375,6 +1440,35 @@ for gid_, (fid_, fname_, _) in FIRST_TD.items():
     if gid_ in results:
         results[gid_]['ftd'] = fid_; results[gid_]['ftdn'] = fname_
 last_stats_date = (str(S[S.game_id.isin(p26.game_id)].gameday.max()) if len(p26) else None)
+
+# ------------------------------------------------------------------ matchups: what each defense has allowed to each position this season
+MX_STATS = {'QB': [('py', 'passing_yards'), ('ptd', 'passing_tds'), ('att', 'attempts'), ('cmp', 'completions'), ('int', 'passing_interceptions'),
+                   ('sk', 'sacks_suffered'), ('qry', 'rushing_yards')],
+            'RB': [('ry', 'rushing_yards'), ('car', 'carries'), ('rtd', 'rushing_tds'), ('rec', 'receptions'), ('recy', 'receiving_yards'), ('tgt', 'targets')],
+            'WR': [('recy', 'receiving_yards'), ('rec', 'receptions'), ('tgt', 'targets'), ('td', 'receiving_tds')],
+            'TE': [('recy', 'receiving_yards'), ('rec', 'receptions'), ('tgt', 'targets'), ('td', 'receiving_tds')]}
+matchups = {'games': {}, 'pos': {}, 'avg': {}}
+if len(p26):
+    reg = p26[p26.season_type == 'REG']
+    n_games = reg.groupby('opponent_team').game_id.nunique()
+    matchups['games'] = {t: int(n) for t, n in n_games.items()}
+    for pos_, stats_ in MX_STATS.items():
+        sub = reg[reg.position == pos_]
+        tot = sub.groupby('opponent_team')[[c for _, c in stats_]].sum().reindex(n_games.index).fillna(0)
+        pg = tot.div(n_games, axis=0)
+        pg.columns = [k for k, _ in stats_]
+        if pos_ == 'QB':
+            pg['cpct'] = (tot['completions'] / tot['attempts'].replace(0, np.nan)).values
+        if pos_ == 'RB':
+            pg['ypc'] = (tot['rushing_yards'] / tot['carries'].replace(0, np.nan)).values
+        if pos_ in ('WR', 'TE'):
+            pg['ypt'] = (tot['receiving_yards'] / tot['targets'].replace(0, np.nan)).values
+        rk = pg.rank(ascending=False, method='min')          # 1 = allows the most
+        matchups['avg'][pos_] = {c: round(float(pg[c].mean()), 3) for c in pg.columns}
+        for t in pg.index:
+            matchups['pos'].setdefault(t, {})[pos_] = {c: [round(float(pg.at[t, c]), 3) if pd.notna(pg.at[t, c]) else None,
+                                                          int(rk.at[t, c]) if pd.notna(rk.at[t, c]) else None] for c in pg.columns}
+print('matchups:', len(matchups['pos']), 'defenses')
 
 # ------------------------------------------------------------------ chart data for the trend explorer
 # compact weekly logs: last season + this season, for every trend and prop player, and every team
@@ -1423,7 +1517,7 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
         'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80],
                    'logs': {'pcols': CHART_COLS, 'players': player_logs, 'tcols': TEAM_COLS, 'teams': team_logs}},
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
-        'long_shots': long_shots,
+        'long_shots': long_shots, 'units': units, 'matchups': matchups,
         'grade': {'players': grade_players, 'games': results}}
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 tmp = OUT + '.tmp'

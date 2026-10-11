@@ -93,6 +93,7 @@ pk = pd.DataFrame(picks)
 # one pick per player-game: the most likely; yards before catches on ties
 pk['ord'] = pk.key.map({'rec_yds': 0, 'rush_yds': 0, 'pass_yds': 0, 'receptions': 1})
 pk = pk.sort_values(['p', 'ord'], ascending=[False, True]).drop_duplicates(['season', 'week', 'player'])
+pk.to_pickle('work/hc_replay.pkl')                     # per-pick results for the units replay
 summary = {'all': {'n': int(len(pk)), 'expected': float(pk.p.mean()), 'hit': float(pk.hit.mean())}}
 for lo, hi in ((0.80, 0.85), (0.85, 0.90), (0.90, 1.01)):
     s = pk[(pk.p >= lo) & (pk.p < hi)]

@@ -247,6 +247,8 @@ for mk, (x, yc) in sel.items():
           f"weeks with 1+ hit {(wk['sum'] >= 1).mean():.0%}")
     print('          by season', [(r['season'], round(r['expected'], 3), round(r['actual'], 3)) for r in by_season])
 res['backtest'] = backtest
+pd.concat([x[['season', 'week', 'game_id', 'player_id', 'p']].assign(market=mk_, hit=x[yc_].astype(int).values) for mk_, (x, yc_) in sel.items()],
+          ignore_index=True).to_pickle('work/longshot_replay.pkl')   # per-pick results for the units replay
 res['rules'] = RULES
 pos = sel['atd'][0]
 res['atd_by_position'] = {p_: {'n': int(len(g)), 'expected': float(g.p.mean()), 'actual': float(g.any_td.mean())} for p_, g in pos.groupby('position')}

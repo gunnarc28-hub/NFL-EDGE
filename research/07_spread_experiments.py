@@ -280,3 +280,14 @@ json.dump(model_v2, open('repo/pipeline/static/model_v2.json', 'w'), indent=1)
 out = json.load(open('work/spread_experiments.json'))
 out['production'] = prod_wf; out['favorites_su'] = fav_su
 json.dump(out, open('work/spread_experiments.json', 'w'), indent=1)
+
+# ---------------- save the production walk-forward predictions for the units replay (10_units_backtest.py) ----------------
+wf_sd = {}
+for s_ in range(2020, 2026):
+    tr_ = (g.season < s_) & (g.season >= 2018)
+    f_ = ridge_fit(Xp[tr_], g.margin[tr_].values)
+    wf_sd[s_] = float(np.std(f_(Xp[tr_]) - g.margin[tr_].values))
+wf_out = g[['game_id', 'season', 'week', 'team_h', 'team_a', 'margin', 'spread', 'home_moneyline', 'away_moneyline']].copy()
+wf_out['pred'] = pm_p; wf_out['resid_sd'] = wf_out.season.map(wf_sd)
+wf_out.to_pickle('work/model_wf.pkl')
+print('saved work/model_wf.pkl', len(wf_out), 'games; fold error sizes', {k: round(v, 2) for k, v in wf_sd.items()})

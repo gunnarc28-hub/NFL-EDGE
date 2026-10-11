@@ -478,6 +478,63 @@ ul.plain li{margin:3px 0}
   .fx-bar{grid-column:1/-1;grid-row:2}
   .fx-l span{font-size:11px}
 }
+
+/* ---------- units charts (line colors validated for color-blind separation on both surfaces) ---------- */
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70} }
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70}
+.uc{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.uc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 16px;flex-wrap:wrap}
+.uc-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink-2)}
+.uc-legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.uc-legend i,.uc-tip i{display:inline-block;width:16px;height:2px;border-radius:1px}
+.uc-chart{position:relative;min-height:120px}
+.uc-chart svg{display:block;width:100%;height:auto;touch-action:pan-y;outline:none}
+.uc-chart svg:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:6px}
+.uc .grid{stroke:var(--rule);stroke-width:1}
+.uc .zero{stroke:var(--ink-3);stroke-width:1}
+.uc .sep{stroke:var(--rule-2);stroke-width:1}
+.uc .yl,.uc .xl{fill:var(--ink-3);font-size:11px;font-family:var(--f-mono)}
+.uc .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.uc .dot{stroke:var(--panel);stroke-width:2}
+.uc .el{font-size:11.5px;font-weight:700;fill:var(--ink);font-family:var(--f-mono)}
+.uc .xh{stroke:var(--ink-3);stroke-width:1}
+.uc-tip{position:absolute;top:0;pointer-events:none;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,.18),inset 0 0 0 1px var(--rule);
+  border-radius:8px;padding:8px 10px;font-size:12px;min-width:170px;z-index:3}
+.uc-tip .h{font-weight:700;color:var(--ink-2);margin-bottom:4px}
+.uc-tip .r{display:flex;align-items:center;gap:8px;margin-top:3px;white-space:nowrap}
+.uc-tip .r b{font-family:var(--f-mono);font-size:13px;color:var(--ink)}
+.uc-tip .r span{color:var(--ink-3)}
+.uc-line{margin:0;font-size:13.5px;color:var(--ink-2)}
+.uc-line b{color:var(--ink)}
+.uc table.grid td,.uc table.grid th{padding:7px 10px}
+.uc .pos{color:var(--win)} .uc .neg{color:var(--loss)}
+@media (max-width:620px){ .uc .xs-hide{display:none} }
+.uc details summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--info);padding:4px 0}
+@media (max-width:620px){ .uc{padding:12px 12px 10px} }
+
+/* ---------- prop matchups ---------- */
+.mxbox{border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:6px 0 4px;display:flex;flex-direction:column;gap:4px;background:var(--panel-2)}
+.mxbox .mh{display:flex;justify-content:space-between;gap:6px 12px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);cursor:pointer;list-style:none}
+.mxbox .mh::-webkit-details-marker{display:none}
+.mxbox .car{display:inline-block;color:var(--info);font-size:11px;transition:transform .15s}
+.mxbox[open] .car{transform:rotate(90deg)}
+.mxbox[open] .mh{margin-bottom:4px}
+@media (max-width:620px){ .mxc{font-size:11.5px;padding:2px 5px} .mxr{grid-template-columns:2.2em minmax(0,1fr)} }
+.mxbox .mh b{color:var(--ink-2)}
+.mxr{display:grid;grid-template-columns:2.4em minmax(0,1fr);gap:8px;align-items:baseline;font-size:12.5px}
+.mxr .pp{font-family:var(--f-display);font-weight:900;font-size:14px;letter-spacing:.04em;color:var(--ink-2)}
+.mxr .cs{display:flex;flex-wrap:wrap;gap:4px 6px}
+.mxc{display:inline-flex;align-items:baseline;gap:5px;border-radius:5px;padding:2px 6px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--rule);white-space:nowrap;font-size:12px}
+.mxc b{font-family:var(--f-mono);font-weight:600}
+.mxc em{font-style:normal;font-size:11px;font-weight:700;color:var(--ink-3)}
+.mxc.good{background:var(--win-bg);box-shadow:none} .mxc.good em{color:var(--win)}
+.mxc.bad{background:var(--loss-bg);box-shadow:none} .mxc.bad em{color:var(--loss)}
+.mxl{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:baseline;font-size:12px;color:var(--ink-3)}
+.prow .c-mx{grid-column:1/-1;margin-top:-2px}
+@media (max-width:620px){ .prow .c-mx{order:1} .prow .c-avg,.prow .c-line{order:2} }
+.mxtag{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:1px 5px}
+.mxtag.good{background:var(--win);color:#fff} .mxtag.bad{background:var(--loss);color:#fff} .mxtag.mid{background:var(--muted-bg);color:var(--ink-2)}
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -658,6 +715,7 @@ function show(view){
   $$('.view').forEach(v => v.hidden = v.id !== 'v-' + view);
   store.set('tab', view);
   if (view === 'teams') renderTeams();
+  if (['model', 'hc', 'ls'].includes(view)) drawUnits(view);
   window.scrollTo({top: 0});
 }
 $$('.tab').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
@@ -833,6 +891,38 @@ function trendMini(t){
   return `<div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${tt.map(teamTrendRow).join('')}${pt.map(playerTrendRow).join('')}</div>`;
 }
 
+/* ---------- prop matchups: what the defense has allowed to each position this season ---------- */
+const M_ = D.matchups || {pos: {}, avg: {}, games: {}};
+const MX_LBL = {py: 'pass yds', ptd: 'pass TDs', cpct: 'completion', sk: 'sacks', int: 'INTs', qry: 'QB rush yds', att: 'pass att', cmp: 'completions',
+  ry: 'rush yds', ypc: 'yds/carry', rtd: 'rush TDs', rec: 'catches', recy: 'rec yds', car: 'carries', tgt: 'targets', td: 'rec TDs', ypt: 'yds/target'};
+const MX_TEAM = {QB: ['py', 'ptd', 'sk', 'int'], RB: ['ry', 'ypc', 'rec', 'rtd'], WR: ['recy', 'rec', 'tgt', 'td'], TE: ['recy', 'rec', 'tgt', 'td']};
+const MX_PROP = {pass_yds: ['py', 'ptd', 'sk'], rush_yds: ['ry', 'ypc', 'rtd'], rec_yds: ['recy', 'rec', 'tgt'], receptions: ['rec', 'tgt', 'recy']};
+const MX_HARD = {sk: 1, int: 1};                    // more of these is worse for the offense
+function mxFmt(k, v){
+  if (v == null) return '–'; if (k === 'cpct') return Math.round(v * 100) + '%';
+  if (['ypc', 'ypt', 'ptd', 'rtd', 'td', 'int', 'sk'].includes(k)) return v.toFixed(1);
+  return v >= 20 ? String(Math.round(v)) : v.toFixed(1);
+}
+function mxCls(k, rk){ if (rk == null) return ''; const r = MX_HARD[k] ? 33 - rk : rk; return r <= 8 ? 'good' : r >= 25 ? 'bad' : ''; }
+function mxRank(rk){ return rk == null ? '' : rk <= 16 ? (rk === 1 ? 'most' : ordJ(rk) + ' most') : (rk === 32 ? 'fewest' : ordJ(33 - rk) + ' fewest'); }
+function mxChip(def, pos, k){
+  const m = ((M_.pos[def] || {})[pos] || {})[k]; if (!m) return '';
+  const avg = ((M_.avg || {})[pos] || {})[k];
+  return `<span class="mxc ${mxCls(k, m[1])}" title="League average ${mxFmt(k, avg)}"><b>${mxFmt(k, m[0])}</b> ${MX_LBL[k]} <em>${mxRank(m[1])}</em></span>`;
+}
+function matchupBox(def){
+  const P = M_.pos[def]; if (!P) return '';
+  const n = M_.games[def] || 0, rp = T[def].ranks.def_pass, rr = T[def].ranks.def_rush;
+  return `<details class="mxbox"${window.innerWidth > 620 ? ' open' : ''}><summary class="mh"><span><span class="car" aria-hidden="true">▸</span> Facing the <b>${esc(T[def].nick)}</b> defense · allowed per game to each position (${n} game${n === 1 ? '' : 's'})</span><span>Pass D #${rp ?? '–'} · Run D #${rr ?? '–'} by EPA</span></summary>
+    ${['QB', 'RB', 'WR', 'TE'].map(pos => `<div class="mxr"><span class="pp">${pos}</span><span class="cs">${MX_TEAM[pos].map(k => mxChip(def, pos, k)).join('')}</span></div>`).join('')}</details>`;
+}
+function matchupLine(def, pos, key){
+  const ps = pos === 'FB' ? 'RB' : pos, ks = MX_PROP[key] || [], m = ((M_.pos[def] || {})[ps] || {})[ks[0]];
+  if (!m) return '';
+  const c = mxCls(ks[0], m[1]);
+  return `<div class="mxl"><span class="mxtag ${c || 'mid'}">${c === 'good' ? 'Soft matchup' : c === 'bad' ? 'Tough matchup' : 'Average matchup'}</span><span>vs ${def} to ${ps}s:</span>${ks.map(k => mxChip(def, ps, k)).join('')}</div>`;
+}
+
 /* ---------- props ---------- */
 const PROP_LABEL = {pass_yds: 'Pass yds', rush_yds: 'Rush yds', rec_yds: 'Rec yds', receptions: 'Receptions', any_td: 'Anytime TD'};
 function mainProps(p){ return p.pos === 'QB' ? ['pass_yds'] : p.pos === 'RB' ? ['rush_yds', 'receptions'] : ['rec_yds', 'receptions']; }
@@ -865,9 +955,10 @@ function propsHtml(g){
     const ps = g.props.filter(p => p.team === t);
     const ab = (g.absent || {})[t] || [];
     const absent = ab.length ? `<div class="absent"><span><b>Out:</b></span>${ab.map(a => `<span class="pill lvl-${a.level === 'ir' ? 'ir' : 'out'}" title="${esc(a.why || '')}">${esc(a.name)} <span style="font-weight:500">${esc(a.pos)} · ${esc(a.usage)}</span></span>`).join('')}<span class="small">— their touches are up for grabs</span></div>` : '';
-    return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}${ps[0] && ps[0].implied ? ` · Vegas implied total ${ps[0].implied}` : ''}</span></div>${absent}
+    const opp = t === g.home ? g.away : g.home;
+    return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}${ps[0] && ps[0].implied ? ` · Vegas implied total ${ps[0].implied}` : ''}</span></div>${matchupBox(opp)}${absent}
       <div class="plist">${ps.map(p => propRow(g, p)).join('')}</div></div>`;
-  }).join('') + `<div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first). Type the sportsbook's line to see the chance of going over, based on how players with similar projections finished. Players listed as out or doubtful are left off.</div>`;
+  }).join('') + `<div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first). Type the sportsbook's line to see the chance of going over, based on how players with similar projections finished. Players listed as out or doubtful are left off. Matchup numbers are what each defense has allowed per game to that position this season, ranked out of 32 (green = among the 8 softest, red = among the 8 toughest; for sacks and interceptions, more is tougher). In 2018–2025 testing a player's role predicted props far better than the matchup, and the projection already accounts for it, so treat the matchup as context.</div>`;
 }
 function propRow(g, p){
   const keys = mainProps(p).filter(k => p.proj[k] != null);
@@ -883,6 +974,7 @@ function propRow(g, p){
     <div class="c-avg"><div class="ps">${avgTxt}${td}</div>
       <div class="oc c-line">${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" id="ln_${esc(p.id)}_${k0}" data-oc="${k0}" data-proj="${p.proj[k0]}" aria-label="${esc(p.name)} ${PROP_LABEL[k0]} line" placeholder="Line">`, 'line')}<span class="out" id="oc_${esc(p.id)}_${k0}">Enter a line</span><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div></div>
     <div class="c-pick"><button class="btn tiny" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Pick</button></div>
+    ${k0 ? `<div class="c-mx">${matchupLine(p.team === g.home ? g.away : g.home, p.pos, k0)}</div>` : ''}
   </div>`;
 }
 
@@ -959,6 +1051,121 @@ function valueBox(key, p, fair){
     <span class="ev ${m.c}" data-ev="${esc(key)}" aria-live="polite">${esc(m.t)}</span></div>`;
 }
 const oddsFor = (key, fair) => parseOdds(MY_ODDS[key]) ?? fair;
+
+/* ======================================================================
+   UNITS: what following each pick list would have won or lost (1 unit = one normal-size bet)
+   ====================================================================== */
+const U = D.units || {};
+const UNIT_SERIES = {
+  model: [['spread', 'Spread picks', 'graded at −110'], ['ml', 'Moneyline, every model pick', 'closing price'], ['value', 'Moneyline value bets', 'closing price']],
+  hc: [['player', 'Player milestones', 'fair price'], ['teaser', 'Teaser legs', 'per-leg price'], ['ml', 'Heavy favorites', 'closing moneyline']],
+  ls: [['all', 'All long shots', 'fair price'], ['atd', 'Anytime TD', 'fair price'], ['ftd', 'First TD', 'fair price'], ['td2', '2+ TDs', 'fair price'],
+       ['yds100', '100-yard games', 'fair price'], ['pass300', '300-yard passers', 'fair price']]};
+const SLOT = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
+let UV = Object.assign({model: 'season', hc: 'season', ls: 'season'}, store.get('uv', {}));
+const fmtU = (v, d = 1) => v == null ? '–' : (v > 0.0499 ? '+' : v < -0.0499 ? '−' : '') + Math.abs(v).toFixed(d) + 'u';
+const ordJ = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({1: 'st', 2: 'nd', 3: 'rd'})[n % 10] || 'th');
+function unitKeys(tab){ return tab === 'ls' ? UNIT_SERIES.ls.filter(x => x[0] === (LS_F === 'all' ? 'all' : LS_F)) : UNIT_SERIES[tab]; }
+function cushionTxt(sm){
+  if (sm.cushion == null) return '';
+  const c = sm.cushion, p = sm.rated, fair = p ? (1 - p) / p : null;
+  const ex = fair != null ? ` (about ${fmtOdds(oddsNum(p))} → ${fmtOdds(p >= .5 ? -Math.round(100 / (fair * (1 - Math.max(0, c)))) : Math.round(100 * fair * (1 - Math.max(0, c))))})` : '';
+  return c >= 0 ? `Breaks even if your book pays up to ${Math.round(c * 100)}% less than the fair price${c > 0.01 ? ex : ''}.`
+               : `Lost money even at the fair price: you'd need payouts ${Math.round(-c * 100)}% better than fair to break even.`;
+}
+function unitsSection(tab){
+  const blk = U[tab]; if (!blk) return '';
+  const view = UV[tab] === 'replay' ? 'replay' : 'season', B = blk[view], R = blk.replay;
+  const keys = unitKeys(tab);
+  const title = {model: 'Units if you followed the model', hc: 'Units if you bet every high-chance pick', ls: 'Units if you bet every long shot'}[tab];
+  const how = {model: 'Spread picks graded at −110. Moneyline bets graded at the closing price. Value bets are the side where the model\'s win chance beats the market\'s by 5+ points.',
+    hc: `Favorites graded at the closing moneyline. Teaser legs at ${fmtOdds(U.tease_leg_price)} each, the per-leg price of a 2-team teaser at −120. Player milestones have no posted price in this data, so they're graded at the fair price on the card; real books usually pay less.`,
+    ls: 'Graded at the fair price on each card, because this data has no sportsbook prices for touchdown or yardage props. Books usually pay less than fair, especially on first-TD bets, so real results would be lower.'}[tab];
+  const sumRows = keys.map(([k, l, note], i) => { const sm = B.summary[k] || {}; return `<tr><td style="white-space:normal"><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:16px;height:2px;border-radius:1px;background:${SLOT[i]}"></i>${esc(l)}</span><div class="small xs-hide">${esc(note)}</div></td>
+      <td class="r num xs-hide">${sm.bets ?? 0}</td><td class="r num">${sm.bets ? `${sm.w}-${sm.l}${sm.p ? '-' + sm.p : ''}` : '–'}</td>
+      <td class="r num"><b class="${sm.units > 0 ? 'pos' : sm.units < 0 ? 'neg' : ''}">${sm.bets ? fmtU(sm.units) : '–'}</b></td><td class="r num">${sm.roi == null ? '–' : (sm.roi > 0 ? '+' : sm.roi < 0 ? '−' : '') + Math.abs(sm.roi * 100).toFixed(1) + '%'}</td></tr>`; }).join('');
+  const cush = keys.map(([k, l]) => { const t = cushionTxt(B.summary[k] || {}); return t ? `<li><b>${esc(l)}:</b> ${t}</li>` : ''; }).join('');
+  const rLine = keys.map(([k, l]) => { const sm = R.summary[k]; return sm ? `${esc(l.toLowerCase())} <b>${fmtU(sm.units)}</b> on ${sm.bets.toLocaleString()} bets` : ''; }).filter(Boolean).join(', ');
+  let detail;
+  if (view === 'replay'){
+    const seasons = [...new Set(keys.flatMap(([k]) => (B.by_season[k] || []).map(x => x.season)))].sort();
+    detail = `<table class="grid tight"><thead><tr><th>Season</th>${keys.map(([, l]) => `<th class="r">${esc(l)}</th>`).join('')}</tr></thead><tbody>${seasons.map(sn => `<tr><td>${sn}</td>${keys.map(([k]) => { const x = (B.by_season[k] || []).find(z => z.season === sn); return `<td class="r num">${x ? `${fmtU(x.units)} <span class="small">(${x.w}-${x.l})</span>` : '–'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+  } else {
+    detail = `<table class="grid tight"><thead><tr><th>Through</th>${keys.map(([, l]) => `<th class="r">${esc(l)}</th>`).join('')}</tr></thead><tbody>${B.timeline.map((t, i) => `<tr><td>Week ${t[1]}</td>${keys.map(([k]) => `<td class="r num">${fmtU((B.series[k] || [])[i])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  return `<div class="sec-head"><div><h2 class="h3">${title}</h2><p class="lede" style="font-size:13.5px">${how}</p></div>
+      <div class="seg" role="group" aria-label="Units timeline"><button data-uv="${tab}:season" aria-pressed="${view === 'season'}">This season</button><button data-uv="${tab}:replay" aria-pressed="${view === 'replay'}">${R.span} replay</button></div></div>
+    <div class="uc">
+      <div class="uc-top">${keys.length > 1 ? `<div class="uc-legend">${keys.map(([, l], i) => `<span><i style="background:${SLOT[i]}"></i>${esc(l)}</span>`).join('')}</div>` : `<div class="uc-legend"><span><i style="background:${SLOT[0]}"></i>${esc(keys[0][1])}, cumulative units</span></div>`}
+        <span class="small">${view === 'replay' ? `Every week ${R.span}, picked only from what was known before each game` : `${D.meta.season} season, graded from final scores and box scores`}</span></div>
+      <div class="uc-chart" data-uchart="${tab}">${B.timeline.length ? '' : '<div class="empty">Results show up here once games are graded.</div>'}</div>
+      <div class="tbl-wrap" style="box-shadow:none;border:1px solid var(--rule)"><table class="grid tight"><thead><tr><th>Bet</th><th class="r xs-hide">Bets</th><th class="r">Record</th><th class="r">Units</th><th class="r">Per bet</th></tr></thead><tbody>${sumRows}</tbody></table></div>
+      ${cush ? `<ul class="plain" style="font-size:13px">${cush}</ul>` : ''}
+      ${view === 'season' && rLine ? `<p class="uc-line">Over the ${R.span} replay: ${rLine}.</p>` : ''}
+      <details><summary>${view === 'replay' ? 'Units by season' : 'Units by week'}</summary><div style="overflow-x:auto">${detail}</div></details>
+    </div>`;
+}
+function drawUnits(tab){
+  const host = $(`[data-uchart="${tab}"]`); if (!host || !host.clientWidth) return;
+  const blk = U[tab], B = blk[UV[tab] === 'replay' ? 'replay' : 'season']; if (!B.timeline.length) return;
+  const keys = unitKeys(tab);
+  const TL = [null].concat(B.timeline), n = TL.length;                       // index 0 = start, before any bet
+  const S = keys.map(([k, l], i) => ({k, l, c: SLOT[i], v: [0].concat(B.series[k] || [])}));
+  const W = Math.max(300, host.clientWidth), H = W < 500 ? 210 : 240, L = 46, Rm = 58, TOP = 14, BOT = 26;
+  let lo = Math.min(0, ...S.flatMap(x => x.v)), hi = Math.max(0, ...S.flatMap(x => x.v));
+  if (hi - lo < 2){ hi += 1; lo -= 1; }
+  const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(m => m >= raw);
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const x = i => L + i * (W - L - Rm) / Math.max(1, n - 1), y = v => TOP + (hi - v) * (H - TOP - BOT) / (hi - lo);
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" tabindex="0" aria-label="${esc(keys.map(([, l]) => l).join(', '))}: cumulative units. Use the left and right arrow keys to step through weeks.">`;
+  for (let t = lo; t <= hi + step / 2; t += step){ const tt = Math.round(t * 1e6) / 1e6;
+    g += `<line class="${tt === 0 ? 'zero' : 'grid'}" x1="${L}" x2="${W - Rm + 6}" y1="${y(tt).toFixed(1)}" y2="${y(tt).toFixed(1)}"/><text class="yl" x="${L - 6}" y="${(y(tt) + 4).toFixed(1)}" text-anchor="end">${tt === 0 ? '0' : fmtU(tt, step < 1 ? 1 : 0)}</text>`; }
+  // x labels: weeks this season, season starts in the replay
+  if (TL[1] && B.span.includes('–')){
+    let last = null;
+    TL.forEach((t, i) => { if (t && t[0] !== last){ if (i > 1) g += `<line class="sep" x1="${x(i - 0.5).toFixed(1)}" x2="${x(i - 0.5).toFixed(1)}" y1="${TOP}" y2="${H - BOT}"/>`;
+      g += `<text class="xl" x="${(x(i) + 3).toFixed(1)}" y="${H - BOT + 16}">${t[0]}</text>`; last = t[0]; } });
+  } else {
+    const every = Math.max(1, Math.ceil((n - 1) / (W < 500 ? 7 : 12)));
+    TL.forEach((t, i) => { if (t && ((i - 1) % every === 0 || i === n - 1)) g += `<text class="xl" x="${x(i).toFixed(1)}" y="${H - BOT + 16}" text-anchor="middle">W${t[1]}</text>`; });
+  }
+  S.forEach(s => { g += `<polyline class="ln" style="stroke:${s.c}" points="${s.v.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ')}"/>`; });
+  // end dots + direct labels; a label that would collide with one already placed is left to the legend and tooltip
+  const placed = [];
+  S.slice().sort((a, b) => a.v[n - 1] - b.v[n - 1]).forEach(s => {
+    const yy = y(s.v[n - 1]); g += `<circle class="dot" cx="${x(n - 1).toFixed(1)}" cy="${yy.toFixed(1)}" r="4.5" style="fill:${s.c}"/>`;
+    if (placed.every(p => Math.abs(p - yy) >= 13)){ placed.push(yy); g += `<text class="el" x="${(x(n - 1) + 9).toFixed(1)}" y="${(yy + 4).toFixed(1)}">${fmtU(s.v[n - 1])}</text>`; }
+  });
+  g += `<g class="hov" style="display:none"><line class="xh" y1="${TOP}" y2="${H - BOT}"/>${S.map(s => `<circle class="dot" r="4.5" style="fill:${s.c}"/>`).join('')}</g>`;
+  g += `<rect x="${L - 10}" y="0" width="${W - L - Rm + 20}" height="${H}" fill="transparent" class="hit"/></svg><div class="uc-tip" hidden></div>`;
+  host.innerHTML = g;
+  const svg = $('svg', host), tip = $('.uc-tip', host), hov = $('.hov', svg), xh = $('.xh', hov), dots = $$('circle', hov);
+  const lab = i => i === 0 ? 'Start' : (B.span.includes('–') ? `${TL[i][0]} · Week ${TL[i][1]}` : `Week ${TL[i][1]}`);
+  let cur = n - 1;
+  const showAt = i => {
+    cur = Math.max(0, Math.min(n - 1, i)); const px = x(cur), sc = host.clientWidth / W;
+    hov.style.display = ''; xh.setAttribute('x1', px); xh.setAttribute('x2', px);
+    dots.forEach((d, j) => { d.setAttribute('cx', px); d.setAttribute('cy', y(S[j].v[cur])); });
+    tip.replaceChildren();
+    const h = document.createElement('div'); h.className = 'h'; h.textContent = lab(cur); tip.appendChild(h);
+    S.slice().sort((a, b) => b.v[cur] - a.v[cur]).forEach(s => { const r = document.createElement('div'); r.className = 'r';
+      const k = document.createElement('i'); k.style.background = s.c; const b = document.createElement('b'); b.textContent = fmtU(s.v[cur]);
+      const sp = document.createElement('span'); const d = cur > 0 ? s.v[cur] - s.v[cur - 1] : 0; sp.textContent = s.l + (cur > 0 ? ` (${fmtU(d)} that week)` : '');
+      r.append(k, b, sp); tip.appendChild(r); });
+    tip.hidden = false;
+    const tw = tip.offsetWidth, left = px * sc + 14 + tw > host.clientWidth ? px * sc - tw - 14 : px * sc + 14;
+    tip.style.left = Math.max(0, left) + 'px';
+  };
+  const hide = () => { hov.style.display = 'none'; tip.hidden = true; };
+  const idxOf = ev => { const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width; return Math.round((px - L) / ((W - L - Rm) / Math.max(1, n - 1))); };
+  svg.addEventListener('pointermove', ev => showAt(idxOf(ev)));
+  svg.addEventListener('pointerdown', ev => showAt(idxOf(ev)));
+  svg.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') hide(); });
+  svg.addEventListener('focus', () => showAt(cur));
+  svg.addEventListener('blur', hide);
+  svg.addEventListener('keydown', ev => { if (ev.key === 'ArrowRight'){ ev.preventDefault(); showAt(cur + 1); } else if (ev.key === 'ArrowLeft'){ ev.preventDefault(); showAt(cur - 1); } else if (ev.key === 'Escape') hide(); });
+}
+let _uRes; window.addEventListener('resize', () => { clearTimeout(_uRes); _uRes = setTimeout(() => ['model', 'hc', 'ls'].forEach(drawUnits), 150); });
 
 /* ======================================================================
    MODEL PICKS: who the model expects to win, and why
@@ -1052,9 +1259,11 @@ function renderModel(){
       <div class="tile"><div class="label">Spread picks</div><div class="v num">${sw}-${sl}</div><div class="small">Needs a 2.5-pt disagreement · break-even 52.4%</div></div>
       <div class="tile"><div class="label">This week</div><div class="v num">${gs.filter(dogs).length}</div><div class="small">upset pick${gs.filter(dogs).length === 1 ? '' : 's'} · ${gs.filter(value).length} value spot${gs.filter(value).length === 1 ? '' : 's'}</div></div>
     </div>
+    ${unitsSection('model')}
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter model picks">${filters.map(([k, l]) => `<button data-mf="${k}" aria-pressed="${MF === k}">${l}</button>`).join('')}</div></div>
     <div class="mp-grid">${shown.map(mpCard).join('') || '<div class="empty">No games match this filter.</div>'}</div>
     <div class="note">How it works: each team gets a rating from the stats that best predicted results from 2018–2025 (point differential, EPA per play, success rate and more, with last season blended in early and fading out), plus a rating for the expected starting quarterback. Home field, rest, travel and Denver's altitude are added, and the predicted margin is turned into a win chance from how far real results have landed from past predictions. From 2020–25 it picked winners about as often as the Vegas favorite, so the most useful spots are where it disagrees with the market.</div>`;
+  drawUnits('model');
 }
 
 /* ======================================================================
@@ -1108,6 +1317,7 @@ function renderHC(){
       <div class="tile"><div class="label">Teaser legs this season</div><div class="v num">${rt.w}-${rt.l}</div><div class="small">+1.5 to +2.5 underdogs teased six points${rm.w + rm.l ? ` · favorites ${rm.w}-${rm.l}` : ''}</div></div>
       <div class="tile"><div class="label">3-leg parlays (2024–25)</div><div class="v num">${pct(p3.hit)}</div><div class="small">Top picks from different games all hit; expected ${pct(p3.expected)} (${p3.n || 0} weeks)</div></div>
     </div>
+    ${unitsSection('hc')}
     <div class="sec-head"><h2 class="h3">Player milestones <span class="small">(${players.length})</span></h2><span class="small">Week ${WEEK} · the highest milestone each player clears 80% on</span></div>
     ${players.length ? `<div class="hc-grid">${players.map(([x, i]) => hcCard(x, i)).join('')}</div>` : '<div class="empty">No player clears 80% on a milestone yet this week. Picks appear once players have three games of data.</div>'}
     <div class="sec-head"><h2 class="h3">Game picks <span class="small">(${games.length})</span></h2><span class="small">Teaser legs and heavy favorites</span></div>
@@ -1121,6 +1331,7 @@ function renderHC(){
         <div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${l.map(h => `<div class="pk"><span class="rp ${h.result}">${h.result}</span>
           <div><div class="d">${esc(h.label)}</div><div class="m">${h.kind === 'player' ? 'Player milestone' : h.kind === 'ml' ? 'Favorite to win' : 'Teaser leg'} · rated ${pct(h.p)}${h.actual != null ? ' · finished with ' + (Number.isInteger(h.actual) ? h.actual : h.actual.toFixed(0)) : ''}</div></div><div></div></div>`).join('')}</div></details>`; }).join('') :
       '<div class="empty">Results show up here after this week\'s games.</div>'}`;
+  drawUnits('hc');
 }
 
 /* ======================================================================
@@ -1184,6 +1395,7 @@ function renderLS(){
     <p class="note" style="margin:-10px 0 0">"Rated" is the model's average chance and "Hit" is how often the picks came in when every week from ${span} was replayed using only what was known before kickoff: the touchdown model was refit on earlier seasons only, and yardage chances came from seasons other than the one tested. The ${D.meta.season} column grades the same picks from box scores${all.w + all.l ? ` (${all.w}-${all.l} overall, ${all.exp.toFixed(1)} hits expected)` : ''}.</p>
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter long shots">${[['all', 'All']].concat(LS_GROUPS.map(g => [g[0], g[2]])).map(([k, l]) => `<button data-lsf="${k}" aria-pressed="${LS_F === k}">${l}</button>`).join('')}</div>
       <span class="small">Week ${WEEK} · ${L.picks.length} long shots</span></div>
+    ${unitsSection('ls')}
     ${sections}
     ${legs.length ? `<div class="parlay-bar" role="region" aria-label="Parlay"><div><div class="big num">${clash ? '0%' : pct(P, P < 0.1 ? 1 : 0)} chance</div>
       <div style="font-size:12.5px;opacity:.85">${legs.length} leg${legs.length === 1 ? '' : 's'}${clash ? ' · two first-TD picks from one game can\'t both hit' : ` · fair payout ${fmtOdds(oddsNum(P))}${same ? ' · legs from the same game move together, so the true chance differs' : ''}`}</div></div>
@@ -1197,6 +1409,7 @@ function renderLS(){
         <div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${l.map(h => `<div class="pk"><span class="rp ${h.result}">${h.result}</span>
           <div><div class="d">${esc(h.label)}</div><div class="m">${esc(LS_KIND[h.market] || '')} · rated ${pct(h.p)} · ${esc(h.actual)}</div></div><div></div></div>`).join('')}</div></details>`; }).join('') :
       '<div class="empty">Results show up here after this week\'s games.</div>'}`;
+  drawUnits('ls');
 }
 
 /* ======================================================================
@@ -1835,6 +2048,8 @@ document.addEventListener('click', async e => {
     t.setAttribute('aria-expanded', String(open)); const ch = $('.chev', t); if (ch) ch.textContent = open ? '▲' : '▼';
     return;
   }
+  if (t.dataset.uv){ const [tab, v] = t.dataset.uv.split(':'); UV[tab] = v; store.set('uv', UV); const y = window.scrollY;
+    (tab === 'model' ? renderModel : tab === 'hc' ? renderHC : renderLS)(); window.scrollTo({top: y}); return; }
   if (t.dataset.mf){ MF = t.dataset.mf; store.set('mf', MF); renderModel(); return; }
   if (t.dataset.mpick){ const g = D.games.find(x => x.id === t.dataset.mpick); const tm = g.model.pick_su; openPick({week: g.week, game: g.id, type: 'ml', team: tm, odds: (tm === g.home ? g.ml_home : g.ml_away) ?? -110}); return; }
   if (t.dataset.wf){ weekFilter = t.dataset.wf; store.set('wf', weekFilter); renderWeek(); return; }
