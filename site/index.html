@@ -569,6 +569,24 @@ ul.plain li{margin:3px 0}
 .tw-chips{display:flex;flex-wrap:wrap;gap:6px}
 .tw-k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:var(--muted-bg);border-radius:4px;padding:1px 6px;white-space:nowrap}
 @media (max-width:620px){ .tip{grid-template-columns:1fr;padding:14px} .tip-n{width:32px;height:32px;font-size:20px} .tip-stat .big{font-size:30px} }
+/* ---------- check a sportsbook line ---------- */
+.clb{border-radius:12px;padding:10px 12px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--rule-2);display:flex;flex-direction:column;gap:8px}
+.clb-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.clb-in{display:flex;flex-wrap:wrap;gap:8px 16px}
+.clb-in .f{display:flex;align-items:center;gap:8px}
+.clb-l{font-size:12px;font-weight:700;color:var(--ink-2);min-width:2.6em}
+.clb-in input{width:84px;font-family:var(--f-mono)}
+.clb-out{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-2)}
+.clb-m{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.clb-m .big{font-family:var(--f-display);font-weight:900;font-size:30px;line-height:1;color:var(--ink)}
+.clb-out .ev{font-size:13px;font-weight:700;color:var(--ink-3)}
+.clb-out .ev.pos{color:var(--win)} .clb-out .ev.thin{color:var(--warn)} .clb-out .ev.neg{color:var(--loss)}
+.clb-hist{font-size:12.5px;color:var(--ink-3)}
+.clb-hist b{color:var(--ink)}
+.cs-chart .refl{stroke:var(--info);stroke-width:1.5}
+.cs-chart .hm{fill:none;stroke-width:2}
+.cs-chart .hm.ov{stroke:var(--win)} .cs-chart .hm.un{stroke:var(--loss)}
+@media (max-width:620px){ .clb-in{flex-direction:column} .clb-in .f{width:100%} .clb-in .f .stp{flex:1 1 0;min-width:0} .clb-in input{flex:1 1 0;width:auto;min-width:0} }
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -1646,9 +1664,68 @@ function chartNext(src){
   }
   return {n, g, bye: ni.bye, v, kind: CH.kind === 'p' ? 'Projection' : 'Model', short: 'Next', opp: (n.home ? 'vs ' : '@') + n.opp};
 }
-function chartSvg(pts, f, base, seasonNow, nxt){
+/* ---------- check a sportsbook line against the projection (player charts) ---------- */
+const PROP_STATS = {rec: 'receptions', recy: 'receiving yards', tgt: 'targets', car: 'rush attempts', ry: 'rushing yards', rr: 'rush + rec yards',
+  td: 'touchdowns', py: 'passing yards', att: 'pass attempts', cmp: 'completions', ptd: 'passing TDs', int: 'interceptions'};
+let PL = store.get('pl', {});
+(function prunePL(){ const old = Object.keys(PL).filter(k => Number(k.split(':')[0]) < WEEK - 1); if (old.length){ old.forEach(k => delete PL[k]); store.set('pl', PL); } })();
+const plKey = () => `${WEEK}:${CH.id}:${CH.stat}`;
+function lineModel(stat, L){
+  // the model's chance of over/under for this line: needs this week's projection for the player
+  const P = LOGS.players[CH.id], ni = P ? nextInfo(P.t) : null, g = ni && ni.g && !ni.g.final ? ni.g : null;
+  if (!g) return {why: ni && ni.bye ? 'He is on a bye this week, so there is no projection yet.' : 'His next game isn\'t on this week\'s slate, so there is no projection yet.'};
+  const pr = (g.props || []).find(x => x.id === CH.id);
+  if (!pr) return {why: 'He isn\'t in this week\'s projections (usually a small role or an injury listing).'};
+  if (stat === 'td'){
+    if (pr.proj.any_td == null || L >= 1) return {why: 'The model only prices one touchdown or more (a 0.5 line).'};
+    return {over: pr.proj.any_td, under: 1 - pr.proj.any_td, proj: null};
+  }
+  const key = P2PROP[stat];
+  if (!key || pr.proj[key] == null) return {why: `There's no model projection for ${PROP_STATS[stat]}, so this compares your line with his history only.`};
+  const over = overChance(key, pr.proj[key], L); if (over == null) return {why: 'Couldn\'t price this line.'};
+  const under = Number.isInteger(L) ? 1 - overChance(key, pr.proj[key], L - 1) : 1 - over;
+  return {over, under, proj: pr.proj[key]};
+}
+function lineBoxHtml(f){
+  if (CH.kind !== 'p' || !PROP_STATS[CH.stat]) return '';
+  const st = PL[plKey()] || {}, side = st.side || 'over', nx = (CH._args || {}).nxt;
+  const seed = CH.stat === 'td' ? 0 : nx && nx.v != null ? nx.v : (CH._args && CH._args.avg != null ? CH._args.avg : '');
+  const ph = CH.stat === 'td' ? '0.5' : seed !== '' ? String(Math.floor(seed) + 0.5) : 'Line';
+  return `<div class="clb"><div class="clb-h"><span class="label">Check a sportsbook line · ${esc(PROP_STATS[CH.stat])}</span>
+      <div class="seg" role="group" aria-label="Over or under"><button data-clside="over" aria-pressed="${side === 'over'}">Over</button><button data-clside="under" aria-pressed="${side === 'under'}">Under</button></div></div>
+    <div class="clb-in"><div class="f"><span class="clb-l">Line</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-cl="line" data-proj="${seed === '' ? '' : seed}" value="${esc(st.line || '')}" placeholder="${ph}" aria-label="Sportsbook line">`, 'line')}</div>
+      <div class="f"><span class="clb-l">Odds</span>${stepWrap(`<input type="text" inputmode="numeric" autocomplete="off" data-cl="odds" value="${esc(st.odds || '')}" placeholder="-110" aria-label="Sportsbook odds">`, 'odds')}</div></div>
+    <div class="clb-out" id="clb-out" aria-live="polite"></div></div>`;
+}
+const refLabel = L => L == null ? '' : ` · <b style="color:var(--info)">blue line = your line ${L}</b> (green rings went over, red under)`;
+function winPhrase(){ return {l4: 'in his last 4 games', l8: 'in his last 8 games', season: 'this season', all: 'since the start of last season'}[CH.win] || ''; }
+function updateLineBox(redraw){
+  const out = $('#clb-out'); if (!out || !CH || !CH._args) return;
+  const A = CH._args, st = PL[plKey()] || {}, side = st.side || 'over', L = numOf(st.line), O = parseOdds(st.odds);
+  if (L == null){
+    out.innerHTML = `<div class="note">Type the line from your sportsbook (like ${CH.stat === 'td' ? '0.5' : 'the placeholder'}) and its odds to see the model's chance, the fair price, and how often he has cleared it.</div>`;
+  } else {
+    const n = A.pts.length, ov = A.pts.filter(p => p.v > L).length, un = A.pts.filter(p => p.v < L).length, pu = n - ov - un;
+    const m = lineModel(CH.stat, L), pSide = m.over != null ? (side === 'over' ? m.over : m.under) : null;
+    let h = '';
+    if (pSide != null){
+      const what = CH.stat === 'td' ? (side === 'over' ? 'he scores a touchdown' : 'he doesn\'t score') : `of going <b>${side} ${L}</b>`;
+      h += `<div class="clb-m"><span class="big num">${pct(pSide)}</span><span>model chance ${what}${m.proj != null ? ` · projection <b>${fmtV(A.f, m.proj)}</b>` : ''} · fair price <b>${fmtOdds(oddsNum(pSide))}</b></span></div>`;
+      if (O != null){ const r = evMsg(pSide, oddsNum(pSide), st.odds); h += `<div class="ev ${r.c}">${esc(r.t)}</div>`; }
+      else if (String(st.odds || '').trim()) h += `<div class="ev">Use American odds, like -115 or +105.</div>`;
+    } else {
+      h += `<div class="note">${esc(m.why)}</div>`;
+      if (O != null) h += `<div class="ev">Your odds ${fmtOdds(O)} need the ${side} to hit ${pct(impProb(O))} of the time to break even.</div>`;
+    }
+    h += `<div class="clb-hist">${CH.stat === 'td' && L < 1 ? (side === 'over' ? 'Scored' : 'Didn\'t score') : (side === 'over' ? 'Over' : 'Under') + ' ' + L} in <b>${side === 'over' ? ov : un} of ${n}</b> games ${winPhrase()}${pu ? ` (${pu} push${pu > 1 ? 'es' : ''})` : ''}. Change the timeline above to check other stretches.</div>`;
+    out.innerHTML = h;
+  }
+  if (redraw){ const ch = $('#csheet .cs-chart'); if (ch && A.pts.length) ch.innerHTML = chartSvg(A.pts, A.f, A.base, A.season, A.nxt, L);
+    const rl = $('#cs-reflbl'); if (rl) rl.innerHTML = refLabel(L); }
+}
+function chartSvg(pts, f, base, seasonNow, nxt, ref){
   const box = $('#csheet'), W = Math.round(Math.max(320, Math.min(680, (box && box.clientWidth ? box.clientWidth - 30 : 680)))), H = W < 500 ? 220 : 250, L = 40, R = nxt ? 30 : 12, TOP = 24, B = 34;
-  const vals = pts.map(p => p.v), extra = (base != null ? [base] : []).concat(nxt && nxt.v != null ? [nxt.v] : []);
+  const vals = pts.map(p => p.v), extra = (base != null ? [base] : []).concat(nxt && nxt.v != null ? [nxt.v] : []).concat(ref != null ? [ref] : []);
   let lo = Math.min.apply(null, vals.concat(extra)), hi = Math.max.apply(null, vals.concat(extra));
   if (['n', 'd1', 'pct'].includes(f) && lo >= 0) lo = 0;
   if (hi === lo){ hi += 1; lo -= f === 'n' && lo === 0 ? 0 : 1; }
@@ -1666,12 +1743,14 @@ function chartSvg(pts, f, base, seasonNow, nxt){
   if (firstNow > 0){ const xd = (x(firstNow - 1) + x(firstNow)) / 2; s += `<line class="sdiv" x1="${xd}" x2="${xd}" y1="${TOP - 14}" y2="${H - B}"/><text class="slab" x="${xd - 6}" y="${TOP - 8}" text-anchor="end">${seasonNow - 1}</text><text class="slab" x="${xd + 6}" y="${TOP - 8}">${seasonNow}</text>`; }
   if (nxt){ const xb = pts.length ? (x(pts.length - 1) + x(pts.length)) / 2 : L; s += `<rect class="nxband" x="${xb.toFixed(1)}" y="${TOP - 14}" width="${(W - R - xb + 6).toFixed(1)}" height="${H - B - TOP + 14}" rx="4"/><text class="nxt" x="${(W - R).toFixed(1)}" y="${TOP - 4}" text-anchor="end">${nxt.bye ? 'After the bye' : 'Next game'}</text>`; }
   if (base != null) s += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
+  if (ref != null) s += `<line class="refl" x1="${L}" x2="${W - R}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}"/>`;
   const line = pts.map((p, i) => x(i).toFixed(1) + ',' + y(p.v).toFixed(1));
   if (pts.length > 1) s += `<path class="ar" d="M${x(0).toFixed(1)},${y(Math.max(lo, 0 > lo && 0 < hi ? 0 : lo)).toFixed(1)} L${line.join(' L')} L${x(pts.length - 1).toFixed(1)},${y(Math.max(lo, 0 > lo && 0 < hi ? 0 : lo)).toFixed(1)} Z"/><polyline class="ln" points="${line.join(' ')}"/>`;
   const every = Math.max(1, Math.ceil(pts.length / (W < 500 ? 6 : 11))), xN = nxt ? x(n - 1) : null;
   const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
   pts.forEach((p, i) => {
     const cls = pts.length > 2 && p.v === mx ? 'hi' : pts.length > 2 && p.v === mn ? 'lo' : '';
+    if (ref != null) s += `<circle class="hm ${p.v > ref ? 'ov' : p.v < ref ? 'un' : ''}" cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${pts.length > 20 ? 6 : 8.5}"/>`;
     s += `<circle class="pt ${cls}" cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${pts.length > 20 ? 3.5 : 5}"><title>${esc(p.label + (p.opp ? ' vs ' + p.opp : '') + ': ' + fmtV(f, p.v))}</title></circle>`;
     if (pts.length <= (W < 500 ? 8 : 12)) s += `<text class="pv" x="${x(i).toFixed(1)}" y="${(y(p.v) - 10).toFixed(1)}">${fmtV(f, p.v)}</text>`;
     if ((i % every === 0 || i === pts.length - 1) && (xN == null || xN - x(i) >= 34)) s += `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 16}" text-anchor="middle">${p.short}</text>${p.opp && pts.length <= (W < 500 ? 6 : 10) ? `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 29}" text-anchor="middle">${p.opp}</text>` : ''}`;
@@ -1700,6 +1779,8 @@ function renderChart(){
   const baseTxt = src.league ? 'normal (2021–25)' : base === 0 && CH.kind === 't' ? (CH.stat === 'mg' ? 'even' : 'the line') : 'average';
   const last = pts[pts.length - 1], hiP = pts.reduce((a, p) => !a || p.v > a.v ? p : a, null), loP = pts.reduce((a, p) => !a || p.v < a.v ? p : a, null);
   const nxt = chartNext(src);
+  CH._args = {pts, f, base, season: src.season, nxt, avg};
+  const refL = CH.kind === 'p' && PROP_STATS[CH.stat] ? numOf((PL[plKey()] || {}).line) : null;
   const wins = src.league ? [['l4', 'Last 4'], ['season', 'This season']] : WINDOWS;
   if (src.league && !['l4', 'season'].includes(CH.win)) CH.win = 'season';
   // the data table: newest first, the selected stat highlighted, other stats for context
@@ -1724,9 +1805,9 @@ function renderChart(){
       if (nxt.g && !nxt.g.final){ const pk = nxt.g.model.pick_su, wp = pk === nxt.g.home ? nxt.g.model.wp_home : 1 - nxt.g.model.wp_home; bits.push(`<span class="nx-b">Model: ${pk} ${pct(wp)}</span>`); } }
     nxStrip = `<div class="nx cs-next"><span class="nx-k">${nxt.bye ? 'Bye this week · next' : 'Next game'}</span><span class="nx-m">${n.home ? 'vs' : '@'} ${chip(n.opp, 1)}</span>${nextWhen(n, nxt.g)}${bits.join('')}</div>`;
   }
-  const body = `${nxStrip}
-    <div><div class="h3" style="font-size:16px">${esc(label)} <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:500">· dashed line = ${baseTxt}${base != null ? ' ' + fmtV(f, base) : ''}</span></div>
-      <div class="cs-chart">${pts.length ? chartSvg(pts, f, base, src.season, nxt) : '<div class="empty">No games with this stat in this window.</div>'}</div>
+  const body = `${nxStrip}${lineBoxHtml(f)}
+    <div><div class="h3" style="font-size:16px">${esc(label)} <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:500">· dashed line = ${baseTxt}${base != null ? ' ' + fmtV(f, base) : ''}<span id="cs-reflbl">${refLabel(refL)}</span></span></div>
+      <div class="cs-chart">${pts.length ? chartSvg(pts, f, base, src.season, nxt, refL) : '<div class="empty">No games with this stat in this window.</div>'}</div>
       ${note ? `<div class="note">${note}</div>` : ''}</div>
     <div class="cs-tiles">
       <div class="mc"><div class="k">${src.league ? 'Weekly avg' : 'Average'}</div><div class="v">${fmtV(f, avg)}</div></div>
@@ -1744,10 +1825,12 @@ function renderChart(){
     const top = sh.scrollTop, tb = $('.cs-tbl', cur), ty = tb ? tb.scrollTop : 0, tx = tb ? tb.scrollLeft : 0;
     cur.innerHTML = body;
     sh.scrollTop = top; const tb2 = $('.cs-tbl', cur); if (tb2){ tb2.scrollTop = ty; tb2.scrollLeft = tx; }
+    updateLineBox(false);
     return;
   }
   sh.dataset.key = key;
   sh.innerHTML = head + `<div id="cs-body" style="display:flex;flex-direction:column;gap:14px">${body}</div>`;
+  updateLineBox(false);
   // first open: bring the selected stat into view
   $$('.cs-pick .seg', sh).forEach(x => { const on = $('button[aria-pressed="true"]', x); if (on) x.scrollLeft = Math.max(0, on.offsetLeft - x.offsetLeft - 16); });
 }
@@ -1760,6 +1843,8 @@ document.addEventListener('click', e => {
   if (!CH) return;
   if (b.dataset.cstat){ CH.stat = b.dataset.cstat; renderChart(); return; }
   if (b.dataset.cwin){ CH.win = b.dataset.cwin; store.set('cwin', CH.win); renderChart(); return; }
+  if (b.dataset.clside){ const k = plKey(); PL[k] = Object.assign({}, PL[k], {side: b.dataset.clside}); store.set('pl', PL);
+    $$('[data-clside]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.clside === b.dataset.clside))); updateLineBox(false); return; }
   if (b.hasAttribute('data-cclose')) closeChart();
 });
 document.addEventListener('keydown', e => {
@@ -2278,6 +2363,11 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('input', e => {
   const el = e.target; if (!el.dataset) return;
+  if (el.dataset.cl && CH){
+    const k = plKey(); PL[k] = Object.assign({}, PL[k], {[el.dataset.cl]: el.value.trim()});
+    if (!PL[k].line && !PL[k].odds && !PL[k].side) delete PL[k];
+    store.set('pl', PL); updateLineBox(el.dataset.cl === 'line'); return;
+  }
   if (el.dataset.odds != null){
     const k = el.dataset.odds; if (el.value.trim()) MY_ODDS[k] = el.value.trim(); else delete MY_ODDS[k]; store.set('odds', MY_ODDS);
     const m = evMsg(Number(el.dataset.p), Number(el.dataset.fair), el.value);
