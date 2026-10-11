@@ -74,7 +74,8 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-inline:-6px}
 .tabs::-webkit-scrollbar{display:none}
 .tab{appearance:none;background:none;border:0;cursor:pointer;color:var(--on-turf-2);font-family:var(--f-display);font-weight:800;
-  font-size:18px;letter-spacing:.03em;text-transform:uppercase;padding:8px 10px 10px;white-space:nowrap;border-bottom:4px solid transparent;margin-bottom:-4px}
+  font-size:17px;letter-spacing:.03em;text-transform:uppercase;padding:8px 9px 10px;white-space:nowrap;border-bottom:4px solid transparent;margin-bottom:-4px}
+@media (min-width:621px) and (max-width:1199px){ .tabs{flex-wrap:wrap;overflow:visible;row-gap:0} .tab{padding:6px 8px 8px} }
 @media (max-width:620px){
   .bar-in{padding-block:8px 0;gap:2px}
   .brand{font-size:24px}
@@ -551,6 +552,23 @@ ul.plain li{margin:3px 0}
 .cs-chart .pv.nx{fill:var(--stripe-ink)}
 .cs-chart .xl.nxx{fill:var(--stripe-ink);font-weight:700}
 .cs-tbl tr.nxrow td{background:var(--stripe-bg);font-weight:600}
+/* ---------- betting tips ---------- */
+.tips{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:16px;align-items:start}
+.tip{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:16px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;min-width:0}
+.tip-n{width:38px;height:38px;border-radius:10px;background:var(--turf);color:var(--stripe);display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-display);font-weight:900;font-size:24px;box-shadow:inset 0 -3px 0 var(--stripe)}
+.tip-b{display:flex;flex-direction:column;gap:10px;min-width:0}
+.tip-stat{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.tip-stat .big{font-family:var(--f-display);font-weight:900;font-size:34px;line-height:1;color:var(--ink)}
+.tip-why,.tip-how{margin:0;font-size:14px;color:var(--ink-2);line-height:1.5}
+.tip-how b{color:var(--ink)}
+.tip-wk{background:var(--panel-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-left:4px solid var(--stripe)}
+.tw{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;color:var(--ink-2)}
+.tw-g{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-3)}
+.tw-t{flex:1 1 220px;min-width:0}
+.tw-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tw-k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:var(--muted-bg);border-radius:4px;padding:1px 6px;white-space:nowrap}
+@media (max-width:620px){ .tip{grid-template-columns:1fr;padding:14px} .tip-n{width:32px;height:32px;font-size:20px} .tip-stat .big{font-size:30px} }
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -604,6 +622,7 @@ ul.plain li{margin:3px 0}
       <button class="tab" role="tab" id="tab-ls" data-view="ls" aria-selected="false">Long shots</button>
       <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
       <button class="tab" role="tab" id="tab-picks" data-view="picks" aria-selected="false">My picks<span class="cnt" id="pick-count"></span></button>
+      <button class="tab" role="tab" id="tab-tips" data-view="tips" aria-selected="false" aria-label="Betting tips">Tips</button>
       <button class="tab" role="tab" id="tab-matters" data-view="matters" aria-selected="false">What matters</button>
       <button class="tab" role="tab" id="tab-teams" data-view="teams" aria-selected="false">Teams</button>
     </nav>
@@ -617,6 +636,7 @@ ul.plain li{margin:3px 0}
   <section class="view" id="v-ls" hidden></section>
   <section class="view" id="v-trends" hidden></section>
   <section class="view" id="v-picks" hidden></section>
+  <section class="view" id="v-tips" hidden></section>
   <section class="view" id="v-matters" hidden></section>
   <section class="view" id="v-teams" hidden></section>
 </main>
@@ -731,6 +751,7 @@ function show(view){
   $$('.view').forEach(v => v.hidden = v.id !== 'v-' + view);
   store.set('tab', view);
   if (view === 'teams') renderTeams();
+  if (view === 'tips') renderTips();
   if (view === 'model') drawUnits('model');
   window.scrollTo({top: 0});
 }
@@ -2000,6 +2021,82 @@ async function setResult(id, r){
 function initPicks(){ PICK_MODE = 'local'; PICKS = store.get('picks', []); renderPicks(); }
 
 /* ======================================================================
+   BETTING TIPS: where a real edge tends to come from (price, timing, news), each applied to this week
+   ====================================================================== */
+function tipCard(n, title, stat, statTxt, why, wk, how){
+  return `<article class="tip"><div class="tip-n" aria-hidden="true">${n}</div><div class="tip-b">
+    <h2 class="h3">${title}</h2>
+    <div class="tip-stat"><span class="big">${stat}</span><span>${statTxt}</span></div>
+    <p class="tip-why">${why}</p>
+    ${how ? `<p class="tip-how"><b>How to use it:</b> ${how}</p>` : ''}
+    <div class="tip-wk"><div class="label">This week</div>${wk}</div></div></article>`;
+}
+function renderTips(){
+  const v = $('#v-tips'); if (!v) return;
+  const S = D.research.spread || {}, K = S.key || {}, TS = S.teaser || {}, SP = S.splits || {};
+  const up = D.games.filter(g => !g.final);
+  const none = t => `<div class="note">${t}</div>`;
+  // 1) key numbers
+  const KG = [];
+  [3, 7].forEach(k => [['on', k], ['past', k + 0.5], ['under', k - 0.5]].forEach(([kind, L]) => {
+    const gs = up.filter(g => g.spread != null && Math.abs(g.spread) === L); if (!gs.length) return;
+    const advice = kind === 'on' ? `Backing the underdog? Look for +${k}.5. Backing the favorite? Look for −${k - 0.5}.`
+      : kind === 'past' ? `Backing the favorite? A book at −${k} turns a ${k}-point win into a push instead of a loss.`
+      : `Backing the underdog? A book at +${k} turns a ${k}-point loss into a push instead of a loss.`;
+    KG.push(`<div class="tw"><span class="tw-k">${kind === 'on' ? `On ${k}` : kind === 'past' ? `Just past ${k}` : `Just under ${k}`}</span><span class="tw-t">${advice}</span></div>
+      <div class="tw-chips">${gs.map(g => { const fav = g.spread > 0 ? g.home : g.away, dog = fav === g.home ? g.away : g.home; return `<span class="nx-b">${fav} −${L} vs ${dog}</span>`; }).join('')}</div>`);
+  }));
+  const keyRows = KG.join('');
+  // 2) teaser legs
+  const legs = up.flatMap(g => (g.teaser || []).map(x => ({g, x})));
+  const dogLegs = legs.filter(l => l.x.kind === 'dog'), favLegs = legs.filter(l => l.x.kind === 'fav');
+  const legRows = dogLegs.map(({g, x}) => `<div class="tw"><span class="tw-g">${chip(x.team, 1)} ${x.team === g.home ? 'vs' : '@'} ${chip(x.team === g.home ? g.away : g.home, 1)}</span><span class="nx-b">${fmtLine(x.from)} → ${fmtLine(x.to)}</span><span class="tw-t">Legs like this won ${pct(x.rate, 1)}${(g.total || 99) <= 49 ? ' (total of 49 or less)' : ''}</span></div>`).join('')
+    + (favLegs.length ? `<div class="tw"><span class="tw-t">Skip: ${favLegs.map(({x}) => `${x.team} ${fmtLine(x.from)} → ${fmtLine(x.to)}`).join(', ')}. Favorites teased down from −7.5 to −8.5 won only ${pct(TS.fav_leg, 1)}, below break-even.</span></div>` : '');
+  // 3) closing line value from the picks you've logged
+  const cl = PICKS.map(clvOf).filter(c => c && c.closed && c.unit === 'pts');
+  const beat = cl.filter(c => c.v > 0).length, avg = cl.length ? cl.reduce((a, c) => a + c.v, 0) / cl.length : 0;
+  const clvWk = cl.length ? `<div class="tw"><span class="nx-b">${beat} of ${cl.length}</span><span class="tw-t">of your spread and total picks beat the closing line, by ${sign(avg, 1)} points on average. ${avg > 0 ? 'That is the sign of a real edge, even before the wins show up.' : 'Try betting earlier in the week, or skip games where the line has already moved past your number.'}</span></div>`
+    : none('Log spread and total picks with the line you actually got (the + Add a pick button). Once those games kick off, My picks shows whether you beat the closing line.');
+  // 4) late news: QB changes and questionable starters
+  const qbRows = up.flatMap(g => ['away', 'home'].filter(sd => g.qb_change[sd]).map(sd => { const q = g.qb_change[sd], t = g[sd], qb = g.model.why.parts.qb, toward = qb > 0 ? g.home : g.away;
+    return `<div class="tw"><span class="tw-g">${chip(t, 1)}</span><span class="tw-t"><b>${esc(q.starter)}</b> expected to start for ${esc(q.usual)}${q.starter_rating != null && q.usual_rating != null ? ` (${sign(q.starter_rating, 2)} vs ${sign(q.usual_rating, 2)} EPA per dropback)` : ''}. Quarterbacks move this game ${Math.abs(qb).toFixed(1)} pts toward ${toward} in the model.</span></div>`; })).join('');
+  const teamsUp = [...new Set(up.flatMap(g => [g.away, g.home]))];
+  const qs = teamsUp.flatMap(t => (D.injuries[t] || []).filter(i => i.key && ['gtd', 'risk'].includes(i.level)).map(i => ({t, i})))
+    .sort((a, b) => (a.i.pos === 'QB' ? 0 : a.i.skill ? 1 : 2) - (b.i.pos === 'QB' ? 0 : b.i.skill ? 1 : 2)).slice(0, 10);
+  const qRows = qs.length ? `<div class="tw"><span class="tw-t">Questionable starters to check before kickoff:</span></div><div class="tw-chips">${qs.map(({t, i}) => `<span class="pill ${i.level === 'risk' ? 'warn' : 'info'}">${t} ${esc(i.name)} <span style="font-weight:500">${esc(i.pos)}${i.level === 'risk' ? ' · in doubt' : ''}</span></span>`).join('')}</div>` : '';
+  // 5) bet small and steady
+  const ms = (((D.units || {}).model || {}).replay || {}).summary || {}, spr = ms.spread;
+  v.innerHTML = `
+    <div class="sec-head"><div><h1 class="h2">Betting tips</h1>
+      <p class="lede">The NFL's closing lines are hard to beat with stats alone, so real edges tend to come from the price you get, when you bet, and news the market hasn't caught up with. Each tip below is backed by 2018–2025 results, and the "This week" box applies it to the current games.</p></div></div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Needed to profit at −110</div><div class="v num">52.4%</div><div class="small">Win rate that breaks even after the book's cut</div></div>
+      <div class="tile"><div class="label">Games decided by exactly 3</div><div class="v num">${pct(K.p3)}</div><div class="small">The most common margin; 7 is next at ${pct(K.p7)}</div></div>
+      <div class="tile"><div class="label">Underdog teaser legs won</div><div class="v num">${pct(TS.dog_leg, 1)}</div><div class="small">Break-even is ${pct(TS.breakeven_2team_minus120, 1)} for a 2-team teaser at −120</div></div>
+      <div class="tile"><div class="label">Closing line's average miss</div><div class="v num">${S.market_mae != null ? S.market_mae.toFixed(1) : '–'} pts</div><div class="small">Even the sharpest number is off by this much a game</div></div>
+    </div>
+    <div class="tips">
+      ${tipCard(1, 'Shop for the half point at 3 and 7', pct(K.p_fav_by_3_when_line_near_3), 'of games lined near 3 ended with the favorite winning by exactly 3 (2018–25)',
+        'Most games are decided by a field goal or a touchdown, so half a point around 3 or 7 decides a lot of bets. Getting +3.5 instead of +3 turns every one of those 3-point losses from a push into a win, and laying −2.5 instead of −3 turns pushes into wins for favorites.',
+        keyRows || none('No games sit on 3 or 7 this week.'), 'Check two or three sportsbooks before you bet and take the best number. Paying a little extra juice (say −120) to move off 3 is often worth it; moving off other numbers usually isn\'t.')}
+      ${tipCard(2, 'Tease underdogs through 3 and 7', pct(TS.dog_leg, 1), `of +1.5 to +2.5 underdogs won after a 6-point tease (${(TS.dog_n || 0).toLocaleString()} legs, 2018–25)`,
+        `A six-point teaser moves a +1.5 to +2.5 underdog up to +7.5 or +8.5, so it covers through both 3 and 7. That is the one bet in this site's testing that cleared break-even. It worked even better when the total was 49 or less (${pct(TS.dog_leg_lowtotal, 1)}), since lower-scoring games keep margins tighter. Teasing big favorites down does not work (${pct(TS.fav_leg, 1)}).`,
+        legRows || none('No +1.5 to +2.5 underdogs on the board this week.'), 'Pair two qualifying legs in a 2-team, 6-point teaser at −120 or better. Skip it if your book charges more than −130, since the edge is thin.')}
+      ${tipCard(3, 'Bet early, then check the closing line', `${S.market_mae != null ? S.market_mae.toFixed(1) : '–'} pts`, 'average miss of the closing line, the sharpest number of the week',
+        'Lines move toward the right answer as the week goes on and the sharpest bettors weigh in. If you regularly bet a number that is better than where the line closes, that is the quickest proof of a real edge, because win-loss records take thousands of bets to settle.',
+        clvWk, 'Bet the games you like early in the week, write down the line you got, and compare it with the closing line. The My picks tab does this automatically for spreads and totals.')}
+      ${tipCard(4, 'Watch late news, especially quarterbacks', '#1', 'the starting quarterback outweighs every other single input in the model',
+        'The market reacts within minutes to big news, but questionable players are only settled when inactive lists come out about 90 minutes before kickoff. A backup quarterback can be worth a field goal or more on the line.',
+        (qbRows || '') + qRows || none('No quarterback changes or questionable starters on the board yet.'), 'For games you\'re waiting on, check inactives before kickoff instead of betting the night before, and look again if a starter is ruled out.')}
+      ${tipCard(5, 'Be picky and bet the same amount every time', spr ? `${spr.w}-${spr.l}` : '–', 'the model\'s spread picks, 2020–25: stats alone don\'t beat the closing line',
+        `A long-run 54–55% is considered excellent, and luck alone can move a 600-bet record by about 2 points either way. Trends like road underdogs (${pct((SP['Road underdogs'] || {}).rate, 1)}) and division underdogs (${pct((SP['Division underdogs'] || {}).rate, 1)}) are too close to break-even to bet on their own; use them as tie-breakers. Parlays multiply the book's cut on every leg.`,
+        `<div class="tw"><span class="tw-t">Flat bets of 1–2% of a set bankroll keep a cold streak from ending your season. Track every bet in My picks, including the losers, so the record is honest.</span></div>`,
+        'Decide your bankroll before the season, keep every bet the same size, and pass on games where you don\'t have a reason beyond "I think they win."')}
+    </div>
+    <div class="note">Set a budget you can afford to lose and stick to it. If betting stops being fun, the National Problem Gambling Helpline is available around the clock at <b>1-800-MY-RESET</b> or <a href="https://www.1800myreset.org" target="_blank" rel="noopener">1800myreset.org</a>.</div>`;
+}
+
+/* ======================================================================
    WHAT MATTERS
    ====================================================================== */
 let PROP_SEL = 'rec_yds';
@@ -2238,7 +2335,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden){ che
 /* ---------- boot ---------- */
 renderWeek(); renderModel(); renderHC(); renderLS(); renderTrends(); renderPicks(); renderMatters();
 const startTab = location.hash.replace('#', '') || store.get('tab', 'week');
-if (['week', 'model', 'hc', 'ls', 'trends', 'picks', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
+if (['week', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
 initPicks();
 liveScores();
 })();
