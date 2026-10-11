@@ -434,6 +434,50 @@ ul.plain li{margin:3px 0}
   .spot-g svg{width:100%;height:70px}
   .spot-n{font-size:21px}
 }
+
+/* ---------- model picks ---------- */
+.wbadge{font-family:var(--f-body);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:var(--stripe);color:var(--on-stripe);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.wbadge.ok{background:var(--win);color:#fff} .wbadge.no{background:var(--loss);color:#fff}
+.g-sum .r2 .pk2.ok{background:var(--win-bg);color:var(--win)} .g-sum .r2 .pk2.no{background:var(--loss-bg);color:var(--loss)}
+.mp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:16px;align-items:start}
+.mp{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px 12px;display:flex;flex-direction:column;gap:12px;min-width:0;position:relative;overflow:hidden;border-top:5px solid var(--pc)}
+.mp.done{opacity:.92}
+.mp-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mp-mu{display:flex;align-items:center;gap:6px}
+.mp-pick{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.mp-team{display:flex;align-items:center;gap:10px;min-width:0}
+.mp-team .tm{height:34px;min-width:52px;font-size:20px}
+.mp-nick{font-family:var(--f-display);font-weight:900;font-size:34px;line-height:.95;text-transform:uppercase;letter-spacing:.01em}
+.mp-p{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.mp-p .num{font-family:var(--f-display);font-weight:900;font-size:40px;line-height:.9}
+.mp-conf{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:2px 7px}
+.c-strong{background:var(--win);color:#fff} .c-solid{background:var(--win-bg);color:var(--win)} .c-lean{background:var(--warn-bg);color:var(--warn)} .c-tossup{background:var(--muted-bg);color:var(--ink-2)}
+.mp-price{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:8px;align-items:stretch}
+.mp-price > div{background:var(--panel-2);border-radius:8px;padding:6px 10px;min-width:0}
+.mp-price .k{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.mp-price .v{font-family:var(--f-display);font-weight:900;font-size:21px;line-height:1.1}
+.mp-val{font-size:12.5px;color:var(--ink-2);display:flex;align-items:center}
+.mp-val .pos{color:var(--win);margin-right:4px}
+.mp-why{margin:0;font-size:14px;color:var(--ink-2);line-height:1.5}
+.fxs{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--rule);padding-top:8px}
+.fx-axis{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;padding:0 0 4px}
+.fx-axis span{display:inline-flex;gap:5px;align-items:center}
+.fx{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) 4.6em;gap:10px;align-items:center;padding:5px 0}
+.fx-l{display:flex;flex-direction:column;min-width:0}
+.fx-l b{font-size:13.5px} .fx-l span{font-size:11.5px;color:var(--ink-3)}
+.fx-bar{position:relative;height:14px;background:var(--muted-bg);border-radius:3px}
+.fx-bar .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--ink-3)}
+.fx-bar span{position:absolute;top:0;bottom:0;border-radius:3px}
+.fx-v{font-family:var(--f-mono);font-size:12.5px;font-weight:600;text-align:right;white-space:nowrap}
+.mp-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--rule);padding-top:10px}
+@media (max-width:620px){
+  .mp{padding:12px 12px 10px}
+  .mp-nick{font-size:27px} .mp-p .num{font-size:34px}
+  .mp-price{grid-template-columns:1fr 1fr} .mp-val{grid-column:1/-1}
+  .fx{grid-template-columns:minmax(0,1fr) 4.2em;row-gap:3px}
+  .fx-bar{grid-column:1/-1;grid-row:2}
+  .fx-l span{font-size:11px}
+}
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -482,6 +526,7 @@ ul.plain li{margin:3px 0}
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" id="tab-week" data-view="week" aria-selected="true">This week</button>
+      <button class="tab" role="tab" id="tab-model" data-view="model" aria-selected="false">Model<span class="xs-hide"> picks</span></button>
       <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance<span class="xs-hide"> picks</span></button>
       <button class="tab" role="tab" id="tab-ls" data-view="ls" aria-selected="false">Long shots</button>
       <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
@@ -494,6 +539,7 @@ ul.plain li{margin:3px 0}
 
 <main>
   <section class="view" id="v-week"></section>
+  <section class="view" id="v-model" hidden></section>
   <section class="view" id="v-hc" hidden></section>
   <section class="view" id="v-ls" hidden></section>
   <section class="view" id="v-trends" hidden></section>
@@ -653,7 +699,7 @@ function teamRow(g, side){
     `<div class="tline"><div class="sp num">${fmtLine(ln)}</div><div class="ml">ML ${fmtOdds(ml)}</div></div>`;
   return `<div class="trow">
     <div style="display:flex;align-items:center;gap:2px">${chip(t)}<button class="star" data-fav="${t}" aria-pressed="${FAV.has(t)}" aria-label="Star ${esc(x.nick)}">★</button></div>
-    <div class="tname"><div class="n">${esc(x.nick)} <span class="rec num">${rec(x.rec)}</span></div>
+    <div class="tname"><div class="n">${esc(x.nick)} <span class="rec num">${rec(x.rec)}</span>${g.model.pick_su === t ? `<span class="wbadge${g.final ? (resultOf(g) === 'W' ? ' ok' : resultOf(g) === 'L' ? ' no' : '') : ''}" title="Model's pick to win">${g.final ? (resultOf(g) === 'W' ? '✓ ' : resultOf(g) === 'L' ? '✗ ' : '') : ''}Model pick ${pct(t === g.home ? g.model.wp_home : 1 - g.model.wp_home)}</span>` : ''}</div>
       <div class="meta"><span>Last 4 ${resDots(x.l4_list)} ${rec(x.l4)}</span><span>ATS ${ats(x.ats)}</span><span>O/U ${ouR(x.ou)}</span>${x.streak ? `<span>${x.streak[0] === 'W' ? 'Won' : x.streak[0] === 'L' ? 'Lost' : 'Tied'} ${x.streak.slice(1)}</span>` : ''}</div></div>
     ${scoreHtml}</div>`;
 }
@@ -737,8 +783,9 @@ function gameSummary(g){
   if (g.final) bits.push('<b>Final</b>');
   else if (g.live) bits.push(`<span class="lv">● ${esc(g.live.detail || 'Live')}</span>`);
   else bits.push(esc(kick(g.kickoff, {timeZoneName: undefined})));
-  if (!g.final && m.pick_ats) bits.push(`<span class="pk2">Model: ${m.pick_ats} ${fmtLine(lineFor(g, m.pick_ats))}</span>`);
-  else if (!g.final) bits.push(`Model ${pct(m.wp_home >= .5 ? m.wp_home : 1 - m.wp_home)} ${m.wp_home >= .5 ? h : a}`);
+  const wpPick = m.pick_su === h ? m.wp_home : 1 - m.wp_home, rr = g.final ? resultOf(g) : null;
+  bits.push(`<span class="pk2${rr === 'W' ? ' ok' : rr === 'L' ? ' no' : ''}">${rr === 'W' ? '✓ ' : rr === 'L' ? '✗ ' : ''}Pick: ${m.pick_su} ${pct(wpPick)}</span>`);
+  if (!g.final && m.pick_ats) bits.push(`<span style="font-weight:700;color:var(--ink-2)">ATS ${m.pick_ats} ${fmtLine(lineFor(g, m.pick_ats))}</span>`);
   if (g.qb_change.away || g.qb_change.home) bits.push('<span style="color:var(--warn);font-weight:700">QB change</span>');
   if (FAV.has(a) || FAV.has(h)) bits.push('<span style="color:var(--stripe-ink)">★</span>');
   return `<button class="g-sum" data-gsum="${g.id}" aria-expanded="${GOPEN.has(g.id)}" aria-label="${esc(T[a].nick + ' at ' + T[h].nick)}, show details">
@@ -912,6 +959,103 @@ function valueBox(key, p, fair){
     <span class="ev ${m.c}" data-ev="${esc(key)}" aria-live="polite">${esc(m.t)}</span></div>`;
 }
 const oddsFor = (key, fair) => parseOdds(MY_ODDS[key]) ?? fair;
+
+/* ======================================================================
+   MODEL PICKS: who the model expects to win, and why
+   ====================================================================== */
+function resultOf(g){
+  const src = g.final ? g : null; if (!src || src.home_score == null) return null;
+  const d = src.home_score - src.away_score; if (d === 0) return 'P';
+  return (d > 0 ? g.home : g.away) === g.model.pick_su ? 'W' : 'L';
+}
+const lastName = n => String(n || '').split(' ').slice(-1)[0];
+const confWord = p => p >= .72 ? 'Strong' : p >= .62 ? 'Solid' : p >= .55 ? 'Lean' : 'Toss-up';
+const FX_LABEL = {team: 'Team strength', qb: 'Quarterbacks', home: 'Home field', rest: 'Rest', travel: 'Travel', altitude: 'Altitude'};
+function fxDetail(g, k){
+  const w = g.model.why, h = g.home, a = g.away, sit = w.sit;
+  if (k === 'team'){ const [ph, pa] = w.gaps.pd, [eh, ea] = w.gaps.epa;
+    return `Rating per game: ${h} ${sign(ph, 1)} pts, ${a} ${sign(pa, 1)} · EPA per play ${h} ${sign(eh, 2)}, ${a} ${sign(ea, 2)}`; }
+  if (k === 'qb'){ const qh = g.qb.home, qa = g.qb.away;
+    return `${esc(lastName(qh.name))} ${sign(qh.rating, 2)} vs ${esc(lastName(qa.name))} ${sign(qa.rating, 2)} EPA per dropback${(g.qb_change.home || g.qb_change.away) ? ' · QB change this week' : ''}`; }
+  if (k === 'home') return sit.neutral_i ? 'Neutral site, so the usual home edge mostly disappears' : `${h} at home`;
+  if (k === 'rest'){ const r = g.rest; return `${h} ${r.home ?? '–'} days of rest, ${a} ${r.away ?? '–'}${sit.bye_diff ? ` · ${sit.bye_diff > 0 ? h : a} off a bye` : ''}`; }
+  if (k === 'travel'){ const tz = Math.abs(sit.tz_diff); return `${tz ? `${a} crosses ${tz} time zone${tz === 1 ? '' : 's'}` : 'Same time zone'}${sit.west_early ? ' · West Coast team in an early kickoff' : ''}`; }
+  if (k === 'altitude') return 'Visitors playing at Denver altitude';
+  return '';
+}
+function whyBars(g){
+  const P = g.model.why.parts, keys = Object.keys(P).filter(k => Math.abs(P[k]) >= 0.05).sort((x, y) => Math.abs(P[y]) - Math.abs(P[x]));
+  const mx = Math.max(2, ...keys.map(k => Math.abs(P[k])));
+  return `<div class="fx-axis"><span>${chip(g.away, 1)} favored</span><span>${chip(g.home, 1)} favored</span></div>` + keys.map(k => {
+    const v = P[k], t = v > 0 ? g.home : g.away, w = (Math.abs(v) / mx * 50).toFixed(1);
+    return `<div class="fx"><div class="fx-l"><b>${FX_LABEL[k]}</b><span>${fxDetail(g, k)}</span></div>
+      <div class="fx-bar" aria-hidden="true"><i class="mid"></i><span style="${v > 0 ? 'left:50%' : 'right:50%'};width:${w}%;background:${T[t].c1};box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)"></span></div>
+      <div class="fx-v num">${t} ${sign(Math.abs(v), 1)}</div></div>`;
+  }).join('');
+}
+function whyText(g){
+  const m = g.model, P = m.why.parts, pick = m.pick_su, opp = pick === g.home ? g.away : g.home, sgn = pick === g.home ? 1 : -1;
+  const ks = Object.keys(P).filter(k => Math.abs(P[k]) >= 0.3).sort((x, y) => Math.abs(P[y]) - Math.abs(P[x]));
+  const fav = ks.filter(k => P[k] * sgn > 0), against = ks.filter(k => P[k] * sgn < 0);
+  const nick = t => T[t].nick;
+  let t = `The model has the ${nick(pick)} winning by ${Math.abs(m.margin).toFixed(1)} points. `;
+  if (fav.length) t += `The biggest reason is ${FX_LABEL[fav[0]].toLowerCase()} (${sign(Math.abs(P[fav[0]]), 1)} pts)${fav[1] ? `, with ${FX_LABEL[fav[1]].toLowerCase()} adding ${sign(Math.abs(P[fav[1]]), 1)}` : ''}. `;
+  if (against.length) t += `${FX_LABEL[against[0]]} works for the ${nick(opp)} (${sign(Math.abs(P[against[0]]), 1)}), which keeps it ${Math.abs(m.margin) < 3 ? 'close' : 'from being bigger'}.`;
+  return t;
+}
+let MF = store.get('mf', 'all');
+function mpCard(g){
+  const m = g.model, pick = m.pick_su, other = pick === g.home ? g.away : g.home;
+  const p = pick === g.home ? m.wp_home : 1 - m.wp_home;
+  const mk = m.mkt_wp_home == null ? null : (pick === g.home ? m.mkt_wp_home : 1 - m.mkt_wp_home);
+  const book = pick === g.home ? g.ml_home : g.ml_away, gap = mk == null ? null : p - mk;
+  const isDog = g.spread != null && g.spread !== 0 && (g.spread > 0 ? g.home : g.away) !== pick;
+  const rr = resultOf(g);
+  const status = g.final ? `<span class="pill ${rr === 'W' ? 'win' : rr === 'L' ? 'loss' : ''}">Final ${g.away_score}–${g.home_score} · ${rr === 'W' ? 'model was right' : rr === 'L' ? 'model was wrong' : 'tie'}</span>`
+    : g.live ? `<span class="pill loss"><span class="dot"></span>Live ${g.live.away_score}–${g.live.home_score} · ${esc(g.live.detail || '')}</span>` : `<span class="small">${esc(kick(g.kickoff))}</span>`;
+  const valTxt = gap == null ? 'No moneyline posted yet' : gap >= 0.05 ? `<b class="pos">Value:</b> model gives ${pct(p)} vs the market's ${pct(mk)}` :
+    gap <= -0.05 ? `Market is higher on them (${pct(mk)}), so no value at this price` : `Model and market agree (${pct(mk)})`;
+  const ats = g.spread == null ? 'No spread posted yet' : m.pick_ats ? `Spread pick: <b>${m.pick_ats} ${fmtLine(lineFor(g, m.pick_ats))}</b> · ${Math.abs(m.spread_edge).toFixed(1)} pts off the line` :
+    `No spread pick: model is within 2.5 pts of the line (${(g.spread > 0 ? g.home : g.away)} ${fmtLine(-Math.abs(g.spread))})`;
+  return `<article class="mp ${g.final ? 'done' : ''}" style="--pc:${T[pick].c1}">
+    <div class="mp-top"><div class="mp-mu">${chip(g.away, 1)} <span class="small">@</span> ${chip(g.home, 1)}</div>${status}</div>
+    <div class="mp-pick"><div class="mp-team">${chip(pick)}<div><div class="label">Model pick to win${isDog ? ' · upset' : ''}</div><div class="mp-nick">${esc(T[pick].nick)}</div></div></div>
+      <div class="mp-p"><span class="num">${Math.round(p * 100)}%</span><span class="mp-conf c-${confWord(p).toLowerCase().replace(/[^a-z]/g, '')}">${confWord(p)}</span></div></div>
+    <div class="wp"><div class="wp-labels"><span>${g.away} ${pct(1 - m.wp_home)}</span><span class="small">Model by ${Math.abs(m.margin).toFixed(1)}${m.mkt_wp_home != null ? ' · yellow = market' : ''}</span><span>${pct(m.wp_home)} ${g.home}</span></div>
+      <div class="wp-track"><span style="width:${((1 - m.wp_home) * 100).toFixed(1)}%;background:${T[g.away].c1}"></span><span style="width:${(m.wp_home * 100).toFixed(1)}%;background:${T[g.home].c1}"></span>
+      ${m.mkt_wp_home != null ? `<i class="wp-mkt" style="left:${((1 - m.mkt_wp_home) * 100).toFixed(1)}%"></i>` : ''}</div></div>
+    <div class="mp-price"><div><div class="k">Model price</div><div class="v">${fmtOdds(oddsNum(p))}</div></div><div><div class="k">Book</div><div class="v">${fmtOdds(book)}</div></div><div class="mp-val">${valTxt}</div></div>
+    <p class="mp-why">${whyText(g)}</p>
+    <div class="fxs">${whyBars(g)}</div>
+    <div class="mp-foot"><span class="small">${ats}</span><span style="display:flex;gap:8px">${g.final ? '' : `<button class="btn tiny" data-mpick="${g.id}">+ Log ${pick} ML</button>`}<button class="btn tiny" data-jump="${g.id}">Matchup</button></span></div>
+  </article>`;
+}
+function renderModel(){
+  const v = $('#v-model'); if (!v) return;
+  const gs = D.games.slice().sort((a, b) => (a.final - b.final) || a.kickoff.localeCompare(b.kickoff));
+  const up = gs.filter(g => !g.final);
+  const dogs = g => g.spread != null && g.spread !== 0 && (g.spread > 0 ? g.home : g.away) !== g.model.pick_su;
+  const value = g => { const m = g.model; if (m.mkt_wp_home == null) return false; const p = m.pick_su === g.home ? m.wp_home : 1 - m.wp_home, mk = m.pick_su === g.home ? m.mkt_wp_home : 1 - m.mkt_wp_home; return p - mk >= 0.05; };
+  const shown = gs.filter(g => MF === 'all' ? true : MF === 'up' ? !g.final : MF === 'final' ? g.final : MF === 'upset' ? dogs(g) : value(g));
+  const mp = D.model_picks, w = mp.filter(x => x.type === 'Winner'), sp = mp.filter(x => x.type === 'Spread');
+  const wl = l => [l.filter(x => x.result === 'W').length, l.filter(x => x.result === 'L').length];
+  const [ww, wl_] = wl(w), [sw, sl] = wl(sp);
+  const wk = gs.filter(g => g.final).map(resultOf), wkW = wk.filter(r => r === 'W').length, wkL = wk.filter(r => r === 'L').length;
+  const filters = [['all', 'All games'], ['up', 'Upcoming'], ['final', 'Final'], ['upset', 'Upset picks'], ['value', 'Value vs market']];
+  v.innerHTML = `
+    <div class="sec-head"><div><h1 class="h2">Model picks</h1>
+      <p class="lede">Who the model expects to win each game this week, how sure it is, and exactly what pushed it there. The bars add up to the predicted margin. Rebuilt every 30 minutes, so injuries, quarterback changes and line moves are included right up to kickoff.</p></div>
+      <span class="pill ghost">Updated ${ago(D.meta.asof)}</span></div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Winners this season</div><div class="v num">${ww}-${wl_}</div><div class="small">${ww + wl_ ? pct(ww / (ww + wl_), 1) : '–'} right</div></div>
+      <div class="tile"><div class="label">This week so far</div><div class="v num">${wkW}-${wkL}</div><div class="small">${up.length} game${up.length === 1 ? '' : 's'} still to play</div></div>
+      <div class="tile"><div class="label">Spread picks</div><div class="v num">${sw}-${sl}</div><div class="small">Needs a 2.5-pt disagreement · break-even 52.4%</div></div>
+      <div class="tile"><div class="label">This week</div><div class="v num">${gs.filter(dogs).length}</div><div class="small">upset pick${gs.filter(dogs).length === 1 ? '' : 's'} · ${gs.filter(value).length} value spot${gs.filter(value).length === 1 ? '' : 's'}</div></div>
+    </div>
+    <div class="toolbar"><div class="seg" role="group" aria-label="Filter model picks">${filters.map(([k, l]) => `<button data-mf="${k}" aria-pressed="${MF === k}">${l}</button>`).join('')}</div></div>
+    <div class="mp-grid">${shown.map(mpCard).join('') || '<div class="empty">No games match this filter.</div>'}</div>
+    <div class="note">How it works: each team gets a rating from the stats that best predicted results from 2018–2025 (point differential, EPA per play, success rate and more, with last season blended in early and fading out), plus a rating for the expected starting quarterback. Home field, rest, travel and Denver's altitude are added, and the predicted margin is turned into a win chance from how far real results have landed from past predictions. From 2020–25 it picked winners about as often as the Vegas favorite, so the most useful spots are where it disagrees with the market.</div>`;
+}
 
 /* ======================================================================
    HIGH-CHANCE PICKS
@@ -1691,6 +1835,8 @@ document.addEventListener('click', async e => {
     t.setAttribute('aria-expanded', String(open)); const ch = $('.chev', t); if (ch) ch.textContent = open ? '▲' : '▼';
     return;
   }
+  if (t.dataset.mf){ MF = t.dataset.mf; store.set('mf', MF); renderModel(); return; }
+  if (t.dataset.mpick){ const g = D.games.find(x => x.id === t.dataset.mpick); const tm = g.model.pick_su; openPick({week: g.week, game: g.id, type: 'ml', team: tm, odds: (tm === g.home ? g.ml_home : g.ml_away) ?? -110}); return; }
   if (t.dataset.wf){ weekFilter = t.dataset.wf; store.set('wf', weekFilter); renderWeek(); return; }
   if (t.dataset.fav){ const k = t.dataset.fav; FAV.has(k) ? FAV.delete(k) : FAV.add(k); store.set('fav', [...FAV]); $$(`[data-fav="${k}"]`).forEach(b => b.setAttribute('aria-pressed', String(FAV.has(k)))); if (!$('#v-week').hidden) renderWeek(); return; }
   if (t.dataset.more){
@@ -1701,7 +1847,7 @@ document.addEventListener('click', async e => {
   }
   if (t.dataset.dtab){ const g = D.games.find(x => x.id === t.dataset.g); $('#d-' + g.id).innerHTML = detailHtml(g, t.dataset.dtab); return; }
   if (t.dataset.injall){ const k = t.dataset.injall; injShowAll[k] = !injShowAll[k]; const det = t.closest('.g-detail'); const g = D.games.find(x => x.id === det.id.slice(2)); det.innerHTML = detailHtml(g, 'inj'); return; }
-  if (t.dataset.jump){ e.preventDefault(); weekFilter = 'all'; GOPEN.add(t.dataset.jump); renderWeek(); const el = $('#g-' + t.dataset.jump); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
+  if (t.dataset.jump){ e.preventDefault(); weekFilter = 'all'; GOPEN.add(t.dataset.jump); if ($('#v-week').hidden) show('week'); renderWeek(); const el = $('#g-' + t.dataset.jump); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
   if (t.dataset.goto){ e.preventDefault(); show(t.dataset.goto); return; }
   if (t.dataset.tmore){ TSHOW[t.dataset.tmore] += 20; const y = window.scrollY; renderTrends(); window.scrollTo({top: y}); return; }
   if (t.hasAttribute('data-addpick')){ openPick(); return; }
@@ -1797,7 +1943,7 @@ async function liveScores(){
         if (gg){ gg.hs = hs; gg.as = as; changed = true; }
       }
     });
-    if (changed){ if (!$('#v-week').hidden && !$$('.g-detail').some(d => !d.hidden)) renderWeek(); renderPicks(); }
+    if (changed){ if (!$('#v-week').hidden && !$$('.g-detail').some(d => !d.hidden)) renderWeek(); renderModel(); renderPicks(); }
     clearTimeout(liveTimer);
     if (anyLive) liveTimer = setTimeout(() => { if (!document.hidden) liveScores(); }, 60000);
   } catch(e){ /* live scores are a bonus; the published data still loads */ }
@@ -1817,9 +1963,9 @@ async function checkForNewData(){
 document.addEventListener('visibilitychange', () => { if (!document.hidden){ checkForNewData(); liveScores(); } });
 
 /* ---------- boot ---------- */
-renderWeek(); renderHC(); renderLS(); renderTrends(); renderPicks(); renderMatters();
+renderWeek(); renderModel(); renderHC(); renderLS(); renderTrends(); renderPicks(); renderMatters();
 const startTab = location.hash.replace('#', '') || store.get('tab', 'week');
-if (['week', 'hc', 'ls', 'trends', 'picks', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
+if (['week', 'model', 'hc', 'ls', 'trends', 'picks', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
 initPicks();
 liveScores();
 })();

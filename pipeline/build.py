@@ -213,6 +213,23 @@ def model_margin(h, a, neutral=False, src=None, g=None, qb_h=None, qb_a=None):
     return float(z @ M2B + M2I)
 
 
+def model_breakdown(h, a, neutral=False, src=None, g=None, qb_h=None, qb_a=None):
+    """Split the model margin (home minus away) into the points each factor adds. Sums exactly to model_margin."""
+    src = src or POST
+    x = {f: src[f][h] - src[f][a] for f in FEATS}
+    x['qb_diff'] = (qb_h if qb_h is not None else QB_MEAN) - (qb_a if qb_a is not None else QB_MEAN)
+    x.update(situation(g) if g is not None else {'rest_diff': 0, 'bye_diff': 0, 'short_diff': 0, 'tz_diff': 0, 'west_early': 0,
+                                                    'altitude': 0, 'neutral_i': 1 if neutral else 0})
+    c = {f: float(b_ * x[f] / M2['sd'][f]) for f, b_ in zip(M2F, M2B)}
+    base = float(M2I - sum(b_ * M2['mu'][f] / M2['sd'][f] for f, b_ in zip(M2F, M2B)))
+    parts = {'team': sum(c[f] for f in FEATS), 'qb': c['qb_diff'], 'home': base + c['neutral_i'],
+             'rest': c['rest_diff'] + c['bye_diff'] + c['short_diff'], 'travel': c['tz_diff'] + c['west_early'], 'altitude': c['altitude']}
+    gaps = {'pd': [float(src['n_pts'][h]), float(src['n_pts'][a])], 'epa': [float(src['n_epa_play'][h]), float(src['n_epa_play'][a])],
+            'sr': [float(src['n_success'][h]), float(src['n_success'][a])]}
+    sit = {k: x[k] for k in ('rest_diff', 'bye_diff', 'short_diff', 'tz_diff', 'west_early', 'altitude', 'neutral_i')}
+    return {'parts': {k: round(v, 2) for k, v in parts.items()}, 'gaps': gaps, 'sit': sit}
+
+
 def model_total(h, a, roof, src=None):
     src = src or POST
     ppd_sum = src['o_ppd'][h] + src['d_ppd'][a] + src['o_ppd'][a] + src['d_ppd'][h]
@@ -367,6 +384,8 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
         qh_id, qh = current_qb(h, g.home_qb_id if pd.notna(g.home_qb_id) else None)
         qa_id, qa = current_qb(a, g.away_qb_id if pd.notna(g.away_qb_id) else None)
     mm = model_margin(h, a, neutral, srcg, g, qh, qa); wp = ncdf(mm / RESID); mt = model_total(h, a, g.roof, srcg)
+    why = model_breakdown(h, a, neutral, srcg, g, qh, qa)
+    assert abs(sum(why['parts'].values()) - mm) < 0.05, (g.game_id, why['parts'], mm)
     ih, ia = am_prob(g.home_moneyline), am_prob(g.away_moneyline)
     nv_h = ih / (ih + ia) if ih and ia else None
     spread = float(g.spread_line) if pd.notna(g.spread_line) else None
@@ -407,7 +426,7 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
         'temp': None if pd.isna(g.temp) else int(g.temp), 'wind': None if pd.isna(g.wind) else int(g.wind),
         'qb_home': g.home_qb_name if pd.notna(g.home_qb_name) else None, 'qb_away': g.away_qb_name if pd.notna(g.away_qb_name) else None,
         'model': {'margin': mm, 'wp_home': wp, 'total': mt, 'spread_edge': s_edge, 'total_edge': t_edge, 'mkt_wp_home': nv_h,
-                  'pick_ats': pick_ats, 'pick_total': None, 'pick_su': h if mm > 0 else a},
+                  'pick_ats': pick_ats, 'pick_total': None, 'pick_su': h if mm > 0 else a, 'why': why},
         'mismatches': mism, 'qb_change': qbc, 'teaser': teaser,
         'qb': {'home': {'name': qb_name(qh_id, g.home_qb_name if pd.notna(g.home_qb_name) else None), 'rating': qh},
                'away': {'name': qb_name(qa_id, g.away_qb_name if pd.notna(g.away_qb_name) else None), 'rating': qa}},
