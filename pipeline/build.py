@@ -432,6 +432,19 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
                'away': {'name': qb_name(qa_id, g.away_qb_name if pd.notna(g.away_qb_name) else None), 'rating': qa}},
         'rest': {'home': None if pd.isna(g.home_rest) else int(g.home_rest), 'away': None if pd.isna(g.away_rest) else int(g.away_rest)}})
 
+# ------------------------------------------------------------------ each team's next unplayed game (shown with the trends)
+upcoming_s = S[~S.final].sort_values(['gameday', 'gametime'])
+for t in TEAMS:
+    nx = upcoming_s[(upcoming_s.home_team == t) | (upcoming_s.away_team == t)].head(1)
+    if nx.empty:
+        teams[t]['next'] = None
+        continue
+    r = nx.iloc[0]; home = r.home_team == t
+    teams[t]['next'] = {'game': r.game_id, 'week': int(r.week), 'opp': r.away_team if home else r.home_team, 'home': bool(home),
+                        'neutral': bool(r.neutral), 'kickoff': kickoff_iso(r),
+                        'line': None if pd.isna(r.spread_line) else float(-r.spread_line if home else r.spread_line),   # this team's spread
+                        'total': None if pd.isna(r.total_line) else float(r.total_line)}
+
 # ------------------------------------------------------------------ model pick record (pre-game info only)
 model_picks = []
 PRE_MM = {}
@@ -1361,65 +1374,6 @@ long_shots = {'picks': ls_picks, 'history': ls_hist, 'rules': LS_RULES,
                            'atd_by_position': LSR.get('atd_by_position')}}
 print('long shots:', len(ls_picks), {g_: sum(1 for x in ls_picks if x['group'] == g_) for g_ in LS_RULES}, 'history:', len(ls_hist))
 
-# ------------------------------------------------------------------ units: what following each pick list would have won or lost
-UR = json.load(open(os.path.join(HERE, 'static', 'units_research.json')))
-SPREAD_WIN, TEASE_LEG = 100 / 110, math.sqrt(1 + 100 / 120) - 1
-
-
-def _pay(o):
-    return o / 100 if o > 0 else 100 / abs(o)
-
-
-def _grade(res, win):
-    return win if res == 'W' else (-1.0 if res == 'L' else 0.0)
-
-
-def units_season(bets, keys):
-    """bets: (week, strategy, profit, fair-price p or None). Cumulative units by week, same shape as the replay blocks."""
-    weeks = sorted({b[0] for b in bets})
-    out = {'span': str(SEASON), 'timeline': [[SEASON, w] for w in weeks], 'series': {}, 'summary': {}, 'by_season': {}}
-    for k in keys:
-        bk = [b for b in bets if b[1] == k]
-        per = [sum(b[2] for b in bk if b[0] == w) for w in weeks]
-        out['series'][k] = [round(float(v), 2) for v in np.cumsum(per)] if weeks else []
-        w_, l_ = sum(1 for b in bk if b[2] > 0), sum(1 for b in bk if b[2] < 0)
-        sm = {'bets': len(bk), 'w': w_, 'l': l_, 'p': len(bk) - w_ - l_, 'units': round(float(sum(b[2] for b in bk)), 2),
-              'roi': round(float(sum(b[2] for b in bk)) / len(bk), 4) if bk else None}
-        if bk and all(b[3] is not None for b in bk):
-            won = sum(b[2] for b in bk if b[2] > 0)
-            sm.update({'cushion': round(1 - l_ / won, 4) if won > 0 else None, 'hit': round(w_ / len(bk), 4), 'rated': round(float(np.mean([b[3] for b in bk])), 4)})
-        out['summary'][k] = sm
-    return out
-
-
-mb = []
-for x in model_picks:
-    if x['type'] == 'Spread':
-        mb.append((x['week'], 'spread', _grade(x['result'], SPREAD_WIN), None))
-        continue
-    o = x['ml_h'] if x['pick'] == x['home'] else x['ml_a']
-    if o is not None:
-        mb.append((x['week'], 'ml', _grade(x['result'], _pay(o)), None))
-    if x['mkt_h'] is not None:
-        for side, gap, o2 in ((x['home'], x['wp_h'] - x['mkt_h'], x['ml_h']), (x['away'], x['mkt_h'] - x['wp_h'], x['ml_a'])):
-            if gap >= 0.05 and o2 is not None:
-                r_ = 'P' if x['margin'] == 0 else ('W' if (x['margin'] > 0) == (side == x['home']) else 'L')
-                mb.append((x['week'], 'value', _grade(r_, _pay(o2)), None))
-hb = []
-for x in hc_hist:
-    if x['kind'] == 'player':
-        hb.append((x['week'], 'player', _grade(x['result'], (1 - x['p']) / x['p']), x['p']))
-    elif x['kind'] == 'teaser':
-        hb.append((x['week'], 'teaser', _grade(x['result'], TEASE_LEG), None))
-    elif x.get('odds') is not None:
-        hb.append((x['week'], 'ml', _grade(x['result'], _pay(x['odds'])), None))
-lb = [(x['week'], k, _grade(x['result'], (1 - x['p']) / x['p']), x['p']) for x in ls_hist for k in ('all', x['market'] if x['market'] in ('atd', 'ftd', 'td2', 'pass300') else 'yds100')]
-units = {'model': {'season': units_season(mb, ['spread', 'ml', 'value']), 'replay': UR['model']},
-         'hc': {'season': units_season(hb, ['player', 'teaser', 'ml']), 'replay': UR['hc']},
-         'ls': {'season': units_season(lb, ['all', 'atd', 'ftd', 'td2', 'yds100', 'pass300']), 'replay': UR['ls']},
-         'tease_leg_price': UR['tease_leg_price']}
-print('units this season:', {k: {s: v['season']['summary'][s]['units'] for s in v['season']['summary']} for k, v in units.items() if isinstance(v, dict)})
-
 # ------------------------------------------------------------------ grading data
 grade_players = {}
 for pid, d in p26.groupby('player_id'):
@@ -1517,7 +1471,7 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
         'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80],
                    'logs': {'pcols': CHART_COLS, 'players': player_logs, 'tcols': TEAM_COLS, 'teams': team_logs}},
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
-        'long_shots': long_shots, 'units': units, 'matchups': matchups,
+        'long_shots': long_shots, 'matchups': matchups,
         'grade': {'players': grade_players, 'games': results}}
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 tmp = OUT + '.tmp'

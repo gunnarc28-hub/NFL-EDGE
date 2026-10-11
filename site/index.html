@@ -479,40 +479,6 @@ ul.plain li{margin:3px 0}
   .fx-l span{font-size:11px}
 }
 
-/* ---------- units charts (line colors validated for color-blind separation on both surfaces) ---------- */
-:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70} }
-:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70}
-.uc{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.uc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 16px;flex-wrap:wrap}
-.uc-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink-2)}
-.uc-legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.uc-legend i,.uc-tip i{display:inline-block;width:16px;height:2px;border-radius:1px}
-.uc-chart{position:relative;min-height:120px}
-.uc-chart svg{display:block;width:100%;height:auto;touch-action:pan-y;outline:none}
-.uc-chart svg:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:6px}
-.uc .grid{stroke:var(--rule);stroke-width:1}
-.uc .zero{stroke:var(--ink-3);stroke-width:1}
-.uc .sep{stroke:var(--rule-2);stroke-width:1}
-.uc .yl,.uc .xl{fill:var(--ink-3);font-size:11px;font-family:var(--f-mono)}
-.uc .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.uc .dot{stroke:var(--panel);stroke-width:2}
-.uc .el{font-size:11.5px;font-weight:700;fill:var(--ink);font-family:var(--f-mono)}
-.uc .xh{stroke:var(--ink-3);stroke-width:1}
-.uc-tip{position:absolute;top:0;pointer-events:none;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,.18),inset 0 0 0 1px var(--rule);
-  border-radius:8px;padding:8px 10px;font-size:12px;min-width:170px;z-index:3}
-.uc-tip .h{font-weight:700;color:var(--ink-2);margin-bottom:4px}
-.uc-tip .r{display:flex;align-items:center;gap:8px;margin-top:3px;white-space:nowrap}
-.uc-tip .r b{font-family:var(--f-mono);font-size:13px;color:var(--ink)}
-.uc-tip .r span{color:var(--ink-3)}
-.uc-line{margin:0;font-size:13.5px;color:var(--ink-2)}
-.uc-line b{color:var(--ink)}
-.uc table.grid td,.uc table.grid th{padding:7px 10px}
-.uc .pos{color:var(--win)} .uc .neg{color:var(--loss)}
-@media (max-width:620px){ .uc .xs-hide{display:none} }
-.uc details summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--info);padding:4px 0}
-@media (max-width:620px){ .uc{padding:12px 12px 10px} }
-
 /* ---------- prop matchups ---------- */
 .mxbox{border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:6px 0 4px;display:flex;flex-direction:column;gap:4px;background:var(--panel-2)}
 .mxbox .mh{display:flex;justify-content:space-between;gap:6px 12px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);cursor:pointer;list-style:none}
@@ -535,6 +501,22 @@ ul.plain li{margin:3px 0}
 @media (max-width:620px){ .prow .c-mx{order:1} .prow .c-avg,.prow .c-line{order:2} }
 .mxtag{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:1px 5px}
 .mxtag.good{background:var(--win);color:#fff} .mxtag.bad{background:var(--loss);color:#fff} .mxtag.mid{background:var(--muted-bg);color:var(--ink-2)}
+/* ---------- upcoming game on trends ---------- */
+.nx{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:6px;font-size:12px;color:var(--ink-2)}
+.nx-k{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--on-stripe);background:var(--stripe);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.nx-m{display:inline-flex;align-items:center;gap:4px;font-weight:600}
+.nx-b{font-family:var(--f-mono);font-size:11.5px;font-weight:600;background:var(--muted-bg);color:var(--ink);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.nx-a{color:var(--ink-3)}
+.tr > .nx{grid-column:2/-1;margin-top:-4px}
+.nx-live{color:var(--loss);font-weight:700}
+.cs-next{margin-top:0;padding:8px 10px;border-radius:10px;background:var(--stripe-bg);box-shadow:inset 0 0 0 1px var(--stripe)}
+.cs-chart .nxband{fill:var(--stripe-bg)}
+.cs-chart .nxt{fill:var(--stripe-ink);font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.cs-chart .nxl{stroke:var(--stripe-ink);stroke-width:2;stroke-dasharray:5 4;fill:none}
+.cs-chart .pt.nx{fill:var(--panel);stroke:var(--stripe-ink);stroke-width:2.5}
+.cs-chart .pv.nx{fill:var(--stripe-ink)}
+.cs-chart .xl.nxx{fill:var(--stripe-ink);font-weight:700}
+.cs-tbl tr.nxrow td{background:var(--stripe-bg);font-weight:600}
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -715,7 +697,6 @@ function show(view){
   $$('.view').forEach(v => v.hidden = v.id !== 'v-' + view);
   store.set('tab', view);
   if (view === 'teams') renderTeams();
-  if (['model', 'hc', 'ls'].includes(view)) drawUnits(view);
   window.scrollTo({top: 0});
 }
 $$('.tab').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
@@ -888,7 +869,7 @@ function trendMini(t){
   const tt = D.trends.team.filter(x => x.team === t);
   const pt = D.trends.player.filter(x => x.team === t).slice(0, 6);
   if (!tt.length && !pt.length) return '<div class="note">No trends lasting 2+ weeks.</div>';
-  return `<div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${tt.map(teamTrendRow).join('')}${pt.map(playerTrendRow).join('')}</div>`;
+  return `<div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${tt.map(x => teamTrendRow(x, true)).join('')}${pt.map(x => playerTrendRow(x, true)).join('')}</div>`;
 }
 
 /* ---------- prop matchups: what the defense has allowed to each position this season ---------- */
@@ -904,6 +885,7 @@ function mxFmt(k, v){
   return v >= 20 ? String(Math.round(v)) : v.toFixed(1);
 }
 function mxCls(k, rk){ if (rk == null) return ''; const r = MX_HARD[k] ? 33 - rk : rk; return r <= 8 ? 'good' : r >= 25 ? 'bad' : ''; }
+const ordJ = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({1: 'st', 2: 'nd', 3: 'rd'})[n % 10] || 'th');
 function mxRank(rk){ return rk == null ? '' : rk <= 16 ? (rk === 1 ? 'most' : ordJ(rk) + ' most') : (rk === 32 ? 'fewest' : ordJ(33 - rk) + ' fewest'); }
 function mxChip(def, pos, k){
   const m = ((M_.pos[def] || {})[pos] || {})[k]; if (!m) return '';
@@ -1053,121 +1035,6 @@ function valueBox(key, p, fair){
 const oddsFor = (key, fair) => parseOdds(MY_ODDS[key]) ?? fair;
 
 /* ======================================================================
-   UNITS: what following each pick list would have won or lost (1 unit = one normal-size bet)
-   ====================================================================== */
-const U = D.units || {};
-const UNIT_SERIES = {
-  model: [['spread', 'Spread picks', 'graded at −110'], ['ml', 'Moneyline, every model pick', 'closing price'], ['value', 'Moneyline value bets', 'closing price']],
-  hc: [['player', 'Player milestones', 'fair price'], ['teaser', 'Teaser legs', 'per-leg price'], ['ml', 'Heavy favorites', 'closing moneyline']],
-  ls: [['all', 'All long shots', 'fair price'], ['atd', 'Anytime TD', 'fair price'], ['ftd', 'First TD', 'fair price'], ['td2', '2+ TDs', 'fair price'],
-       ['yds100', '100-yard games', 'fair price'], ['pass300', '300-yard passers', 'fair price']]};
-const SLOT = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
-let UV = Object.assign({model: 'season', hc: 'season', ls: 'season'}, store.get('uv', {}));
-const fmtU = (v, d = 1) => v == null ? '–' : (v > 0.0499 ? '+' : v < -0.0499 ? '−' : '') + Math.abs(v).toFixed(d) + 'u';
-const ordJ = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({1: 'st', 2: 'nd', 3: 'rd'})[n % 10] || 'th');
-function unitKeys(tab){ return tab === 'ls' ? UNIT_SERIES.ls.filter(x => x[0] === (LS_F === 'all' ? 'all' : LS_F)) : UNIT_SERIES[tab]; }
-function cushionTxt(sm){
-  if (sm.cushion == null) return '';
-  const c = sm.cushion, p = sm.rated, fair = p ? (1 - p) / p : null;
-  const ex = fair != null ? ` (about ${fmtOdds(oddsNum(p))} → ${fmtOdds(p >= .5 ? -Math.round(100 / (fair * (1 - Math.max(0, c)))) : Math.round(100 * fair * (1 - Math.max(0, c))))})` : '';
-  return c >= 0 ? `Breaks even if your book pays up to ${Math.round(c * 100)}% less than the fair price${c > 0.01 ? ex : ''}.`
-               : `Lost money even at the fair price: you'd need payouts ${Math.round(-c * 100)}% better than fair to break even.`;
-}
-function unitsSection(tab){
-  const blk = U[tab]; if (!blk) return '';
-  const view = UV[tab] === 'replay' ? 'replay' : 'season', B = blk[view], R = blk.replay;
-  const keys = unitKeys(tab);
-  const title = {model: 'Units if you followed the model', hc: 'Units if you bet every high-chance pick', ls: 'Units if you bet every long shot'}[tab];
-  const how = {model: 'Spread picks graded at −110. Moneyline bets graded at the closing price. Value bets are the side where the model\'s win chance beats the market\'s by 5+ points.',
-    hc: `Favorites graded at the closing moneyline. Teaser legs at ${fmtOdds(U.tease_leg_price)} each, the per-leg price of a 2-team teaser at −120. Player milestones have no posted price in this data, so they're graded at the fair price on the card; real books usually pay less.`,
-    ls: 'Graded at the fair price on each card, because this data has no sportsbook prices for touchdown or yardage props. Books usually pay less than fair, especially on first-TD bets, so real results would be lower.'}[tab];
-  const sumRows = keys.map(([k, l, note], i) => { const sm = B.summary[k] || {}; return `<tr><td style="white-space:normal"><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:16px;height:2px;border-radius:1px;background:${SLOT[i]}"></i>${esc(l)}</span><div class="small xs-hide">${esc(note)}</div></td>
-      <td class="r num xs-hide">${sm.bets ?? 0}</td><td class="r num">${sm.bets ? `${sm.w}-${sm.l}${sm.p ? '-' + sm.p : ''}` : '–'}</td>
-      <td class="r num"><b class="${sm.units > 0 ? 'pos' : sm.units < 0 ? 'neg' : ''}">${sm.bets ? fmtU(sm.units) : '–'}</b></td><td class="r num">${sm.roi == null ? '–' : (sm.roi > 0 ? '+' : sm.roi < 0 ? '−' : '') + Math.abs(sm.roi * 100).toFixed(1) + '%'}</td></tr>`; }).join('');
-  const cush = keys.map(([k, l]) => { const t = cushionTxt(B.summary[k] || {}); return t ? `<li><b>${esc(l)}:</b> ${t}</li>` : ''; }).join('');
-  const rLine = keys.map(([k, l]) => { const sm = R.summary[k]; return sm ? `${esc(l.toLowerCase())} <b>${fmtU(sm.units)}</b> on ${sm.bets.toLocaleString()} bets` : ''; }).filter(Boolean).join(', ');
-  let detail;
-  if (view === 'replay'){
-    const seasons = [...new Set(keys.flatMap(([k]) => (B.by_season[k] || []).map(x => x.season)))].sort();
-    detail = `<table class="grid tight"><thead><tr><th>Season</th>${keys.map(([, l]) => `<th class="r">${esc(l)}</th>`).join('')}</tr></thead><tbody>${seasons.map(sn => `<tr><td>${sn}</td>${keys.map(([k]) => { const x = (B.by_season[k] || []).find(z => z.season === sn); return `<td class="r num">${x ? `${fmtU(x.units)} <span class="small">(${x.w}-${x.l})</span>` : '–'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
-  } else {
-    detail = `<table class="grid tight"><thead><tr><th>Through</th>${keys.map(([, l]) => `<th class="r">${esc(l)}</th>`).join('')}</tr></thead><tbody>${B.timeline.map((t, i) => `<tr><td>Week ${t[1]}</td>${keys.map(([k]) => `<td class="r num">${fmtU((B.series[k] || [])[i])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  }
-  return `<div class="sec-head"><div><h2 class="h3">${title}</h2><p class="lede" style="font-size:13.5px">${how}</p></div>
-      <div class="seg" role="group" aria-label="Units timeline"><button data-uv="${tab}:season" aria-pressed="${view === 'season'}">This season</button><button data-uv="${tab}:replay" aria-pressed="${view === 'replay'}">${R.span} replay</button></div></div>
-    <div class="uc">
-      <div class="uc-top">${keys.length > 1 ? `<div class="uc-legend">${keys.map(([, l], i) => `<span><i style="background:${SLOT[i]}"></i>${esc(l)}</span>`).join('')}</div>` : `<div class="uc-legend"><span><i style="background:${SLOT[0]}"></i>${esc(keys[0][1])}, cumulative units</span></div>`}
-        <span class="small">${view === 'replay' ? `Every week ${R.span}, picked only from what was known before each game` : `${D.meta.season} season, graded from final scores and box scores`}</span></div>
-      <div class="uc-chart" data-uchart="${tab}">${B.timeline.length ? '' : '<div class="empty">Results show up here once games are graded.</div>'}</div>
-      <div class="tbl-wrap" style="box-shadow:none;border:1px solid var(--rule)"><table class="grid tight"><thead><tr><th>Bet</th><th class="r xs-hide">Bets</th><th class="r">Record</th><th class="r">Units</th><th class="r">Per bet</th></tr></thead><tbody>${sumRows}</tbody></table></div>
-      ${cush ? `<ul class="plain" style="font-size:13px">${cush}</ul>` : ''}
-      ${view === 'season' && rLine ? `<p class="uc-line">Over the ${R.span} replay: ${rLine}.</p>` : ''}
-      <details><summary>${view === 'replay' ? 'Units by season' : 'Units by week'}</summary><div style="overflow-x:auto">${detail}</div></details>
-    </div>`;
-}
-function drawUnits(tab){
-  const host = $(`[data-uchart="${tab}"]`); if (!host || !host.clientWidth) return;
-  const blk = U[tab], B = blk[UV[tab] === 'replay' ? 'replay' : 'season']; if (!B.timeline.length) return;
-  const keys = unitKeys(tab);
-  const TL = [null].concat(B.timeline), n = TL.length;                       // index 0 = start, before any bet
-  const S = keys.map(([k, l], i) => ({k, l, c: SLOT[i], v: [0].concat(B.series[k] || [])}));
-  const W = Math.max(300, host.clientWidth), H = W < 500 ? 210 : 240, L = 46, Rm = 58, TOP = 14, BOT = 26;
-  let lo = Math.min(0, ...S.flatMap(x => x.v)), hi = Math.max(0, ...S.flatMap(x => x.v));
-  if (hi - lo < 2){ hi += 1; lo -= 1; }
-  const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(m => m >= raw);
-  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
-  const x = i => L + i * (W - L - Rm) / Math.max(1, n - 1), y = v => TOP + (hi - v) * (H - TOP - BOT) / (hi - lo);
-  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" tabindex="0" aria-label="${esc(keys.map(([, l]) => l).join(', '))}: cumulative units. Use the left and right arrow keys to step through weeks.">`;
-  for (let t = lo; t <= hi + step / 2; t += step){ const tt = Math.round(t * 1e6) / 1e6;
-    g += `<line class="${tt === 0 ? 'zero' : 'grid'}" x1="${L}" x2="${W - Rm + 6}" y1="${y(tt).toFixed(1)}" y2="${y(tt).toFixed(1)}"/><text class="yl" x="${L - 6}" y="${(y(tt) + 4).toFixed(1)}" text-anchor="end">${tt === 0 ? '0' : fmtU(tt, step < 1 ? 1 : 0)}</text>`; }
-  // x labels: weeks this season, season starts in the replay
-  if (TL[1] && B.span.includes('–')){
-    let last = null;
-    TL.forEach((t, i) => { if (t && t[0] !== last){ if (i > 1) g += `<line class="sep" x1="${x(i - 0.5).toFixed(1)}" x2="${x(i - 0.5).toFixed(1)}" y1="${TOP}" y2="${H - BOT}"/>`;
-      g += `<text class="xl" x="${(x(i) + 3).toFixed(1)}" y="${H - BOT + 16}">${t[0]}</text>`; last = t[0]; } });
-  } else {
-    const every = Math.max(1, Math.ceil((n - 1) / (W < 500 ? 7 : 12)));
-    TL.forEach((t, i) => { if (t && ((i - 1) % every === 0 || i === n - 1)) g += `<text class="xl" x="${x(i).toFixed(1)}" y="${H - BOT + 16}" text-anchor="middle">W${t[1]}</text>`; });
-  }
-  S.forEach(s => { g += `<polyline class="ln" style="stroke:${s.c}" points="${s.v.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ')}"/>`; });
-  // end dots + direct labels; a label that would collide with one already placed is left to the legend and tooltip
-  const placed = [];
-  S.slice().sort((a, b) => a.v[n - 1] - b.v[n - 1]).forEach(s => {
-    const yy = y(s.v[n - 1]); g += `<circle class="dot" cx="${x(n - 1).toFixed(1)}" cy="${yy.toFixed(1)}" r="4.5" style="fill:${s.c}"/>`;
-    if (placed.every(p => Math.abs(p - yy) >= 13)){ placed.push(yy); g += `<text class="el" x="${(x(n - 1) + 9).toFixed(1)}" y="${(yy + 4).toFixed(1)}">${fmtU(s.v[n - 1])}</text>`; }
-  });
-  g += `<g class="hov" style="display:none"><line class="xh" y1="${TOP}" y2="${H - BOT}"/>${S.map(s => `<circle class="dot" r="4.5" style="fill:${s.c}"/>`).join('')}</g>`;
-  g += `<rect x="${L - 10}" y="0" width="${W - L - Rm + 20}" height="${H}" fill="transparent" class="hit"/></svg><div class="uc-tip" hidden></div>`;
-  host.innerHTML = g;
-  const svg = $('svg', host), tip = $('.uc-tip', host), hov = $('.hov', svg), xh = $('.xh', hov), dots = $$('circle', hov);
-  const lab = i => i === 0 ? 'Start' : (B.span.includes('–') ? `${TL[i][0]} · Week ${TL[i][1]}` : `Week ${TL[i][1]}`);
-  let cur = n - 1;
-  const showAt = i => {
-    cur = Math.max(0, Math.min(n - 1, i)); const px = x(cur), sc = host.clientWidth / W;
-    hov.style.display = ''; xh.setAttribute('x1', px); xh.setAttribute('x2', px);
-    dots.forEach((d, j) => { d.setAttribute('cx', px); d.setAttribute('cy', y(S[j].v[cur])); });
-    tip.replaceChildren();
-    const h = document.createElement('div'); h.className = 'h'; h.textContent = lab(cur); tip.appendChild(h);
-    S.slice().sort((a, b) => b.v[cur] - a.v[cur]).forEach(s => { const r = document.createElement('div'); r.className = 'r';
-      const k = document.createElement('i'); k.style.background = s.c; const b = document.createElement('b'); b.textContent = fmtU(s.v[cur]);
-      const sp = document.createElement('span'); const d = cur > 0 ? s.v[cur] - s.v[cur - 1] : 0; sp.textContent = s.l + (cur > 0 ? ` (${fmtU(d)} that week)` : '');
-      r.append(k, b, sp); tip.appendChild(r); });
-    tip.hidden = false;
-    const tw = tip.offsetWidth, left = px * sc + 14 + tw > host.clientWidth ? px * sc - tw - 14 : px * sc + 14;
-    tip.style.left = Math.max(0, left) + 'px';
-  };
-  const hide = () => { hov.style.display = 'none'; tip.hidden = true; };
-  const idxOf = ev => { const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width; return Math.round((px - L) / ((W - L - Rm) / Math.max(1, n - 1))); };
-  svg.addEventListener('pointermove', ev => showAt(idxOf(ev)));
-  svg.addEventListener('pointerdown', ev => showAt(idxOf(ev)));
-  svg.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') hide(); });
-  svg.addEventListener('focus', () => showAt(cur));
-  svg.addEventListener('blur', hide);
-  svg.addEventListener('keydown', ev => { if (ev.key === 'ArrowRight'){ ev.preventDefault(); showAt(cur + 1); } else if (ev.key === 'ArrowLeft'){ ev.preventDefault(); showAt(cur - 1); } else if (ev.key === 'Escape') hide(); });
-}
-let _uRes; window.addEventListener('resize', () => { clearTimeout(_uRes); _uRes = setTimeout(() => ['model', 'hc', 'ls'].forEach(drawUnits), 150); });
-
-/* ======================================================================
    MODEL PICKS: who the model expects to win, and why
    ====================================================================== */
 function resultOf(g){
@@ -1259,11 +1126,9 @@ function renderModel(){
       <div class="tile"><div class="label">Spread picks</div><div class="v num">${sw}-${sl}</div><div class="small">Needs a 2.5-pt disagreement · break-even 52.4%</div></div>
       <div class="tile"><div class="label">This week</div><div class="v num">${gs.filter(dogs).length}</div><div class="small">upset pick${gs.filter(dogs).length === 1 ? '' : 's'} · ${gs.filter(value).length} value spot${gs.filter(value).length === 1 ? '' : 's'}</div></div>
     </div>
-    ${unitsSection('model')}
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter model picks">${filters.map(([k, l]) => `<button data-mf="${k}" aria-pressed="${MF === k}">${l}</button>`).join('')}</div></div>
     <div class="mp-grid">${shown.map(mpCard).join('') || '<div class="empty">No games match this filter.</div>'}</div>
     <div class="note">How it works: each team gets a rating from the stats that best predicted results from 2018–2025 (point differential, EPA per play, success rate and more, with last season blended in early and fading out), plus a rating for the expected starting quarterback. Home field, rest, travel and Denver's altitude are added, and the predicted margin is turned into a win chance from how far real results have landed from past predictions. From 2020–25 it picked winners about as often as the Vegas favorite, so the most useful spots are where it disagrees with the market.</div>`;
-  drawUnits('model');
 }
 
 /* ======================================================================
@@ -1317,7 +1182,6 @@ function renderHC(){
       <div class="tile"><div class="label">Teaser legs this season</div><div class="v num">${rt.w}-${rt.l}</div><div class="small">+1.5 to +2.5 underdogs teased six points${rm.w + rm.l ? ` · favorites ${rm.w}-${rm.l}` : ''}</div></div>
       <div class="tile"><div class="label">3-leg parlays (2024–25)</div><div class="v num">${pct(p3.hit)}</div><div class="small">Top picks from different games all hit; expected ${pct(p3.expected)} (${p3.n || 0} weeks)</div></div>
     </div>
-    ${unitsSection('hc')}
     <div class="sec-head"><h2 class="h3">Player milestones <span class="small">(${players.length})</span></h2><span class="small">Week ${WEEK} · the highest milestone each player clears 80% on</span></div>
     ${players.length ? `<div class="hc-grid">${players.map(([x, i]) => hcCard(x, i)).join('')}</div>` : '<div class="empty">No player clears 80% on a milestone yet this week. Picks appear once players have three games of data.</div>'}
     <div class="sec-head"><h2 class="h3">Game picks <span class="small">(${games.length})</span></h2><span class="small">Teaser legs and heavy favorites</span></div>
@@ -1331,7 +1195,6 @@ function renderHC(){
         <div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${l.map(h => `<div class="pk"><span class="rp ${h.result}">${h.result}</span>
           <div><div class="d">${esc(h.label)}</div><div class="m">${h.kind === 'player' ? 'Player milestone' : h.kind === 'ml' ? 'Favorite to win' : 'Teaser leg'} · rated ${pct(h.p)}${h.actual != null ? ' · finished with ' + (Number.isInteger(h.actual) ? h.actual : h.actual.toFixed(0)) : ''}</div></div><div></div></div>`).join('')}</div></details>`; }).join('') :
       '<div class="empty">Results show up here after this week\'s games.</div>'}`;
-  drawUnits('hc');
 }
 
 /* ======================================================================
@@ -1395,7 +1258,6 @@ function renderLS(){
     <p class="note" style="margin:-10px 0 0">"Rated" is the model's average chance and "Hit" is how often the picks came in when every week from ${span} was replayed using only what was known before kickoff: the touchdown model was refit on earlier seasons only, and yardage chances came from seasons other than the one tested. The ${D.meta.season} column grades the same picks from box scores${all.w + all.l ? ` (${all.w}-${all.l} overall, ${all.exp.toFixed(1)} hits expected)` : ''}.</p>
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter long shots">${[['all', 'All']].concat(LS_GROUPS.map(g => [g[0], g[2]])).map(([k, l]) => `<button data-lsf="${k}" aria-pressed="${LS_F === k}">${l}</button>`).join('')}</div>
       <span class="small">Week ${WEEK} · ${L.picks.length} long shots</span></div>
-    ${unitsSection('ls')}
     ${sections}
     ${legs.length ? `<div class="parlay-bar" role="region" aria-label="Parlay"><div><div class="big num">${clash ? '0%' : pct(P, P < 0.1 ? 1 : 0)} chance</div>
       <div style="font-size:12.5px;opacity:.85">${legs.length} leg${legs.length === 1 ? '' : 's'}${clash ? ' · two first-TD picks from one game can\'t both hit' : ` · fair payout ${fmtOdds(oddsNum(P))}${same ? ' · legs from the same game move together, so the true chance differs' : ''}`}</div></div>
@@ -1409,38 +1271,63 @@ function renderLS(){
         <div class="trend-list" style="box-shadow:none;border:1px solid var(--rule)">${l.map(h => `<div class="pk"><span class="rp ${h.result}">${h.result}</span>
           <div><div class="d">${esc(h.label)}</div><div class="m">${esc(LS_KIND[h.market] || '')} · rated ${pct(h.p)} · ${esc(h.actual)}</div></div><div></div></div>`).join('')}</div></details>`; }).join('') :
       '<div class="empty">Results show up here after this week\'s games.</div>'}`;
-  drawUnits('ls');
 }
 
 /* ======================================================================
    TRENDS
    ====================================================================== */
+/* ---------- the upcoming game, shown with every trend ---------- */
+const NEXT_STAT = {targets: 'tgt', target_share: 'tgt', receiving_yards: 'recy', carries: 'car', rushing_yards: 'ry', passing_yards: 'py'};
+function nextInfo(team){
+  const n = (T[team] || {}).next; if (!n) return null;
+  return {n, g: D.games.find(x => x.id === n.game) || null, bye: !D.games.some(x => x.home === team || x.away === team)};
+}
+function nextWhen(n, g){
+  if (g && g.live) return `<span class="nx-live">Live ${g.live.away_score}–${g.live.home_score}${g.live.detail ? ' · ' + esc(g.live.detail) : ''}</span>`;
+  const o = n.week === WEEK ? {timeZoneName: undefined} : {month: 'short', day: 'numeric', timeZoneName: undefined};
+  return `<span>${n.week !== WEEK ? `Week ${n.week}, ` : ''}${esc(kick(n.kickoff, o))}</span>`;
+}
+const nextLead = (ni, team) => `<span class="nx-k">${ni.bye ? 'Bye this week · next' : 'Next'}</span><span class="nx-m">${ni.n.home ? 'vs' : '@'} ${chip(ni.n.opp, 1)}</span>`;
+function nextTeamHtml(team){
+  const ni = nextInfo(team); if (!ni) return '';
+  const {n, g} = ni, bits = [];
+  if (n.line != null) bits.push(`<span class="nx-b">${team} ${fmtLine(n.line)}</span>`);
+  if (n.total != null) bits.push(`<span class="nx-b">O/U ${n.total}</span>`);
+  if (g && !g.final){ const pk = g.model.pick_su, wp = pk === g.home ? g.model.wp_home : 1 - g.model.wp_home; bits.push(`<span class="nx-b">Model: ${pk} ${pct(wp)}</span>`); }
+  return `<div class="nx">${nextLead(ni, team)}${nextWhen(n, g)}${bits.join('')}</div>`;
+}
+function nextPlayerHtml(p){
+  const ni = nextInfo(p.team); if (!ni) return '';
+  const pos = p.pos === 'FB' ? 'RB' : p.pos, stat = pos === 'QB' && p.metric === 'rushing_yards' ? 'qry' : NEXT_STAT[p.metric];
+  const mc = stat ? mxChip(ni.n.opp, pos, stat) : '';
+  return `<div class="nx">${nextLead(ni, p.team)}${nextWhen(ni.n, ni.g)}${mc ? `<span class="nx-a">allows to ${pos}s</span>${mc}` : ''}</div>`;
+}
 function carryHtml(c, kind){
   if (!c) return '';
   const diff = c.rate - c.base;
   const sticky = Math.abs(diff) >= 0.04;
   return `<span class="carry ${sticky && diff > 0 ? 'sticky' : 'noise'}">${sticky && diff > 0 ? 'Tends to continue' : 'No carry-over in the past'}: ${Math.round(c.rate * 100)}% ${esc(c.next)} vs ${Math.round(c.base * 100)}% normally</span>`;
 }
-function teamTrendRow(t){
+function teamTrendRow(t, noNext){
   const isBin = ['su', 'ats', 'ou'].includes(t.metric);
   const viz = isBin ? `<span class="res">${t.series.map(s => `<i class="${t.metric === 'ou' ? (s[1] ? 'O' : 'U') : (s[1] ? 'W' : 'L')}"></i>`).join('')}</span>` : `<span class="${t.tone}">${spark(t.series, {w: 92, h: 28})}</span>`;
   return `<div class="tr" data-chart="t|${t.team}|${t.metric || ''}" role="button" tabindex="0" aria-label="Open chart: ${esc(t.team + ' ' + t.label)}"><div>${chip(t.team, 1)}</div>
     <div style="min-width:0"><div class="tt">${esc(t.label)}</div>${t.detail ? `<div class="td">${esc(t.detail)}</div>` : ''}<div class="tc">${carryHtml(t.carry)}</div></div>
-    <div class="side"><span class="wk">${t.weeks} WKS</span>${viz}<span class="go">Chart ›</span></div></div>`;
+    <div class="side"><span class="wk">${t.weeks} WKS</span>${viz}<span class="go">Chart ›</span></div>${noNext === true ? '' : nextTeamHtml(t.team)}</div>`;
 }
 function fmtMetric(m, v){
   if (v == null) return '–';
   if (m === 'snap' || m === 'target_share') return Math.round(v * 100) + '%';
   return Math.round(v);
 }
-function playerTrendRow(p){
+function playerTrendRow(p, noNext){
   const rec = p.recent.map(v => fmtMetric(p.metric, v)).join(' → ');
   const inj = p.inj && !['likely', 'ok'].includes(p.inj.level) ? ` <span class="pill lvl-${p.inj.level}">${esc(p.inj.outlook.split(',')[0])}</span>` : '';
   return `<div class="tr" data-chart="p|${esc(p.id)}|${p.metric}" role="button" tabindex="0" aria-label="Open chart: ${esc(p.name + ' ' + p.label)}"><div>${chip(p.team, 1)}</div>
     <div style="min-width:0"><div class="tt">${esc(p.name)} <span class="small">${p.pos}</span>: ${esc(p.label.toLowerCase())} ${p.tone === 'up' ? 'up' : 'down'}${inj}</div>
     <div class="td">Last ${p.weeks}: ${rec} · usual ${fmtMetric(p.metric, p.usual)}</div>
     <div class="tc">${p.carry ? carryHtml(p.carry) : (p.sticky ? '<span class="carry sticky">Usage trend: roles tend to stick</span>' : '')}</div></div>
-    <div class="side"><span class="wk">${p.weeks} WKS</span><span class="${p.tone}">${spark(p.series, {w: 92, h: 28, base: p.usual})}</span><span class="go">Chart ›</span></div></div>`;
+    <div class="side"><span class="wk">${p.weeks} WKS</span><span class="${p.tone}">${spark(p.series, {w: 92, h: 28, base: p.usual})}</span><span class="go">Chart ›</span></div>${noNext === true ? '' : nextPlayerHtml(p)}</div>`;
 }
 let TF = Object.assign({team: 'all', kind: 'all', pteam: 'all', pos: 'all', dir: 'all', metric: 'all'}, store.get('tf', {}));
 let TSHOW = {team: 12, player: 12};
@@ -1459,7 +1346,7 @@ function spotlight(kind, x){
     <div class="spot-l"><div class="label">${isP ? 'Biggest mover' : 'Longest form trend'}</div>
       <div class="spot-n">${chip(x.team)} <span>${esc(isP ? x.name : T[x.team].city + ' ' + T[x.team].nick)}</span></div>
       <div class="spot-c"><b>${x.tone === 'up' ? '▲' : '▼'} ${chg}</b> ${isP ? '' : esc(x.label)}</div>
-      <div class="small">${sub}</div><span class="go">Open chart ›</span></div>
+      <div class="small">${sub}</div>${isP ? nextPlayerHtml(x) : nextTeamHtml(x.team)}<span class="go">Open chart ›</span></div>
     <div class="spot-g">${spark(series, {w: 260, h: 86, base: isP ? x.usual : undefined})}</div></div>`;
 }
 function renderTrends(){
@@ -1588,14 +1475,28 @@ function openChart(spec){
   setTimeout(() => { const b = $('#cs-close'); if (b) b.focus(); }, 0);
 }
 function closeChart(){ $('#cscrim').hidden = true; $('#csheet').hidden = true; $('#csheet').innerHTML = ''; delete $('#csheet').dataset.key; document.body.style.overflow = ''; CH = null; }
-function chartSvg(pts, f, base, seasonNow){
-  const box = $('#csheet'), W = Math.round(Math.max(320, Math.min(680, (box && box.clientWidth ? box.clientWidth - 30 : 680)))), H = W < 500 ? 220 : 250, L = 40, R = 12, TOP = 24, B = 34;
-  const vals = pts.map(p => p.v);
-  let lo = Math.min.apply(null, vals.concat(base != null ? [base] : [])), hi = Math.max.apply(null, vals.concat(base != null ? [base] : []));
+const CH2MX = {tgt: 'tgt', ts: 'tgt', rec: 'rec', catch: 'rec', recy: 'recy', ypr: 'recy', car: 'car', ry: 'ry', ypc: 'ypc', rr: 'ry',
+  py: 'py', att: 'att', cmp: 'cmp', cpct: 'cpct', ptd: 'ptd', int: 'int'};
+const P2PROP = {py: 'pass_yds', ry: 'rush_yds', recy: 'rec_yds', rec: 'receptions'};
+function chartNext(src){
+  if (src.league || !src.team) return null;
+  const ni = nextInfo(src.team); if (!ni) return null;
+  const {n, g} = ni; let v = null;
+  if (g && !g.final){
+    if (CH.kind === 'p'){ const pr = (g.props || []).find(x => x.id === CH.id), key = P2PROP[CH.stat]; if (pr && key && pr.proj[key] != null) v = pr.proj[key]; }
+    else { const mm = src.team === g.home ? g.model.margin : -g.model.margin, mt = g.model.total;
+      v = {mg: mm, pf: (mt + mm) / 2, pa: (mt - mm) / 2, cov: n.line != null ? mm + n.line : null, tot: n.total != null ? mt - n.total : null}[CH.stat] ?? null; }
+  }
+  return {n, g, bye: ni.bye, v, kind: CH.kind === 'p' ? 'Projection' : 'Model', short: 'Next', opp: (n.home ? 'vs ' : '@') + n.opp};
+}
+function chartSvg(pts, f, base, seasonNow, nxt){
+  const box = $('#csheet'), W = Math.round(Math.max(320, Math.min(680, (box && box.clientWidth ? box.clientWidth - 30 : 680)))), H = W < 500 ? 220 : 250, L = 40, R = nxt ? 30 : 12, TOP = 24, B = 34;
+  const vals = pts.map(p => p.v), extra = (base != null ? [base] : []).concat(nxt && nxt.v != null ? [nxt.v] : []);
+  let lo = Math.min.apply(null, vals.concat(extra)), hi = Math.max.apply(null, vals.concat(extra));
   if (['n', 'd1', 'pct'].includes(f) && lo >= 0) lo = 0;
   if (hi === lo){ hi += 1; lo -= f === 'n' && lo === 0 ? 0 : 1; }
   const padv = (hi - lo) * 0.08; hi += padv; if (lo < 0 || !['n', 'd1', 'pct'].includes(f)) lo -= padv;
-  const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
+  const n = pts.length + (nxt ? 1 : 0), x = i => L + (n === 1 ? (W - L - R) / 2 : i * (W - L - R) / (n - 1));
   const y = v => TOP + (hi - v) * (H - TOP - B) / (hi - lo);
   const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), nice = [1, 2, 2.5, 5, 10].map(m => m * mag).find(m => m >= raw) || raw;
   const step = f === 'n' ? Math.max(1, Math.round(nice)) : nice;
@@ -1606,17 +1507,26 @@ function chartSvg(pts, f, base, seasonNow){
   // season divider
   const firstNow = pts.findIndex(p => p.s === seasonNow);
   if (firstNow > 0){ const xd = (x(firstNow - 1) + x(firstNow)) / 2; s += `<line class="sdiv" x1="${xd}" x2="${xd}" y1="${TOP - 14}" y2="${H - B}"/><text class="slab" x="${xd - 6}" y="${TOP - 8}" text-anchor="end">${seasonNow - 1}</text><text class="slab" x="${xd + 6}" y="${TOP - 8}">${seasonNow}</text>`; }
+  if (nxt){ const xb = pts.length ? (x(pts.length - 1) + x(pts.length)) / 2 : L; s += `<rect class="nxband" x="${xb.toFixed(1)}" y="${TOP - 14}" width="${(W - R - xb + 6).toFixed(1)}" height="${H - B - TOP + 14}" rx="4"/><text class="nxt" x="${(W - R).toFixed(1)}" y="${TOP - 4}" text-anchor="end">${nxt.bye ? 'After the bye' : 'Next game'}</text>`; }
   if (base != null) s += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
   const line = pts.map((p, i) => x(i).toFixed(1) + ',' + y(p.v).toFixed(1));
   if (pts.length > 1) s += `<path class="ar" d="M${x(0).toFixed(1)},${y(Math.max(lo, 0 > lo && 0 < hi ? 0 : lo)).toFixed(1)} L${line.join(' L')} L${x(pts.length - 1).toFixed(1)},${y(Math.max(lo, 0 > lo && 0 < hi ? 0 : lo)).toFixed(1)} Z"/><polyline class="ln" points="${line.join(' ')}"/>`;
-  const every = Math.max(1, Math.ceil(pts.length / (W < 500 ? 6 : 11)));
+  const every = Math.max(1, Math.ceil(pts.length / (W < 500 ? 6 : 11))), xN = nxt ? x(n - 1) : null;
   const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
   pts.forEach((p, i) => {
     const cls = pts.length > 2 && p.v === mx ? 'hi' : pts.length > 2 && p.v === mn ? 'lo' : '';
     s += `<circle class="pt ${cls}" cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${pts.length > 20 ? 3.5 : 5}"><title>${esc(p.label + (p.opp ? ' vs ' + p.opp : '') + ': ' + fmtV(f, p.v))}</title></circle>`;
     if (pts.length <= (W < 500 ? 8 : 12)) s += `<text class="pv" x="${x(i).toFixed(1)}" y="${(y(p.v) - 10).toFixed(1)}">${fmtV(f, p.v)}</text>`;
-    if (i % every === 0 || i === pts.length - 1) s += `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 16}" text-anchor="middle">${p.short}</text>${p.opp && pts.length <= (W < 500 ? 6 : 10) ? `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 29}" text-anchor="middle">${p.opp}</text>` : ''}`;
+    if ((i % every === 0 || i === pts.length - 1) && (xN == null || xN - x(i) >= 34)) s += `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 16}" text-anchor="middle">${p.short}</text>${p.opp && pts.length <= (W < 500 ? 6 : 10) ? `<text class="xl" x="${x(i).toFixed(1)}" y="${H - B + 29}" text-anchor="middle">${p.opp}</text>` : ''}`;
   });
+  if (nxt){
+    if (nxt.v != null){
+      const yv = y(nxt.v);
+      if (pts.length) s += `<line class="nxl" x1="${x(pts.length - 1).toFixed(1)}" y1="${y(pts[pts.length - 1].v).toFixed(1)}" x2="${xN.toFixed(1)}" y2="${yv.toFixed(1)}"/>`;
+      s += `<circle class="pt nx" cx="${xN.toFixed(1)}" cy="${yv.toFixed(1)}" r="5.5"><title>${esc(nxt.kind + ' for the next game: ' + fmtV(f, nxt.v))}</title></circle><text class="pv nx" x="${xN.toFixed(1)}" y="${(yv - 10).toFixed(1)}">${fmtV(f, nxt.v)}</text>`;
+    }
+    s += `<text class="xl nxx" x="${xN.toFixed(1)}" y="${H - B + 16}" text-anchor="middle">Next</text><text class="xl nxx" x="${xN.toFixed(1)}" y="${H - B + 29}" text-anchor="middle">${esc(nxt.opp)}</text>`;
+  }
   return s + '</svg>';
 }
 function renderChart(){
@@ -1632,11 +1542,13 @@ function renderChart(){
   const base = src.league ? src.base(CH.stat) : (CH.kind === 't' && ['cov', 'tot', 'mg'].includes(CH.stat) ? 0 : avg);
   const baseTxt = src.league ? 'normal (2021–25)' : base === 0 && CH.kind === 't' ? (CH.stat === 'mg' ? 'even' : 'the line') : 'average';
   const last = pts[pts.length - 1], hiP = pts.reduce((a, p) => !a || p.v > a.v ? p : a, null), loP = pts.reduce((a, p) => !a || p.v < a.v ? p : a, null);
+  const nxt = chartNext(src);
   const wins = src.league ? [['l4', 'Last 4'], ['season', 'This season']] : WINDOWS;
   if (src.league && !['l4', 'season'].includes(CH.win)) CH.win = 'season';
   // the data table: newest first, the selected stat highlighted, other stats for context
   const cols = src.keys.slice(0, src.league ? src.keys.length : 6); if (!cols.includes(CH.stat)) cols.push(CH.stat);
-  const tbl = rows.slice().reverse().map(r => `<tr><td>${r.s !== src.season ? r.s + ' ' : ''}Wk ${r.wk}</td>${src.league ? '' : `<td>${r.opp ? chip(r.opp, 1) : ''}</td>`}${cols.map(k => `<td class="r num ${k === CH.stat ? 'sel' : ''}">${fmtV(src.defs[k][2], src.defs[k][1](r))}</td>`).join('')}</tr>`).join('');
+  const nxRow = nxt ? `<tr class="nxrow"><td>Next</td>${src.league ? '' : `<td>${chip(nxt.n.opp, 1)}</td>`}${cols.map(k => `<td class="r num ${k === CH.stat ? 'sel' : ''}">${k === CH.stat && nxt.v != null ? fmtV(f, nxt.v) + ' <span class="small">' + (CH.kind === 'p' ? 'proj' : 'model') + '</span>' : '–'}</td>`).join('')}</tr>` : '';
+  const tbl = nxRow + rows.slice().reverse().map(r => `<tr><td>${r.s !== src.season ? r.s + ' ' : ''}Wk ${r.wk}</td>${src.league ? '' : `<td>${r.opp ? chip(r.opp, 1) : ''}</td>`}${cols.map(k => `<td class="r num ${k === CH.stat ? 'sel' : ''}">${fmtV(src.defs[k][2], src.defs[k][1](r))}</td>`).join('')}</tr>`).join('');
   const note = CH.kind === 'p' && CH.stat === 'snap' ? 'Snap share is only available for this season.' : CH.kind === 't' && CH.stat === 'cov' ? 'Above zero means they covered the spread by that many points.' :
     CH.kind === 't' && CH.stat === 'tot' ? 'Above zero means the game went over the total by that many points.' : '';
   const head = `
@@ -1644,9 +1556,20 @@ function renderChart(){
       <button class="btn tiny" id="cs-close" data-cclose="">Close</button></div>
     <div class="cs-pick"><div class="label">Stat</div><div class="seg" role="group" aria-label="Stat">${src.keys.map(k => `<button data-cstat="${k}" aria-pressed="${k === CH.stat}">${esc(src.defs[k][0])}</button>`).join('')}</div>
       <div class="label">Timeline</div><div class="seg" role="group" aria-label="Timeline">${wins.map(([k, l]) => `<button data-cwin="${k}" aria-pressed="${k === CH.win}">${l}</button>`).join('')}</div></div>`;
-  const body = `
+  let nxStrip = '';
+  if (nxt){
+    const n = nxt.n, bits = [];
+    if (nxt.v != null) bits.push(`<span class="nx-b">${nxt.kind === 'Model' ? 'Model' : 'Projected'} ${esc(label.toLowerCase())}: ${fmtV(f, nxt.v)}</span>`);
+    if (CH.kind === 'p'){ const P = LOGS.players[CH.id], pos = P.p === 'FB' ? 'RB' : P.p;
+      const mk = CH.stat === 'td' ? (pos === 'RB' ? 'rtd' : pos === 'QB' ? null : 'td') : (pos === 'QB' && CH.stat === 'ry' ? 'qry' : pos === 'QB' && CH.stat === 'car' ? null : CH2MX[CH.stat]);
+      const mc = mk ? mxChip(n.opp, pos, mk) : ''; if (mc) bits.push(`<span class="nx-a">${n.opp} allows to ${pos}s</span>${mc}`); }
+    else { if (n.line != null) bits.push(`<span class="nx-b">${src.team} ${fmtLine(n.line)}</span>`); if (n.total != null) bits.push(`<span class="nx-b">O/U ${n.total}</span>`);
+      if (nxt.g && !nxt.g.final){ const pk = nxt.g.model.pick_su, wp = pk === nxt.g.home ? nxt.g.model.wp_home : 1 - nxt.g.model.wp_home; bits.push(`<span class="nx-b">Model: ${pk} ${pct(wp)}</span>`); } }
+    nxStrip = `<div class="nx cs-next"><span class="nx-k">${nxt.bye ? 'Bye this week · next' : 'Next game'}</span><span class="nx-m">${n.home ? 'vs' : '@'} ${chip(n.opp, 1)}</span>${nextWhen(n, nxt.g)}${bits.join('')}</div>`;
+  }
+  const body = `${nxStrip}
     <div><div class="h3" style="font-size:16px">${esc(label)} <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:500">· dashed line = ${baseTxt}${base != null ? ' ' + fmtV(f, base) : ''}</span></div>
-      <div class="cs-chart">${pts.length ? chartSvg(pts, f, base, src.season) : '<div class="empty">No games with this stat in this window.</div>'}</div>
+      <div class="cs-chart">${pts.length ? chartSvg(pts, f, base, src.season, nxt) : '<div class="empty">No games with this stat in this window.</div>'}</div>
       ${note ? `<div class="note">${note}</div>` : ''}</div>
     <div class="cs-tiles">
       <div class="mc"><div class="k">${src.league ? 'Weekly avg' : 'Average'}</div><div class="v">${fmtV(f, avg)}</div></div>
@@ -2048,8 +1971,6 @@ document.addEventListener('click', async e => {
     t.setAttribute('aria-expanded', String(open)); const ch = $('.chev', t); if (ch) ch.textContent = open ? '▲' : '▼';
     return;
   }
-  if (t.dataset.uv){ const [tab, v] = t.dataset.uv.split(':'); UV[tab] = v; store.set('uv', UV); const y = window.scrollY;
-    (tab === 'model' ? renderModel : tab === 'hc' ? renderHC : renderLS)(); window.scrollTo({top: y}); return; }
   if (t.dataset.mf){ MF = t.dataset.mf; store.set('mf', MF); renderModel(); return; }
   if (t.dataset.mpick){ const g = D.games.find(x => x.id === t.dataset.mpick); const tm = g.model.pick_su; openPick({week: g.week, game: g.id, type: 'ml', team: tm, odds: (tm === g.home ? g.ml_home : g.ml_away) ?? -110}); return; }
   if (t.dataset.wf){ weekFilter = t.dataset.wf; store.set('wf', weekFilter); renderWeek(); return; }
