@@ -75,15 +75,33 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .tabs::-webkit-scrollbar{display:none}
 .tab{appearance:none;background:none;border:0;cursor:pointer;color:var(--on-turf-2);font-family:var(--f-display);font-weight:800;
   font-size:17px;letter-spacing:.03em;text-transform:uppercase;padding:8px 9px 10px;white-space:nowrap;border-bottom:4px solid transparent;margin-bottom:-4px}
-@media (min-width:621px) and (max-width:1199px){ .tabs{flex-wrap:wrap;overflow:visible;row-gap:0} .tab{padding:6px 8px 8px} }
+.tabs{flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+.tabs.fr{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 48px),transparent)}
+.tabs.fl{-webkit-mask-image:linear-gradient(90deg,transparent,#000 48px);mask-image:linear-gradient(90deg,transparent,#000 48px)}
+.tabs.fl.fr{-webkit-mask-image:linear-gradient(90deg,transparent,#000 48px,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(90deg,transparent,#000 48px,#000 calc(100% - 48px),transparent)}
+.brand-meta{margin-left:auto}
+.navbtn{appearance:none;border:0;cursor:pointer;background:rgba(255,255,255,.1);color:var(--on-turf);border-radius:8px;padding:5px 10px;font-weight:700;font-size:13px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);white-space:nowrap;align-self:center}
+.navbtn:hover{background:rgba(255,255,255,.18)}
+.navsheet{width:min(640px,calc(100% - 24px))}
+.navgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.navitem{appearance:none;border:0;cursor:pointer;text-align:left;background:var(--panel-2);color:var(--ink);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;
+  box-shadow:inset 0 0 0 1px var(--rule)}
+.navitem b{font-family:var(--f-display);font-weight:800;font-size:17px;letter-spacing:.03em;text-transform:uppercase}
+.navitem span{font-size:12.5px;color:var(--ink-3);line-height:1.35}
+.navitem:hover{box-shadow:inset 0 0 0 1px var(--ink-3)}
+.navitem.on{background:var(--stripe-bg);box-shadow:inset 0 0 0 2px var(--stripe)}
 @media (max-width:620px){
   .bar-in{padding-block:8px 0;gap:2px}
   .brand{font-size:24px}
   .brand-row{align-items:center}
   .brand-meta{gap:8px;font-size:11.5px}
   .brand-meta #m-week{display:none}
-  .tabs{flex-wrap:wrap;gap:0 2px;overflow:visible;margin-bottom:2px}
-  .tab{font-size:14.5px;padding:5px 6px 5px;border-bottom-width:3px;margin-bottom:0;letter-spacing:.02em}
+  .brand-row{flex-wrap:nowrap}
+  .brand{font-size:22px}
+  .tabs{gap:0;margin-bottom:0}
+  .tab{font-size:15px;padding:6px 8px 7px;border-bottom-width:3px;margin-bottom:0;letter-spacing:.02em}
+  .navgrid{grid-template-columns:1fr}
   .xs-hide{display:none}
   .tab[aria-selected="true"]{border-bottom-color:var(--stripe)}
   .h2{font-size:23px}
@@ -587,6 +605,41 @@ ul.plain li{margin:3px 0}
 .cs-chart .hm{fill:none;stroke-width:2}
 .cs-chart .hm.ov{stroke:var(--win)} .cs-chart .hm.un{stroke:var(--loss)}
 @media (max-width:620px){ .clb-in{flex-direction:column} .clb-in .f{width:100%} .clb-in .f .stp{flex:1 1 0;min-width:0} .clb-in input{flex:1 1 0;width:auto;min-width:0} }
+/* ---------- player props tab ---------- */
+.pp-types{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pp-types::-webkit-scrollbar{display:none}
+.pp-types button{white-space:nowrap}
+.pp-list{display:flex;flex-direction:column;gap:10px}
+.pp{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;
+  grid-template-columns:minmax(0,1.2fr) minmax(0,.7fr) minmax(0,1.8fr);grid-template-areas:"who proj chk" "mx mx chk";gap:8px 18px;align-items:start}
+.pp-who{grid-area:who;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pp-who .pn{font-weight:700;font-size:15px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pp-who .ps{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.pp-proj{grid-area:proj;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pp-proj .proj small{display:block;margin:2px 0 0}
+.pp-sp{margin-top:2px}
+.pp-mx{grid-area:mx;min-width:0}
+.pp-chk{grid-area:chk;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pp-in{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.pp-in .f{display:flex;align-items:center;gap:6px}
+.pp-in input{width:76px;font-family:var(--f-mono)}
+.pp-side button{padding:5px 10px;font-size:12.5px}
+.pp-out{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--ink-2)}
+.pp-pc b.num{font-family:var(--f-display);font-weight:900;font-size:20px;color:var(--ink)}
+.pp-out .ev{font-size:12.5px;font-weight:700;color:var(--ink-3)}
+.pp-out .ev.pos{color:var(--win)} .pp-out .ev.thin{color:var(--warn)} .pp-out .ev.neg{color:var(--loss)}
+.pp-h{font-size:12px;color:var(--ink-3)} .pp-h b{color:var(--ink)}
+.pp-acts{display:flex;gap:6px}
+#pp-q{min-width:200px}
+@media (max-width:860px){ .pp{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"who proj" "mx mx" "chk chk"} }
+@media (max-width:620px){
+  .pp{padding:12px}
+  .pp-in{flex-direction:column;align-items:stretch}
+  .pp-in .f{width:100%} .pp-in .f .stp{flex:1 1 0;min-width:0} .pp-in input{flex:1 1 0;width:auto;min-width:0}
+  .navsheet{top:auto;bottom:0;left:0;transform:none;width:100%;max-height:92%;border-radius:16px 16px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  .navitem{padding:9px 12px}
+  #pp-q{min-width:0;flex:1 1 100%}
+}
 /* ---------- trend explorer ---------- */
 [data-chart]{cursor:pointer}
 .tr[data-chart]:hover,.lg[data-chart]:hover{background:var(--panel-2)}
@@ -632,11 +685,13 @@ ul.plain li{margin:3px 0}
     <div class="brand-row">
       <div class="brand">NFL <b>Edge</b></div>
       <div class="brand-meta"><span id="m-week"></span><span id="m-asof"></span></div>
+      <button class="navbtn" id="nav-open" aria-haspopup="dialog" aria-controls="navsheet" aria-label="All sections"><span aria-hidden="true">☰</span><span class="xs-hide"> All sections</span></button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" id="tab-week" data-view="week" aria-selected="true">This week</button>
-      <button class="tab" role="tab" id="tab-model" data-view="model" aria-selected="false">Model<span class="xs-hide"> picks</span></button>
-      <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance<span class="xs-hide"> picks</span></button>
+      <button class="tab" role="tab" id="tab-props" data-view="props" aria-selected="false">Props</button>
+      <button class="tab" role="tab" id="tab-model" data-view="model" aria-selected="false">Model</button>
+      <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance</button>
       <button class="tab" role="tab" id="tab-ls" data-view="ls" aria-selected="false">Long shots</button>
       <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
       <button class="tab" role="tab" id="tab-picks" data-view="picks" aria-selected="false">My picks<span class="cnt" id="pick-count"></span></button>
@@ -649,6 +704,7 @@ ul.plain li{margin:3px 0}
 
 <main>
   <section class="view" id="v-week"></section>
+  <section class="view" id="v-props" hidden></section>
   <section class="view" id="v-model" hidden></section>
   <section class="view" id="v-hc" hidden></section>
   <section class="view" id="v-ls" hidden></section>
@@ -661,6 +717,8 @@ ul.plain li{margin:3px 0}
 
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
+<div class="scrim" id="navscrim" hidden></div>
+<div class="sheet navsheet" id="navsheet" role="dialog" aria-modal="true" aria-labelledby="nav-title" hidden></div>
 <div class="scrim" id="cscrim" hidden></div>
 <div class="sheet chart-sheet" id="csheet" role="dialog" aria-modal="true" aria-labelledby="cs-title" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -758,22 +816,42 @@ function stepInput(btn){
 /* ---------- header ---------- */
 $('#m-week').innerHTML = `<strong>Week ${WEEK}</strong> · ${D.meta.season} season`;
 function ago(iso){ const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' hr ago' : Math.round(m / 1440) + ' days ago'; }
-function renderAsof(){ $('#m-asof').innerHTML = `Updated <strong>${ago(D.meta.asof)}</strong>${D.meta.stats_through ? ` · box scores through ${esc(new Date(D.meta.stats_through + 'T12:00:00').toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'}))}` : ''}`; }
+function renderAsof(){ $('#m-asof').innerHTML = `Updated <strong>${ago(D.meta.asof)}</strong>${D.meta.stats_through ? `<span class="xs-hide"> · box scores through ${esc(new Date(D.meta.stats_through + 'T12:00:00').toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'}))}</span>` : ''}`; }
 renderAsof(); setInterval(renderAsof, 60000);
 
 /* ---------- tabs ---------- */
+const NAV = [['week', 'This week', 'Every game: lines, the model\'s take, injuries and matchups'], ['props', 'Props', 'Every player projection, with a line and odds checker'],
+  ['model', 'Model', 'Who the model picks to win, why, and its record'], ['hc', 'High-chance', 'Player milestones and teaser legs rated 80% or better'],
+  ['ls', 'Long shots', 'Plus-money touchdown scorers and big-yardage games'], ['trends', 'Trends', 'Player, team and league runs of 2+ straight weeks'],
+  ['picks', 'My picks', 'Your bets, record, and whether you beat the closing line'], ['tips', 'Betting tips', 'Where real edges come from, applied to this week'],
+  ['matters', 'What matters', 'Which stats actually predict games and props'], ['teams', 'Teams', 'Power ratings and season stats for all 32']];
+function tabFade(){ const n = $('.tabs'); if (!n) return; n.classList.toggle('fl', n.scrollLeft > 4); n.classList.toggle('fr', n.scrollLeft + n.clientWidth < n.scrollWidth - 4); }
+function openNav(){
+  const cur = store.get('tab', 'week');
+  $('#navsheet').innerHTML = `<div class="sec-head"><h2 class="h3" id="nav-title">All sections</h2><button class="btn tiny" data-navclose="">Close</button></div>
+    <div class="navgrid">${NAV.map(([k, l, d]) => `<button class="navitem${k === cur ? ' on' : ''}" data-navgo="${k}"><b>${l}</b><span>${d}</span></button>`).join('')}</div>`;
+  $('#navscrim').hidden = false; $('#navsheet').hidden = false; document.body.style.overflow = 'hidden';
+  setTimeout(() => { const b = $('#navsheet .navitem.on') || $('#navsheet .navitem'); if (b) b.focus(); }, 0);
+}
+function closeNav(){ $('#navscrim').hidden = true; $('#navsheet').hidden = true; document.body.style.overflow = ''; }
 function show(view){
   $$('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === view)));
   const tb = $(`.tab[data-view="${view}"]`), nav = tb && tb.parentElement;
-  if (nav){ const a = tb.getBoundingClientRect(), n = nav.getBoundingClientRect(); if (a.left < n.left || a.right > n.right) nav.scrollLeft += a.left - n.left - 12; }
+  if (nav && nav.scrollWidth > nav.clientWidth) nav.scrollTo({left: Math.max(0, tb.offsetLeft - (nav.clientWidth - tb.offsetWidth) / 2), behavior: 'smooth'});
   $$('.view').forEach(v => v.hidden = v.id !== 'v-' + view);
   store.set('tab', view);
   if (view === 'teams') renderTeams();
   if (view === 'tips') renderTips();
+  if (view === 'props') renderProps();
   if (view === 'model') drawUnits('model');
   window.scrollTo({top: 0});
 }
 $$('.tab').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+$('.tabs').addEventListener('scroll', tabFade, {passive: true}); window.addEventListener('resize', tabFade); setTimeout(tabFade, 0);
+$('#nav-open').addEventListener('click', openNav);
+$('#navscrim').addEventListener('click', closeNav);
+document.addEventListener('click', e => { const b = e.target.closest('[data-navgo], [data-navclose]'); if (!b) return; closeNav(); if (b.dataset.navgo) show(b.dataset.navgo); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#navsheet').hidden) closeNav(); });
 
 /* ======================================================================
    THIS WEEK
@@ -1208,6 +1286,122 @@ function drawUnits(tab){
 let _uRes; window.addEventListener('resize', () => { clearTimeout(_uRes); _uRes = setTimeout(() => drawUnits('model'), 150); });
 
 /* ======================================================================
+   PLAYER PROPS: every projection this week by prop type, with a line and odds checker
+   ====================================================================== */
+const PP_TYPES = {pass_yds: {label: 'Passing yards', short: 'pass yds', stat: 'py', mx: 'py'}, rush_yds: {label: 'Rushing yards', short: 'rush yds', stat: 'ry', mx: 'ry'},
+  rec_yds: {label: 'Receiving yards', short: 'rec yds', stat: 'recy', mx: 'recy'}, receptions: {label: 'Receptions', short: 'catches', stat: 'rec', mx: 'rec'},
+  any_td: {label: 'Anytime TD', short: 'TD', stat: 'td', mx: null}};
+let PPF = Object.assign({key: 'rec_yds', game: 'all', sort: 'proj', q: ''}, store.get('ppf', {})), PPSHOW = 25, PPIDX = {};
+const ppVal = (l, key) => key === 'any_td' ? (l.rtd || 0) + (l.rectd || 0) : l[PP_TYPES[key].stat];
+function propChance(pr, key, L){
+  if (key === 'any_td'){ const p = pr.proj.any_td; return p == null ? null : {over: p, under: 1 - p}; }
+  const proj = pr.proj[key]; if (proj == null || L == null) return null;
+  const over = overChance(key, proj, L); if (over == null) return null;
+  return {over, under: Number.isInteger(L) ? 1 - overChance(key, proj, L - 1) : 1 - over};
+}
+function ppMxStat(key, pos){ return key === 'any_td' ? (pos === 'RB' ? 'rtd' : pos === 'QB' ? null : 'td') : (pos === 'QB' && key === 'rush_yds' ? 'qry' : PP_TYPES[key].mx); }
+function ppRowsFor(key){
+  const rows = [];
+  D.games.filter(g => !g.final).forEach(g => (g.props || []).forEach(p => { if (p.proj[key] != null){ PPIDX[g.id + ':' + p.id] = {g, p}; rows.push({g, p}); } }));
+  return rows;
+}
+function ppOutHtml(g, p, key){
+  const T_ = PP_TYPES[key], st = PL[`${WEEK}:${p.id}:${T_.stat}`] || {}, side = key === 'any_td' ? 'over' : (st.side || 'over');
+  const L = key === 'any_td' ? 0.5 : numOf(st.line), O = parseOdds(st.odds), proj = p.proj[key];
+  const vals = (p.log || []).map(l => ppVal(l, key)).filter(v => v != null);
+  if (key !== 'any_td' && L == null) return `<span class="note">Type your book's line to see the model's chance and how often he cleared it.</span>`;
+  const c = propChance(p, key, L), ps = c ? (side === 'over' ? c.over : c.under) : null;
+  const ov = vals.filter(v => v > L).length, un = vals.filter(v => v < L).length;
+  let h = '';
+  if (ps != null) h += `<span class="pp-pc"><b class="num">${pct(ps)}</b> ${key === 'any_td' ? 'to score' : `${side} ${L}`} · fair <b>${fmtOdds(oddsNum(ps))}</b>${key !== 'any_td' ? ` · projection ${sign(proj - L, 1)} vs line` : ''}</span>`;
+  if (O != null && ps != null){ const r = evMsg(ps, oddsNum(ps), st.odds); h += `<span class="ev ${r.c}">${esc(r.t)}</span>`; }
+  else if (String(st.odds || '').trim()) h += `<span class="ev">Use American odds, like -115 or +105.</span>`;
+  h += `<span class="pp-h">${key === 'any_td' ? `Scored in <b>${ov} of ${vals.length}</b> games` : `${side === 'over' ? 'Over' : 'Under'} ${L} in <b>${side === 'over' ? ov : un} of ${vals.length}</b> games`} this season</span>`;
+  return h;
+}
+function ppRow(g, p, key){
+  const T_ = PP_TYPES[key], opp = p.team === g.home ? g.away : g.home, st = PL[`${WEEK}:${p.id}:${T_.stat}`] || {}, side = st.side || 'over';
+  const log = p.log || [], vals = log.map(l => ppVal(l, key)), avg = vals.length ? vals.reduce((a, v) => a + v, 0) / vals.length : null;
+  const l3v = vals.slice(-3), l3 = l3v.length ? l3v.reduce((a, v) => a + v, 0) / l3v.length : null, proj = p.proj[key];
+  const f1 = v => v == null ? '–' : key === 'receptions' ? v.toFixed(1) : String(Math.round(v));
+  const inj = p.inj && !['likely', 'ok'].includes(p.inj.level) ? `<span class="pill lvl-${p.inj.level}">${esc(p.inj.outlook.split(',')[0])}</span>` : '';
+  const usage = p.pos === 'QB' ? `${p.avg.att ?? '–'} att/g` : p.pos === 'RB' ? `${pct(p.share.car)} carries · ${pct(p.share.tgt)} tgts` : `${pct(p.share.tgt)} tgt share`;
+  const mk = ppMxStat(key, p.pos), mx = key === 'any_td' ? (mk ? `<div class="mxl"><span>vs ${opp} to ${p.pos}s:</span>${mxChip(opp, p.pos, mk)}</div>` : '') : matchupLine(opp, p.pos, key);
+  const big = key === 'any_td' ? `${pct(proj)}<small>TD chance</small>` : `${f1(proj)}<small>${T_.short}</small>`;
+  return `<article class="pp" data-g="${g.id}" data-pid="${esc(p.id)}" data-key="${key}">
+    <div class="pp-who"><div class="pn"><span data-chart="p|${esc(p.id)}|${key}" role="button" tabindex="0" title="Open ${esc(p.name)}'s chart">${esc(p.name)}</span> <span class="small">${p.pos}</span>${inj}</div>
+      <div class="ps">${chip(p.team, 1)} ${p.team === g.home ? 'vs' : '@'} ${chip(opp, 1)} · ${esc(kick(g.kickoff, {timeZoneName: undefined}))}</div>
+      <div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div></div>
+    <div class="pp-proj"><div class="proj num">${big}</div><div class="ps">${key === 'any_td' ? `fair ${fmtOdds(oddsNum(proj))}` : `Avg ${f1(avg)} · L3 ${f1(l3)}`}</div>
+      ${vals.length > 1 ? `<span class="pp-sp">${spark(log.map(l => [l.wk, ppVal(l, key)]), {w: 84, h: 24, base: key === 'any_td' ? undefined : avg})}</span>` : ''}</div>
+    <div class="pp-mx">${mx}</div>
+    <div class="pp-chk">
+      <div class="pp-in">${key === 'any_td' ? '' : `<div class="seg pp-side" role="group" aria-label="Over or under"><button data-ppside="over" aria-pressed="${side === 'over'}">Over</button><button data-ppside="under" aria-pressed="${side === 'under'}">Under</button></div>
+        <div class="f"><span class="clb-l">Line</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-pp="line" data-proj="${proj}" value="${esc(st.line || '')}" placeholder="${Math.floor(proj) + 0.5}" aria-label="${esc(p.name)} ${T_.label} line">`, 'line')}</div>`}
+        <div class="f"><span class="clb-l">Odds</span>${stepWrap(`<input type="text" inputmode="numeric" autocomplete="off" data-pp="odds" value="${esc(st.odds || '')}" placeholder="${key === 'any_td' ? fmtOdds(oddsNum(proj)).replace('−', '-') : '-110'}" aria-label="${esc(p.name)} odds">`, 'odds')}</div></div>
+      <div class="pp-out" aria-live="polite">${ppOutHtml(g, p, key)}</div>
+      <div class="pp-acts"><button class="btn tiny" data-pppick="">+ Pick</button><button class="btn tiny" data-chart="p|${esc(p.id)}|${key}">Chart</button></div></div>
+  </article>`;
+}
+function renderPPList(){
+  const host = $('#pp-list'); if (!host) return;
+  PPIDX = {};
+  let rows = ppRowsFor(PPF.key);
+  if (PPF.game !== 'all') rows = rows.filter(r => r.g.id === PPF.game);
+  const q = PPF.q.trim().toLowerCase(); if (q) rows = rows.filter(r => r.p.name.toLowerCase().includes(q) || r.p.team.toLowerCase() === q);
+  const mr = r => { const mk = ppMxStat(PPF.key, r.p.pos), opp = r.p.team === r.g.home ? r.g.away : r.g.home, m = mk && ((M_.pos[opp] || {})[r.p.pos] || {})[mk]; return m ? m[1] : 99; };
+  rows.sort(PPF.sort === 'matchup' ? (a, b) => mr(a) - mr(b) || b.p.proj[PPF.key] - a.p.proj[PPF.key]
+    : PPF.sort === 'kick' ? (a, b) => a.g.kickoff.localeCompare(b.g.kickoff) || b.p.proj[PPF.key] - a.p.proj[PPF.key]
+    : (a, b) => b.p.proj[PPF.key] - a.p.proj[PPF.key]);
+  host.innerHTML = rows.slice(0, PPSHOW).map(r => ppRow(r.g, r.p, PPF.key)).join('') || '<div class="empty">No players match. Projections show up for games that haven\'t been played yet.</div>';
+  const more = $('#pp-more'); if (more) more.innerHTML = rows.length > PPSHOW ? `<button class="btn more" data-ppmore="">Show ${Math.min(25, rows.length - PPSHOW)} more of ${rows.length}</button>` : '';
+  const cnt = $('#pp-count'); if (cnt) cnt.textContent = `${rows.length} player${rows.length === 1 ? '' : 's'}`;
+}
+function renderProps(){
+  const v = $('#v-props'); if (!v) return;
+  const up = D.games.filter(g => !g.final);
+  const counts = Object.fromEntries(Object.keys(PP_TYPES).map(k => [k, up.reduce((a, g) => a + (g.props || []).filter(p => p.proj[k] != null).length, 0)]));
+  v.innerHTML = `
+    <div class="sec-head"><div><h1 class="h2">Player props</h1>
+      <p class="lede">Every player with a projection this week. Type your sportsbook's line and odds to see the model's chance, the fair price, whether the price is worth it, and how often he has cleared that line. Lines you enter here also show up on his chart.</p></div></div>
+    <div class="seg pp-types" role="group" aria-label="Prop type">${Object.entries(PP_TYPES).map(([k, t]) => `<button data-ppk="${k}" aria-pressed="${PPF.key === k}">${t.label} <span class="small">${counts[k]}</span></button>`).join('')}</div>
+    <div class="toolbar"><div class="filters">
+        <select id="pp-game" aria-label="Game"><option value="all">All games</option>${up.map(g => `<option value="${g.id}">${g.away} @ ${g.home} · ${esc(kick(g.kickoff, {timeZoneName: undefined}))}</option>`).join('')}</select>
+        <select id="pp-sort" aria-label="Sort"><option value="proj">Highest projection</option><option value="matchup">Softest matchup</option><option value="kick">Kickoff time</option></select>
+        <input type="text" id="pp-q" placeholder="Search a player or team" autocomplete="off" aria-label="Search players"></div>
+      <span class="small" id="pp-count"></span></div>
+    <div class="pp-list" id="pp-list"></div><div id="pp-more" style="display:flex;justify-content:center"></div>
+    <div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first), and the chances come from how players with similar projections actually finished. Players listed as out or doubtful are left off. Matchup numbers are what the defense has allowed per game to that position this season. In testing, a player's role mattered far more than the matchup.</div>`;
+  if (!up.some(g => g.id === PPF.game)) PPF.game = 'all';
+  $('#pp-game').value = PPF.game; $('#pp-sort').value = PPF.sort; $('#pp-q').value = PPF.q;
+  $('#pp-game').addEventListener('change', e => { PPF.game = e.target.value; store.set('ppf', PPF); PPSHOW = 25; renderPPList(); });
+  $('#pp-sort').addEventListener('change', e => { PPF.sort = e.target.value; store.set('ppf', PPF); renderPPList(); });
+  $('#pp-q').addEventListener('input', e => { PPF.q = e.target.value; PPSHOW = 25; renderPPList(); });
+  renderPPList();
+}
+document.addEventListener('input', e => {
+  const el = e.target; if (!el.dataset || !el.dataset.pp) return;
+  const row = el.closest('.pp'); if (!row) return;
+  const {g, p} = PPIDX[row.dataset.g + ':' + row.dataset.pid] || {}; if (!p) return;
+  const key = row.dataset.key, k = `${WEEK}:${p.id}:${PP_TYPES[key].stat}`;
+  PL[k] = Object.assign({}, PL[k], {[el.dataset.pp]: el.value.trim()}, key === 'any_td' ? {line: '0.5'} : {});
+  if (!PL[k].odds && (!PL[k].line || key === 'any_td') && !PL[k].side) delete PL[k];
+  store.set('pl', PL); $('.pp-out', row).innerHTML = ppOutHtml(g, p, key);
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.ppk){ PPF.key = b.dataset.ppk; store.set('ppf', PPF); PPSHOW = 25; $$('[data-ppk]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.ppk === PPF.key))); renderPPList(); return; }
+  if (b.hasAttribute('data-ppmore')){ PPSHOW += 25; renderPPList(); return; }
+  const row = b.closest('.pp'); if (!row) return;
+  const {g, p} = PPIDX[row.dataset.g + ':' + row.dataset.pid] || {}; if (!p) return;
+  const key = row.dataset.key, k = `${WEEK}:${p.id}:${PP_TYPES[key].stat}`;
+  if (b.dataset.ppside){ PL[k] = Object.assign({}, PL[k], {side: b.dataset.ppside}); store.set('pl', PL);
+    $$('[data-ppside]', row).forEach(x => x.setAttribute('aria-pressed', String(x.dataset.ppside === b.dataset.ppside))); $('.pp-out', row).innerHTML = ppOutHtml(g, p, key); return; }
+  if (b.hasAttribute('data-pppick')){ const st = PL[k] || {}, L = numOf(st.line), O = parseOdds(st.odds);
+    openPick({week: g.week, game: g.id, type: key, player: p.id, side: (st.side || 'over') === 'over' ? 'O' : 'U', line: key === 'any_td' || L == null ? '' : L, odds: O ?? (key === 'any_td' ? oddsNum(p.proj.any_td) : -110)}); }
+});
+
+/* ======================================================================
    MODEL PICKS: who the model expects to win, and why
    ====================================================================== */
 function resultOf(g){
@@ -1612,7 +1806,7 @@ const TSTATS = {
   ope: ['Pass EPA per dropback', r => r.ope, 's2'], ore: ['Rush EPA per carry', r => r.ore, 's2'], oy: ['Yards gained', r => r.oy, 'n'], dy: ['Yards allowed', r => r.dy, 'n']};
 const TREND2P = {targets: 'tgt', target_share: 'ts', receiving_yards: 'recy', carries: 'car', rushing_yards: 'ry', passing_yards: 'py', snap: 'snap'};
 const TREND2T = {su: 'mg', ats: 'cov', ou: 'tot', off_epa: 'oe', def_epa: 'de', pts: 'pf', opp_pts: 'pa'};
-const CH_DEFAULT_FROM_PROP = {pass_yds: 'py', rush_yds: 'ry', rec_yds: 'recy', receptions: 'rec'};
+const CH_DEFAULT_FROM_PROP = {pass_yds: 'py', rush_yds: 'ry', rec_yds: 'recy', receptions: 'rec', any_td: 'td'};
 const WINDOWS = [['l4', 'Last 4'], ['l8', 'Last 8'], ['season', 'This season'], ['all', 'Since last season']];
 let CH = null;
 function fmtV(f, v){
@@ -2425,7 +2619,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden){ che
 /* ---------- boot ---------- */
 renderWeek(); renderModel(); renderHC(); renderLS(); renderTrends(); renderPicks(); renderMatters();
 const startTab = location.hash.replace('#', '') || store.get('tab', 'week');
-if (['week', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
+if (['week', 'props', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
 initPicks();
 liveScores();
 })();
