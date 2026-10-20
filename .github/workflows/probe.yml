@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -16,3 +16,18 @@ jobs:
         with:
           python-version: "3.13"
       - run: python pipeline/probe_sources.py
+      - name: Save raw copies to the probe-data branch
+        run: |
+          mkdir -p probe_out
+          curl -sSL -A "Mozilla/5.0 (nfl-edge data refresh)" -o probe_out/espn_injuries.json https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries
+          curl -sSL -A "Mozilla/5.0 (nfl-edge data refresh)" -o probe_out/nfl_REG6.html https://www.nfl.com/injuries/league/2026/REG6
+          curl -sSL -A "Mozilla/5.0 (nfl-edge data refresh)" -o probe_out/nfl_REG7.html https://www.nfl.com/injuries/league/2026/REG7
+          curl -sSL -A "Mozilla/5.0 (nfl-edge data refresh)" -o probe_out/nfl_current.html https://www.nfl.com/injuries/
+          date -u +%FT%TZ > probe_out/when.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan probe-data
+          git rm -rfq --cached .
+          git add -f probe_out
+          git commit -qm "Raw source snapshot"
+          git push -qf origin probe-data
