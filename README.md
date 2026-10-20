@@ -6,14 +6,19 @@ games) with a check of your sportsbook's price, and a pick tracker that grades i
 
 **How it stays current:** a GitHub Action (`.github/workflows/update.yml`) runs every 30 minutes from August
 through February. It downloads the latest public data, rebuilds `site/data/data.json`, and redeploys the site.
-Every visit loads the newest build, and live scores come straight from ESPN while games are on.
+Every visit loads the newest build, and live scores come straight from ESPN while games are on. Injury statuses
+are re-checked against ESPN's live injury feed from the page itself every few minutes, so they don't wait for the
+next build.
 
 ## What's inside
 
 - `site/index.html`: the website. It reads `data/data.json` on every visit. Picks are saved in each visitor's browser,
   with Download backup / Restore backup to move them between devices.
-- `pipeline/build.py`: rebuilds the data. Sources: nflverse (play-by-play, player stats, schedules and lines, official
-  injury reports, snap counts, Next Gen Stats) and ESPN (injury status, expected return dates, live scores).
+- `pipeline/build.py`: rebuilds the data. Sources: nflverse (play-by-play, player stats, schedules and lines, snap
+  counts, Next Gen Stats), the official NFL injury report from NFL.com (nflverse's copy as a backup) and ESPN
+  (injury status, expected return dates, live scores).
+- `pipeline/injuries.py`: each player's status for his team's next game, merged from the official report and ESPN's
+  feed. The page runs the same merge live; `research/inj_parity.py` checks the two give identical answers.
 - `pipeline/static/`: the research the model is built on (2017–2025): which team and player stats predict results,
   model weights, spread backtests, teaser and key-number history, and how often 2+ week trends carried into the next game.
 - `research/`: the scripts that produced those files.

@@ -1,6 +1,7 @@
-"""ESPN's public JSON feeds: league-wide injuries (status + expected return) and the live scoreboard.
+"""ESPN's public scoreboard feed (live and final scores, and lines when nflverse hasn't posted them yet).
+Injuries come from injuries.py, which reads ESPN's injury feed alongside the official report.
 Every function fails soft: on any network or shape problem it returns an empty result and the build carries on."""
-import json, re, urllib.request
+import json, urllib.request
 from teams import TEAMS
 
 UA = {'User-Agent': 'Mozilla/5.0 (nfl-edge data refresh)'}
@@ -28,47 +29,6 @@ def team_abbr(obj):
         ab = ESPN_ABBR.get(ab, ab)
         return ab if ab in TEAMS else None
     return None
-
-
-def norm(n):
-    return re.sub(r'[^a-z]', '', str(n).lower().replace(' jr.', '').replace(' sr.', '').replace(' iii', '').replace(' ii', ''))
-
-
-def injuries():
-    """{'TEAM|normname': {'status','return_date','injury','pos','name'}} for players not listed as Active."""
-    out = {}
-    try:
-        data = _get('https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries')
-    except Exception as e:
-        print('ESPN injuries unavailable:', e)
-        return out
-    for team in data.get('injuries', []) or []:
-        t = team_abbr(team.get('displayName', '')) or team_abbr(team)
-        for it in team.get('injuries', []) or []:
-            try:
-                ath = it.get('athlete') or {}
-                name = ath.get('displayName') or ath.get('fullName')
-                if not name:
-                    continue
-                tt = t or team_abbr(ath.get('team') or {})
-                if not tt:
-                    continue
-                status = it.get('status') or ((it.get('type') or {}).get('description') or '')
-                if str(status).lower() == 'active':
-                    continue
-                det = it.get('details') or {}
-                out[tt + '|' + norm(name)] = {
-                    'name': name, 'team': tt,
-                    'pos': ((ath.get('position') or {}).get('abbreviation')),
-                    'status': str(status).title() if status else None,
-                    'injury': det.get('type'),
-                    'return_date': det.get('returnDate'),
-                    'date': it.get('date'),
-                }
-            except Exception:
-                continue
-    print('ESPN injuries:', len(out))
-    return out
 
 
 def scoreboard():

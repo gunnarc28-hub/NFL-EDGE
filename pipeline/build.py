@@ -18,6 +18,7 @@ os.makedirs(RAW, exist_ok=True)
 sys.path.insert(0, HERE)
 from teams import TEAMS, INTERNATIONAL          # noqa: E402
 import pbp_agg, metrics, players as pa, espn    # noqa: E402
+import injuries as injm                         # noqa: E402
 
 OUT = os.path.join(ROOT, 'site', 'data', 'data.json')
 BASE = 'https://github.com/nflverse/nflverse-data/releases/download'
@@ -72,7 +73,7 @@ def am_prob(ml):
 
 
 def norm(n):
-    return re.sub(r'[^a-z]', '', str(n).lower().replace(' jr.', '').replace(' sr.', '').replace(' iii', '').replace(' ii', ''))
+    return injm.norm(n)
 
 
 def run_len(flags):
@@ -480,12 +481,29 @@ for _, g in done.sort_values(['week', 'gameday', 'gametime']).iterrows():
         res = 'P' if cov == 0 else ('W' if (cov > 0) == (side == h) else 'L')
         model_picks.append({**base, 'type': 'Spread', 'pick': side, 'detail': f"{side} {line:+.1f}", 'edge': abs(edge), 'result': res})
 
-# ------------------------------------------------------------------ injuries: official report + ESPN status / return date
-PRAC = {'Did Not Participate In Practice': 'DNP', 'Limited Participation in Practice': 'LP', 'Full Participation in Practice': 'FP'}
-inj = pd.read_csv(f'{RAW}/injuries_{SEASON}.csv', low_memory=False) if have_inj else pd.DataFrame(columns=['week', 'team', 'full_name', 'position', 'practice_status', 'report_status', 'practice_primary_injury', 'report_primary_injury'])
-inj = inj[inj.week == WEEK].copy()
-inj['key'] = inj.team + '|' + inj.full_name.map(norm)
-esp = espn.injuries()
+# ------------------------------------------------------------------ injuries: status for each team's NEXT game
+# Official report straight from NFL.com (nflverse's daily copy as backup) merged with ESPN's injury feed, which moves
+# within minutes of news. The page re-runs the same merge against ESPN's live feed every few minutes (see injuries.py).
+NICK2AB = {nick: ab for ab, (city, nick, *_r) in TEAMS.items()}
+_inj_nv = pd.read_csv(f'{RAW}/injuries_{SEASON}.csv', low_memory=False) if have_inj else pd.DataFrame(columns=['week', 'team', 'full_name', 'position', 'practice_status', 'report_status', 'practice_primary_injury', 'report_primary_injury'])
+esp_items = injm.espn_items(os.environ.get('NFL_ESPN_INJ_FILE'))
+next_wk = {t: (teams[t]['next']['week'] if teams[t].get('next') else WEEK) for t in TEAMS}
+_rep_dir = os.environ.get('NFL_REPORT_DIR')      # offline testing: saved NFL.com pages named nfl_REG<week>.html
+official, off_src = {}, {}
+for w in sorted(set(next_wk.values())):
+    if _rep_dir:
+        f_ = os.path.join(_rep_dir, f'nfl_REG{w}.html')
+        rep = injm.nflcom_report(SEASON, w, NICK2AB, path=f_) if os.path.exists(f_) else None
+    else:
+        rep = injm.nflcom_report(SEASON, w, NICK2AB)
+    for t, rows in (rep or {}).items():
+        if next_wk.get(t) == w:
+            official[t], off_src[t] = rows, 'nfl.com'
+for t in TEAMS:
+    if t not in official:
+        rows = injm.nflverse_rows(_inj_nv, t, next_wk[t])
+        if rows:
+            official[t], off_src[t] = rows, 'nflverse'
 snaps = pd.read_csv(f'{RAW}/snap_counts_{SEASON}.csv', low_memory=False) if have_snap else pd.DataFrame(columns=['team', 'player', 'offense_pct', 'defense_pct', 'pfr_player_id', 'week'])
 p26_all = pa.load_players([SEASON]) if have_ps[SEASON] else pd.DataFrame(columns=pa.COLS)
 snap_avg = snaps.groupby(['team', 'player']).agg(o=('offense_pct', 'mean'), d=('defense_pct', 'mean')).reset_index()
@@ -494,92 +512,38 @@ starters = set(snap_avg[(snap_avg.o >= 0.5) | (snap_avg.d >= 0.5)].key)
 usage = p26_all.groupby(['team', 'player_display_name']).agg(t=('targets', 'mean'), c=('carries', 'mean'), a=('attempts', 'mean')).reset_index()
 usage['key'] = usage.team + '|' + usage.player_display_name.map(norm)
 skill_keys = set(usage[(usage.t >= 3) | (usage.c >= 6) | (usage.a >= 15)].key)
-played_teams = {x for gm in games if gm['final'] for x in (gm['home'], gm['away'])}
-
-
-def week_for_date(team, date_str):
-    try:
-        d = str(date_str)[:10]
-        g = S[((S.home_team == team) | (S.away_team == team)) & (S.gameday >= d)]
-        return int(g.week.min()) if len(g) else None
-    except Exception:
-        return None
-
-
-def outlook(team, status, prac, e):
-    """Plain-language outlook from official game status, latest practice day and ESPN's status/return date."""
-    es = (e or {}).get('status') or ''
-    ret_wk = week_for_date(team, e['return_date']) if e and e.get('return_date') else None
-    long_list = any(k in es for k in ('Injured Reserve', 'Physically Unable', 'Non-Football', 'Suspension', 'Reserve'))
-    if long_list and prac in ('FP', 'LP'):
-        return ('likely' if prac == 'FP' else 'gtd'), f'Back at practice from {"IR" if "Injured" in es else "a reserve list"} ({"full" if prac == "FP" else "limited"}), could be activated', ret_wk
-    if long_list:
-        lst = 'IR' if 'Injured' in es else ('suspension' if 'Suspension' in es else 'a reserve list')
-        if ret_wk and ret_wk > WEEK:
-            return 'ir', f'On {lst}, expected back Week {ret_wk}', ret_wk
-        return 'ir', f'On {lst}', ret_wk
-    if team in played_teams:
-        if status == 'Out' or es == 'Out':
-            return 'out', f'Missed Week {WEEK}' + (f'; expected back Week {ret_wk}' if ret_wk and ret_wk > WEEK else ''), ret_wk
-        return 'ok', f'Available Week {WEEK}', ret_wk
-    if status == 'Out' or es == 'Out':
-        return 'out', 'Out this week' + (f', expected back Week {ret_wk}' if ret_wk and ret_wk > WEEK else ''), ret_wk
-    if status == 'Doubtful' or es == 'Doubtful':
-        return 'doubt', 'Unlikely to play', ret_wk
-    if prac == 'FP':
-        return 'likely', 'Full practice, expected to play', ret_wk
-    if prac == 'LP':
-        return 'gtd', 'Limited in practice, game-time call', ret_wk
-    if prac == 'DNP':
-        return 'risk', 'Did not practice, in doubt', ret_wk
-    if status == 'Questionable' or es == 'Questionable':
-        return 'gtd', 'Questionable', ret_wk
-    return 'gtd', 'Monitor', ret_wk
-
-
-injuries = {t: [] for t in TEAMS}
-seen = set()
-for _, r in inj.iterrows():
-    k = r.key; e = esp.get(k)
-    prac = PRAC.get(r.practice_status)
-    status = r.report_status if pd.notna(r.report_status) else None
-    reason = r.practice_primary_injury if pd.notna(r.practice_primary_injury) else (r.report_primary_injury if pd.notna(r.report_primary_injury) else '')
-    if 'resting player' in str(reason).lower():
-        lvl, ol, rw = 'likely', 'Rest day, not injured', None
-    elif 'personal matter' in str(reason).lower():
-        lvl, ol, rw = 'gtd', 'Personal matter', None
-    else:
-        lvl, ol, rw = outlook(r.team, status, prac, e)
-    if r.team in injuries:
-        injuries[r.team].append({'name': r.full_name, 'pos': r.position, 'injury': str(reason).replace('Not injury related - ', '') or None,
-                                 'status': status, 'practice': prac, 'level': lvl, 'outlook': ol, 'ret_wk': rw,
-                                 'key': (k in starters) or (k in skill_keys), 'skill': k in skill_keys})
-    seen.add(k)
-for k, e in esp.items():
-    if k in seen or e['team'] not in injuries:
-        continue
-    es = e.get('status') or ''
-    if not any(s in es for s in ('Injured Reserve', 'Physically Unable', 'Out', 'Doubtful', 'Non-Football', 'Suspension')):
-        continue
-    lvl, ol, rw = outlook(e['team'], None, None, e)
-    injuries[e['team']].append({'name': e['name'], 'pos': e.get('pos'), 'injury': e.get('injury'), 'status': None, 'practice': None,
-                                'level': lvl, 'outlook': ol, 'ret_wk': rw, 'key': (k in starters) or (k in skill_keys), 'skill': k in skill_keys})
 _rost = pd.read_csv(f'{RAW}/roster_weekly_{SEASON}.csv', low_memory=False) if have_rost else pd.DataFrame(columns=['week', 'team', 'full_name', 'position', 'status', 'gsis_id'])
 _rw = _rost[_rost.week <= WEEK]
 _rw = _rw[_rw.week == _rw.week.max()] if len(_rw) else _rw
 RESERVE_IDS = set(_rw[_rw.status.isin(['RES'])].gsis_id.dropna())
 GONE_IDS = set(_rw[_rw.status.isin(['CUT', 'RET', 'TRD', 'TRT'])].gsis_id.dropna())
-for _, r in _rw[_rw.status == 'RES'].iterrows():
-    k = str(r.team) + '|' + norm(r.full_name)
-    if k in seen or r.team not in injuries or any(norm(x['name']) == norm(r.full_name) for x in injuries[r.team]):
-        continue
-    injuries[r.team].append({'name': r.full_name, 'pos': r.position, 'injury': None, 'status': None, 'practice': None,
-                             'level': 'ir', 'outlook': 'On injured reserve or another reserve list', 'ret_wk': None,
-                             'key': (k in starters) or (k in skill_keys), 'skill': k in skill_keys})
-ORDER = {'out': 0, 'doubt': 1, 'risk': 2, 'gtd': 3, 'likely': 4, 'ir': 5, 'ok': 6}
-for t in injuries:
-    injuries[t].sort(key=lambda x: (not x['key'], ORDER.get(x['level'], 9), x['name']))
+_res_names = {t_: sorted({(r_.full_name, r_.position if isinstance(r_.position, str) else None) for r_ in d_.itertuples() if isinstance(r_.full_name, str)}, key=lambda x: (x[0], x[1] or ''))
+              for t_, d_ in _rw[_rw.status == 'RES'].groupby('team')}
+_res_names = {t_: [list(x) for x in v] for t_, v in _res_names.items()}
+_upc = S[~S.final].sort_values(['gameday', 'gametime'])
+inj_ctx = {}
+for t in TEAMS:
+    nx = teams[t].get('next')
+    kick = nx['kickoff'] if nx else None
+    t0, t1 = injm.report_times(kick) if kick else (None, None)
+    inj_ctx[t] = {'wk': next_wk[t], 'opp': nx['opp'] if nx else None, 'home': nx['home'] if nx else None, 'kick': kick,
+                  'k': injm.ms(kick), 't0': t0, 't1': t1, 'rep': official.get(t), 'src': off_src.get(t),
+                  'res': _res_names.get(t, []),
+                  'key': sorted({k.split('|', 1)[1] for k in starters | skill_keys if k.startswith(t + '|')}),
+                  'skill': sorted({k.split('|', 1)[1] for k in skill_keys if k.startswith(t + '|')}),
+                  'sched': [[str(r.gameday), int(r.week)] for r in _upc[(_upc.home_team == t) | (_upc.away_team == t)].itertuples()]}
+_esp_by_team = {}
+for e in esp_items:
+    _esp_by_team.setdefault(e['team'], []).append(e)
+NOW_MS = int(NOW.timestamp() * 1000)
+injuries = {t: injm.merge_team(inj_ctx[t], _esp_by_team.get(t, []), NOW_MS) for t in TEAMS}
 inj_status = {t + '|' + norm(x['name']): x for t, lst in injuries.items() for x in lst}
+_src_n = {s_: sum(1 for v in off_src.values() if v == s_) for s_ in ('nfl.com', 'nflverse')}
+INJ_META = {'espn': len(esp_items), 'report': _src_n, 'weeks': sorted(set(next_wk.values()))}
+print('Injuries: ESPN entries', len(esp_items), '| official report teams', _src_n, '| listed', sum(len(v) for v in injuries.values()))
+if os.environ.get('GITHUB_ACTIONS'):
+    print(f"::notice title=Injuries::ESPN entries {len(esp_items)}; official report teams {_src_n}; weeks {INJ_META['weeks']}; "
+          f"listed {sum(len(v) for v in injuries.values())}")
 
 # ------------------------------------------------------------------ touchdown model (shared by props and long shots)
 LSM = json.load(open(os.path.join(HERE, 'static', 'longshot_model.json')))
@@ -1506,12 +1470,12 @@ research = {'team': R['research'], 'market_r': R['market_r'], 'market_su_acc': R
 STAT_LABEL = {'pd_g': 'Point diff / game', 'off_epa': 'EPA per play', 'def_epa': 'EPA per play allowed'}
 
 data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec='seconds'),
-                 'stats_through': last_stats_date, 'espn_injuries': bool(esp), 'espn_scoreboard': bool(board),
+                 'stats_through': last_stats_date, 'espn_injuries': bool(esp_items), 'espn_scoreboard': bool(board), 'inj': INJ_META,
                  'sources': ['nflverse play-by-play, player stats, schedules and lines', 'NFL Next Gen Stats (via nflverse)',
-                             'Pro Football Reference snap counts (via nflverse)', 'NFL official injury report (via nflverse)',
+                             'Pro Football Reference snap counts (via nflverse)', 'NFL official injury report (NFL.com, with nflverse as backup)',
                              'ESPN injury status and expected return dates', 'ESPN scoreboard for live and final scores'],
                  'resid_sd': RESID, 'qb_mean': QB_MEAN},
-        'teams': teams, 'games': games, 'injuries': injuries, 'stat_labels': STAT_LABEL,
+        'teams': teams, 'games': games, 'injuries': injuries, 'inj_ctx': inj_ctx, 'stat_labels': STAT_LABEL,
         'trends': {'league': league_trends, 'league_weekly': league_weekly, 'team': team_trends, 'player': player_trends[:80],
                    'logs': {'pcols': CHART_COLS, 'players': player_logs, 'tcols': TEAM_COLS, 'teams': team_logs}},
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,

@@ -243,6 +243,8 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--info);outline-of
 .inj .who small{font-weight:500;color:var(--ink-3)}
 .inj .ol{font-size:12.5px;color:var(--ink-2)}
 .inj .x{font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap}
+.inj-next{font-size:12.5px;color:var(--ink-2);margin:-2px 0 4px}
+.inj-when{color:var(--ink-3);white-space:nowrap}
 .lvl-out,.lvl-ir{background:var(--loss-bg);color:var(--loss)} .lvl-doubt,.lvl-risk{background:var(--warn-bg);color:var(--warn)}
 .lvl-gtd{background:var(--info-bg);color:var(--info)} .lvl-likely,.lvl-ok{background:var(--win-bg);color:var(--win)}
 
@@ -781,6 +783,157 @@ function spark(series, o){
 }
 function xLink(name){ return 'https://x.com/search?q=' + encodeURIComponent('"' + name + '" injury') + '&f=live'; }
 
+/* ---------- injuries: each team's NEXT game, official report + ESPN's feed ----------
+   The build runs this same merge (pipeline/injuries.py); the page re-runs it against ESPN's live feed every few
+   minutes so statuses don't wait for the next data refresh. Keep the two in step (research/inj_parity.py checks). */
+/* inj-merge:start */
+const INJ_HOUR = 3600 * 1000;
+const INJ_ORDER = {out: 0, doubt: 1, risk: 2, gtd: 3, likely: 4, ir: 5, ok: 6};
+const INJ_SUFFIX = /\s+(jr|sr|ii|iii|iv|v)\.?$/;
+const INJ_LONG_ES = ['Injured Reserve', 'Suspension', 'Physically Unable', 'Non-Football', 'Reserve'];
+const INJ_LONG_FS = ['IR', 'PUP', 'NFI', 'RESERVE', 'SUSP'];
+const injAscii = s => String(s == null ? '' : s).normalize('NFKD').replace(/[^\x00-\x7f]/g, '');
+const injNorm = n => injAscii(n).toLowerCase().trim().replace(INJ_SUFFIX, '').replace(/[^a-z]/g, '');
+function injAlt(n){
+  const parts = injAscii(n).toLowerCase().trim().replace(INJ_SUFFIX, '').split(/\s+/).filter(Boolean);
+  return parts.length < 2 ? null : parts[parts.length - 1].replace(/[^a-z]/g, '') + '|' + parts[0].slice(0, 1);
+}
+function injMs(iso){
+  if (!iso) return null;
+  let t = Date.parse(iso);
+  if (isNaN(t)) t = Date.parse(String(iso).replace(/T(\d\d:\d\d)Z$/, 'T$1:00Z'));
+  return isNaN(t) ? null : t;
+}
+const injGe = (a, b) => a != null && b != null && a >= b;
+function parseEspnInj(j, name2ab, espnAbbr, valid){
+  const out = [];
+  for (const team of (j && j.injuries) || []){
+    const t = name2ab[team.displayName || ''];
+    for (const it of team.injuries || []){
+      try {
+        const ath = it.athlete || {}, name = ath.displayName || ath.fullName;
+        let tt = t;
+        if (!tt){ let ab = (ath.team || {}).abbreviation; ab = espnAbbr[ab] || ab; tt = valid(ab) ? ab : null; }
+        if (!name || !tt) continue;
+        const det = it.details || {}, typ = det.type;
+        out.push({team: tt, name, pos: (ath.position || {}).abbreviation || null,
+          es: String(it.status || ((it.type || {}).description || '')).trim(),
+          fs: String(((det.fantasyStatus || {}).abbreviation) || '').toUpperCase(),
+          ret: det.returnDate || null, date: it.date || null,
+          injury: typ != null && !['Not Specified', 'Undisclosed', 'Inactive'].includes(typ) ? typ : null});
+      } catch(err){ /* skip a malformed entry */ }
+    }
+  }
+  return out;
+}
+function injRetWeek(ctx, date){
+  if (!date) return null;
+  const d = String(date).slice(0, 10);
+  for (const [gd, wk] of ctx.sched) if (gd >= d) return wk;
+  return null;
+}
+const injIsLong = e => !!e && (INJ_LONG_ES.some(k => e.es.includes(k)) || INJ_LONG_FS.some(p => e.fs.startsWith(p)));
+function injLongLabel(e){
+  const es = (e && e.es) || '', fs = (e && e.fs) || '';
+  if (es.includes('Suspension') || fs.includes('SUS')) return 'Suspended';
+  if (es.includes('Physically Unable') || fs.startsWith('PUP')) return 'On PUP';
+  if (es.includes('Non-Football') || fs.startsWith('NFI')) return 'On the NFI list';
+  if (es.includes('Injured Reserve') || fs.startsWith('IR')) return 'On IR';
+  return 'On a reserve list';
+}
+function injEspnCat(e, rw, W){
+  if (!e || e.es === 'Active') return null;
+  const fs = e.fs, es = e.es, later = rw != null && rw > W, soon = rw != null && rw <= W;
+  if (fs === 'INACTIVE') return later ? 'out' : null;
+  if (later) return 'out';
+  if (fs === 'OUT' || (!fs && es === 'Out')) return soon ? 'risk' : 'out';
+  if (fs === 'DOUBTFUL' || es === 'Doubtful') return 'doubt';
+  return 'gtd';
+}
+function injPracText(prac, gs){
+  if (gs === 'Questionable') return ({FP: 'Questionable, practiced fully', LP: 'Questionable, limited in practice', DNP: 'Questionable, did not practice'})[prac] || 'Questionable';
+  return ({FP: 'Full practice, expected to play', LP: 'Limited in practice, game-time call', DNP: 'Did not practice, in doubt'})[prac] || 'On the injury report';
+}
+function injDecide(ctx, o, e, inRes, now){
+  const W = ctx.wk, K = ctx.k, t0 = ctx.t0, t1 = ctx.t1;
+  const es = (e && e.es) || '', fs = (e && e.fs) || '';
+  const ed = e ? injMs(e.date) : null, rw = e ? injRetWeek(ctx, e.ret) : null;
+  const long = injIsLong(e) || (!e && inRes), lbl = e ? injLongLabel(e) : 'On a reserve list';
+  if (injGe(ed, K != null ? K - 3 * INJ_HOUR : null) && !long){
+    if (es === 'Out' || fs === 'OUT' || fs === 'INACTIVE') return ['out', fs === 'INACTIVE' ? `Inactive for Week ${W}` : `Ruled out for Week ${W}`];
+    if (es === 'Active' && o && (o.gs === 'Questionable' || o.gs === 'Doubtful')) return ['ok', `Active for Week ${W}, cleared to play`];
+  }
+  if (long){
+    if (o && (o.practice === 'FP' || o.practice === 'LP')) return [o.practice === 'FP' ? 'likely' : 'gtd', `Back at practice from ${lbl === 'On IR' ? 'IR' : 'a reserve list'} (${o.practice === 'FP' ? 'full' : 'limited'}), could be activated`];
+    if (rw != null && rw > W) return ['ir', `${lbl}, expected back Week ${rw}`];
+    if (rw != null && rw === W) return ['ir', `${lbl}, could return Week ${W}`];
+    return ['ir', lbl];
+  }
+  const cat = injEspnCat(e, rw, W);
+  if (o){
+    const prac = o.practice, gs = o.gs, why = (o.injury || '').toLowerCase();
+    const finalOut = (ctx.rep || []).some(r => r.gs) || injGe(now, t1 != null ? t1 + 2 * INJ_HOUR : null);
+    if (gs === 'Out') return ['out', `Ruled out for Week ${W}`];
+    if (injGe(ed, t1) && es !== 'Active' && (fs === 'OUT' || fs === 'INACTIVE' || (es === 'Out' && fs !== 'QUESTIONABLE' && fs !== 'DOUBTFUL'))) return ['out', `Downgraded to out for Week ${W}`];
+    if (gs === 'Doubtful') return ['doubt', `Doubtful for Week ${W}` + (({DNP: ', did not practice', LP: ', limited in practice'})[prac] || '')];
+    if (why.includes('resting player')) return ['likely', 'Rest day, not injured'];
+    if (!gs && !finalOut){
+      if (cat === 'out' && prac !== 'FP' && prac !== 'LP') return ['out', `Expected to miss Week ${W}` + (rw && rw > W ? `, back around Week ${rw}` : '')];
+      if (cat === 'doubt' && prac !== 'FP' && prac !== 'LP') return ['doubt', `Doubtful for Week ${W}`];
+    }
+    if (why.includes('personal matter') && gs !== 'Questionable') return ['gtd', 'Personal matter'];
+    if (!gs && finalOut) return ['likely', 'No game status, expected to play'];
+    return [({FP: 'likely', LP: 'gtd', DNP: 'risk'})[prac] || 'gtd', injPracText(prac, gs)];
+  }
+  if (cat == null) return null;
+  if (ctx.rep != null && !injGe(ed, t0)) return null;   // the team filed this week's report without him and ESPN has nothing newer
+  if (cat === 'out') return ['out', `Expected to miss Week ${W}` + (rw && rw > W ? `, back around Week ${rw}` : '')];
+  if (cat === 'doubt') return ['doubt', `Doubtful for Week ${W}`];
+  if (cat === 'risk') return ['risk', `In doubt for Week ${W}, could be back by then`];
+  return ['gtd', `Questionable for Week ${W}`];
+}
+function mergeTeamInj(ctx, items, now){
+  const byN = new Map(), byAlt = new Map();
+  for (const e of items){
+    const k = injNorm(e.name);
+    if (byN.has(k) && (injMs(byN.get(k).date) || 0) >= (injMs(e.date) || 0)) continue;
+    byN.set(k, e);
+  }
+  for (const [k, e] of byN){ const a = injAlt(e.name); if (a) byAlt.set(a, byAlt.has(a) ? null : k); }
+  const used = new Set(), out = [];
+  const key = new Set(ctx.key), skill = new Set(ctx.skill), res = new Map((ctx.res || []).map(r => [injNorm(r[0]), r]));
+  const emit = (name, pos, injury, o, e, k) => {
+    const r = injDecide(ctx, o, e, res.has(k), now);
+    if (!r) return;
+    out.push({name, pos, injury, status: o ? o.gs : null, practice: o ? o.practice : null, level: r[0], outlook: r[1],
+      ret_wk: e ? injRetWeek(ctx, e.ret) : null, key: key.has(k), skill: skill.has(k),
+      upd: e && e.es !== 'Active' ? e.date : null, src: o ? 'report' : (e ? 'espn' : 'roster')});
+  };
+  for (const o of ctx.rep || []){
+    const k = injNorm(o.name);
+    let e = byN.get(k);
+    if (!e){ const ek = byAlt.get(injAlt(o.name)); if (ek && !used.has(ek)){ e = byN.get(ek); used.add(ek); } }
+    used.add(k);
+    const inj = (o.injury || '').replace(/^Not injury related\s*-\s*/i, '') || (e ? e.injury : null);
+    emit(o.name, o.pos || (e ? e.pos : null) || null, inj || null, o, e || null, k);
+  }
+  for (const [k, e] of byN){ if (used.has(k) || e.es === 'Active') continue; used.add(k); emit(e.name, e.pos, e.injury, null, e, k); }
+  for (const [k, r] of res){ if (used.has(k) || byN.has(k)) continue; emit(r[0], r[1] || null, null, null, null, k); }
+  const ord = l => INJ_ORDER[l] ?? 9;
+  out.sort((a, b) => (a.key === b.key ? 0 : a.key ? -1 : 1) || ord(a.level) - ord(b.level) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return out;
+}
+/* inj-merge:end */
+let INJ_IDX = {};
+function buildInjIdx(){ INJ_IDX = {}; Object.entries(D.injuries || {}).forEach(([t, lst]) => lst.forEach(i => { INJ_IDX[t + '|' + injNorm(i.name)] = i; })); }
+buildInjIdx();
+/* the current status for any player object with a team and name (falls back to what the build attached) */
+function injOf(x){ return !x ? null : D.inj_ctx ? (INJ_IDX[x.team + '|' + injNorm(x.name)] || null) : (x.inj || null); }
+function injPill(x, lead){
+  const i = injOf(x);
+  return i && !['likely', 'ok'].includes(i.level) ? `${lead ? ' ' : ''}<span class="pill lvl-${i.level}">${esc(i.outlook.split(',')[0])}</span>` : '';
+}
+
 /* ---------- +/− steppers: phone keypads often have no minus or plus key ---------- */
 // kind: odds (American, steps of 5, skips -100..+100), spread (0.5, either sign), line (1, so .5 lines stay .5), units (0.25, min 0.25)
 function stepWrap(input, kind){
@@ -841,6 +994,10 @@ function show(view){
   $$('.view').forEach(v => v.hidden = v.id !== 'v-' + view);
   store.set('tab', view);
   if (view === 'teams') renderTeams();
+  if (INJ_STALE.delete('hc')) renderHC();
+  if (INJ_STALE.delete('ls')) renderLS();
+  if (INJ_STALE.delete('trends')) renderTrends();
+  INJ_STALE.delete('props'); INJ_STALE.delete('tips');
   if (view === 'tips') renderTips();
   if (view === 'props') renderProps();
   if (view === 'model') drawUnits('model');
@@ -934,7 +1091,7 @@ function gameChips(g){
   const out = [];
   g.mismatches.forEach(mm => out.push(`<span class="pill stripe">${mm.off} ${mm.unit === 'pass' ? 'pass' : 'run'} O #${mm.off_rank} vs ${mm.def} ${mm.unit === 'pass' ? 'pass' : 'run'} D #${mm.def_rank}</span>`));
   const keyInj = [g.away, g.home].map(t => (D.injuries[t] || []).filter(i => i.key && ['out', 'doubt', 'risk', 'gtd'].includes(i.level)).length);
-  if (keyInj[0] + keyInj[1]) out.push(`<span class="pill warn">Key injuries: ${g.away} ${keyInj[0]} · ${g.home} ${keyInj[1]}</span>`);
+  if (!g.final && keyInj[0] + keyInj[1]) out.push(`<span class="pill warn">Key injuries: ${g.away} ${keyInj[0]} · ${g.home} ${keyInj[1]}</span>`);
   const tr = D.trends.team.filter(t => (t.team === g.away || t.team === g.home) && t.kind !== 'betting');
   tr.slice(0, 2).forEach(t => out.push(`<span class="pill ${t.tone === 'up' ? 'win' : 'loss'}">${t.team} ${esc(t.label.toLowerCase())}</span>`));
   (g.teaser || []).forEach(x => out.push(`<span class="pill ${x.kind === 'dog' ? 'win' : 'ghost'}" title="Six-point teaser leg">Teaser: ${x.team} ${fmtLine(x.from)} → ${fmtLine(x.to)} · legs like this won ${pct(x.rate)}${x.kind === 'fav' ? ', below break-even' : ''}</span>`));
@@ -989,22 +1146,31 @@ function detailHtml(g, which){
   const seg = `<div class="seg" role="group" aria-label="Game details">${DETAIL_TABS.map(([k, l]) => `<button data-dtab="${k}" data-g="${g.id}" aria-pressed="${k === which}">${l}</button>`).join('')}</div>`;
   let body = '';
   if (which === 'inj') body = `<div class="twocol">${[g.away, g.home].map(t => injCol(t)).join('')}</div>
-      <div class="note">Status from the official NFL injury report (latest practice day) with expected-return weeks from CBS Sports. "Latest on X" opens a live X search for beat-reporter updates.</div>`;
+      <div class="note">Every status is for that team's next game. ESPN's injury news is checked live every few minutes (<span class="inj-stamp">${injStampText()}</span>), and practice participation and game designations come from the official NFL report, pulled from NFL.com every 30 minutes. "Latest on X" opens a live search for beat-reporter updates.</div>`;
   if (which === 'props') body = propsHtml(g);
   if (which === 'trends') body = `<div class="twocol">${[g.away, g.home].map(t => `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}</span></div>${trendMini(t)}</div>`).join('')}</div>`;
   if (which === 'stats') body = `<table class="tape"><thead><tr><th>Season stats (rank of 32)</th><th>${g.away}</th><th>${g.home}</th></tr></thead><tbody>${tapeRows(g, KEY_ROWS.concat(MORE_ROWS))}</tbody></table>`;
   if (which === 'log') body = `<div class="twocol">${[g.away, g.home].map(t => logCol(t)).join('')}</div>`;
   return seg + body;
 }
+const IR_TAG = o => o.startsWith('On PUP') ? 'PUP' : o.startsWith('Suspended') ? 'Suspended' : o.startsWith('On the NFI') ? 'NFI' : o.startsWith('On IR') ? 'IR' : 'Reserve';
+function injNextLine(t){
+  const c = (D.inj_ctx || {})[t];
+  if (!c || !c.opp) return '';
+  const when = c.kick ? new Date(c.kick).toLocaleString([], {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : '';
+  const rep = c.rep ? 'official practice report in' : 'no practice report yet';
+  return `<div class="inj-next">Week ${c.wk} ${c.home ? 'vs' : '@'} ${esc(c.opp)}${when ? ', ' + esc(when) : ''} · ${rep}</div>`;
+}
 function injCol(t){
   const list = D.injuries[t] || [];
   const showAll = !!injShowAll[t];
   const rel = list.filter(i => i.level !== 'ok' && i.level !== 'likely' || i.key);
   const shown = showAll ? list : rel.filter(i => i.key || ['out', 'doubt', 'risk'].includes(i.level)).slice(0, 10);
-  const rows = shown.map(i => `<div class="inj"><div class="top"><span class="who">${esc(i.name)} <small>${esc(i.pos)}${i.injury ? ' · ' + esc(i.injury) : ''}</small></span>
-      <span class="pill lvl-${i.level}">${({out: 'Out', ir: i.outlook.startsWith('On PUP') ? 'PUP' : 'IR', doubt: 'Doubtful', risk: 'In doubt', gtd: 'Questionable', likely: 'Likely', ok: 'Active'})[i.level] || i.level}</span></div>
-      <div class="top"><span class="ol">${esc(i.outlook)}${i.practice && !/practice/i.test(i.outlook) ? ` · ${({DNP: 'did not practice', LP: 'limited practice', FP: 'full practice'})[i.practice] || i.practice}` : ''}</span><a class="x" href="${xLink(i.name)}" target="_blank" rel="noopener">Latest on X ↗</a></div></div>`).join('');
+  const rows = shown.map(i => `<div class="inj"><div class="top"><span class="who">${esc(i.name)} <small>${esc(i.pos || '')}${i.injury ? ' · ' + esc(i.injury) : ''}</small></span>
+      <span class="pill lvl-${i.level}">${({out: 'Out', ir: IR_TAG(i.outlook), doubt: 'Doubtful', risk: 'In doubt', gtd: 'Questionable', likely: 'Likely', ok: 'Active'})[i.level] || i.level}</span></div>
+      <div class="top"><span class="ol">${esc(i.outlook)}${i.practice && !/practice/i.test(i.outlook) ? ` · ${({DNP: 'did not practice', LP: 'limited practice', FP: 'full practice'})[i.practice] || esc(i.practice)}` : ''}${i.upd ? ` <span class="inj-when">· ${esc(ago(i.upd))}</span>` : ''}</span><a class="x" href="${xLink(i.name)}" target="_blank" rel="noopener">Latest on X ↗</a></div></div>`).join('');
   return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)} · ${list.length} listed</span></div>
+    ${injNextLine(t)}
     ${rows || '<div class="note">No key players listed.</div>'}
     ${list.length > shown.length || showAll ? `<button class="btn link" data-injall="${t}">${showAll ? 'Show key players only' : 'Show all ' + list.length}</button>` : ''}</div>`;
 }
@@ -1097,7 +1263,7 @@ function propsHtml(g){
 function propRow(g, p){
   const keys = mainProps(p).filter(k => p.proj[k] != null);
   const k0 = keys[0];
-  const inj = p.inj && !['likely', 'ok'].includes(p.inj.level) ? `<span class="pill lvl-${p.inj.level}">${esc(p.inj.outlook.split(',')[0])}</span>` : '';
+  const inj = injPill(p);
   const usage = p.pos === 'QB' ? `${p.avg.att ?? '–'} att/g` : p.pos === 'RB' ? `${pct(p.share.car)} carries · ${pct(p.share.tgt)} tgts` : `${pct(p.share.tgt)} tgt share · ${pct(p.share.ay)} air yds`;
   const avgTxt = k0 === 'pass_yds' ? `Avg ${p.avg.pass_yds} · L3 ${p.l3.pass_yds}` : k0 === 'rush_yds' ? `Avg ${p.avg.rush_yds} · L3 ${p.l3.rush_yds}` : `Avg ${p.avg.rec_yds} · L3 ${p.l3.rec_yds}`;
   const td = p.proj.any_td != null ? ` · TD ${pct(p.proj.any_td)} (fair ${fairOdds(p.proj.any_td)})` : '';
@@ -1324,7 +1490,7 @@ function ppRow(g, p, key){
   const log = p.log || [], vals = log.map(l => ppVal(l, key)), avg = vals.length ? vals.reduce((a, v) => a + v, 0) / vals.length : null;
   const l3v = vals.slice(-3), l3 = l3v.length ? l3v.reduce((a, v) => a + v, 0) / l3v.length : null, proj = p.proj[key];
   const f1 = v => v == null ? '–' : key === 'receptions' ? v.toFixed(1) : String(Math.round(v));
-  const inj = p.inj && !['likely', 'ok'].includes(p.inj.level) ? `<span class="pill lvl-${p.inj.level}">${esc(p.inj.outlook.split(',')[0])}</span>` : '';
+  const inj = injPill(p);
   const usage = p.pos === 'QB' ? `${p.avg.att ?? '–'} att/g` : p.pos === 'RB' ? `${pct(p.share.car)} carries · ${pct(p.share.tgt)} tgts` : `${pct(p.share.tgt)} tgt share`;
   const mk = ppMxStat(key, p.pos), mx = key === 'any_td' ? (mk ? `<div class="mxl"><span>vs ${opp} to ${p.pos}s:</span>${mxChip(opp, p.pos, mk)}</div>` : '') : matchupLine(opp, p.pos, key);
   const big = key === 'any_td' ? `${pct(proj)}<small>TD chance</small>` : `${f1(proj)}<small>${T_.short}</small>`;
@@ -1516,7 +1682,7 @@ function hcChips(x){
 const hcKey = x => `hc:${x.week}:${x.kind}:${x.id || x.team}:${x.key || ''}${x.t || ''}`;
 function hcCard(x, i){
   const sel = HC_SEL.has(i);
-  const inj = x.inj && !['likely', 'ok'].includes(x.inj.level) ? `<span class="pill lvl-${x.inj.level}">${esc(x.inj.outlook.split(',')[0])}</span>` : '';
+  const inj = injPill(x);
   return `<article class="hc ${sel ? 'sel' : ''}">
     <div class="hc-top"><div class="hc-p"><span class="big num">${Math.round(x.p * 100)}%</span><span class="small">chance</span></div>
       <div style="min-width:0"><div class="hc-label">${esc(x.label)}</div>
@@ -1580,7 +1746,7 @@ const lsKey = x => `ls:${x.week}:${x.market}:${x.id}`;
 const LS_KIND = {atd: 'Anytime TD', ftd: 'First TD', td2: '2+ TDs', rec100: '100+ receiving yards', rush100: '100+ rushing yards', pass300: '300+ passing yards'};
 function lsCard(x, i){
   const sel = LS_SEL.has(i);
-  const inj = x.inj && !['likely', 'ok'].includes(x.inj.level) ? `<span class="pill lvl-${x.inj.level}">${esc(x.inj.outlook.split(',')[0])}</span>` : '';
+  const inj = injPill(x);
   const started = Date.now() > new Date(x.kickoff).getTime();
   return `<article class="hc ls ${sel ? 'sel' : ''}">
     <div class="hc-top"><div class="hc-p"><span class="big num">${Math.round(x.p * 100)}%</span><span class="small">chance</span></div>
@@ -1691,7 +1857,7 @@ function fmtMetric(m, v){
 }
 function playerTrendRow(p, noNext){
   const rec = p.recent.map(v => fmtMetric(p.metric, v)).join(' → ');
-  const inj = p.inj && !['likely', 'ok'].includes(p.inj.level) ? ` <span class="pill lvl-${p.inj.level}">${esc(p.inj.outlook.split(',')[0])}</span>` : '';
+  const inj = injPill(p, true);
   return `<div class="tr" data-chart="p|${esc(p.id)}|${p.metric}" role="button" tabindex="0" aria-label="Open chart: ${esc(p.name + ' ' + p.label)}"><div>${chip(p.team, 1)}</div>
     <div style="min-width:0"><div class="tt">${esc(p.name)} <span class="small">${p.pos}</span>: ${esc(p.label.toLowerCase())} ${p.tone === 'up' ? 'up' : 'down'}${inj}</div>
     <div class="td">Last ${p.weeks}: ${rec} · usual ${fmtMetric(p.metric, p.usual)}</div>
@@ -2602,6 +2768,54 @@ async function liveScores(){
     if (anyLive) liveTimer = setTimeout(() => { if (!document.hidden) liveScores(); }, 60000);
   } catch(e){ /* live scores are a bonus; the published data still loads */ }
 }
+/* injuries straight from ESPN's live feed, merged with the official report the build shipped (mirrors the build) */
+let INJ_LIVE_AT = null, INJ_LIVE_ERR = false, INJ_BUSY = false;
+const INJ_STALE = new Set();
+function injStampText(){
+  if (INJ_LIVE_AT) return 'checked ' + ago(new Date(INJ_LIVE_AT).toISOString());
+  if (INJ_LIVE_ERR) return `ESPN didn't answer just now, so these are as of the last data refresh, ${ago(D.meta.asof)}`;
+  return 'checking now';
+}
+function injStamp(){ $$('.inj-stamp').forEach(el => { el.textContent = injStampText(); }); }
+const injSig = () => Object.keys(D.injuries).sort().map(t => t + ':' + D.injuries[t].map(i => i.name + '/' + i.level + '/' + i.outlook).join(',')).join(';');
+function injChanged(){
+  D.games.forEach(g => {
+    const card = document.getElementById('g-' + g.id); if (!card) return;
+    const chips = card.querySelector('.g-chips'); if (chips) chips.innerHTML = gameChips(g);
+    const det = card.querySelector('.g-detail');
+    if (det && !det.hidden && !det.contains(document.activeElement)){
+      const on = det.querySelector('[data-dtab][aria-pressed="true"]');
+      if (on && (on.dataset.dtab === 'inj' || on.dataset.dtab === 'props')) det.innerHTML = detailHtml(g, on.dataset.dtab);
+    }
+  });
+  // other sections redraw now if they're out of sight or nobody is typing in them, otherwise the next time they're opened
+  const busy = !$('#sheet').hidden || !$('#navsheet').hidden || (CH && !$('#csheet').hidden);
+  [['hc', renderHC], ['ls', renderLS], ['trends', renderTrends], ['props', renderProps], ['tips', renderTips]].forEach(([k, fn]) => {
+    const v = $('#v-' + k);
+    if (!v) return;
+    if (v.hidden){ if (k === 'hc' || k === 'ls' || k === 'trends') fn(); return; }
+    if (busy || v.contains(document.activeElement)) INJ_STALE.add(k); else fn();
+  });
+}
+async function liveInjuries(){
+  if (!D.inj_ctx || INJ_BUSY) return;
+  INJ_BUSY = true;
+  try {
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 15000);
+    const r = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries', {signal: ctl.signal, cache: 'no-store'});
+    clearTimeout(tm); if (!r.ok) throw new Error('HTTP ' + r.status);
+    const items = parseEspnInj(await r.json(), NAME2AB, {WSH: 'WAS', LAR: 'LA', JAC: 'JAX'}, ab => !!T[ab]);
+    if (items.length < 100) throw new Error('partial feed');      // never let a half-empty answer clear real injuries
+    const by = {}; items.forEach(e => { (by[e.team] = by[e.team] || []).push(e); });
+    const before = injSig(), now = Date.now();
+    Object.keys(D.inj_ctx).forEach(t => { D.injuries[t] = mergeTeamInj(D.inj_ctx[t], by[t] || [], now); });
+    buildInjIdx(); INJ_LIVE_AT = now; INJ_LIVE_ERR = false;
+    if (injSig() !== before) injChanged();
+  } catch(e){ INJ_LIVE_ERR = true; }
+  INJ_BUSY = false;
+  injStamp();
+}
+setInterval(() => { injStamp(); if (!document.hidden && (!INJ_LIVE_AT || Date.now() - INJ_LIVE_AT >= 4.5 * 60000)) liveInjuries(); }, 60000);
 async function checkForNewData(){
   if (Date.now() - LOADED_AT < 10 * 60000) return;
   try {
@@ -2614,7 +2828,7 @@ async function checkForNewData(){
     }
   } catch(e){}
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden){ checkForNewData(); liveScores(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ checkForNewData(); liveScores(); if (!INJ_LIVE_AT || Date.now() - INJ_LIVE_AT > 2 * 60000) liveInjuries(); } });
 
 /* ---------- boot ---------- */
 renderWeek(); renderModel(); renderHC(); renderLS(); renderTrends(); renderPicks(); renderMatters();
@@ -2622,6 +2836,7 @@ const startTab = location.hash.replace('#', '') || store.get('tab', 'week');
 if (['week', 'props', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams'].includes(startTab) && startTab !== 'week') show(startTab);
 initPicks();
 liveScores();
+liveInjuries();
 })();
 </script>
 </body>

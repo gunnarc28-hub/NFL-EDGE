@@ -18,3 +18,6 @@ nflverse files in `raw/` and an empty `work/` folder.
 9. `10_units_backtest.py` – units won or lost following the model's picks from 2020–2025, graded at real prices:
    spread picks at −110, moneylines at the closing price (`units_research.json`). Run after 07, which saves the
    walk-forward predictions to `work/`.
+10. `inj_parity.py` – not research: checks that the page's live injury merge (`site/index.html`) and the build's
+    (`pipeline/injuries.py`) give identical statuses, on saved copies of ESPN's injury feed and an NFL.com report, across
+    made-up timings that exercise every rule. Needs Node.js.
