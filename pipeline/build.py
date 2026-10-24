@@ -422,6 +422,8 @@ for _, g in wk_games.sort_values(['gameday', 'gametime']).iterrows():
         'stadium': g.stadium, 'roof': g.roof if pd.notna(g.roof) else None, 'neutral': neutral, 'div': bool(g.div_game),
         'spread': spread, 'total': total, 'ml_home': None if pd.isna(g.home_moneyline) else int(g.home_moneyline),
         'ml_away': None if pd.isna(g.away_moneyline) else int(g.away_moneyline),
+        'odds': {'sp_h': None if pd.isna(g.home_spread_odds) else int(g.home_spread_odds), 'sp_a': None if pd.isna(g.away_spread_odds) else int(g.away_spread_odds),
+                 'o': None if pd.isna(g.over_odds) else int(g.over_odds), 'u': None if pd.isna(g.under_odds) else int(g.under_odds)},
         'final': bool(g.final), 'home_score': None if pd.isna(g.home_score) else int(g.home_score),
         'away_score': None if pd.isna(g.away_score) else int(g.away_score), 'live': live.get(g.game_id),
         'temp': None if pd.isna(g.temp) else int(g.temp), 'wind': None if pd.isna(g.wind) else int(g.wind),
@@ -1397,6 +1399,8 @@ results = {g.game_id: {'wk': int(g.week), 'a': g.away_team, 'h': g.home_team,
                        'as': None if pd.isna(g.away_score) else int(g.away_score), 'hs': None if pd.isna(g.home_score) else int(g.home_score),
                        'sp': None if pd.isna(g.spread_line) else float(g.spread_line), 'tl': None if pd.isna(g.total_line) else float(g.total_line),
                        'mlh': None if pd.isna(g.home_moneyline) else int(g.home_moneyline), 'mla': None if pd.isna(g.away_moneyline) else int(g.away_moneyline),
+                       'sph': None if pd.isna(g.home_spread_odds) else int(g.home_spread_odds), 'spa': None if pd.isna(g.away_spread_odds) else int(g.away_spread_odds),
+                       'oo': None if pd.isna(g.over_odds) else int(g.over_odds), 'uo': None if pd.isna(g.under_odds) else int(g.under_odds),
                        'k': kickoff_iso(g)} for _, g in S.iterrows()}
 for gid_, (fid_, fname_, _) in FIRST_TD.items():
     if gid_ in results:
