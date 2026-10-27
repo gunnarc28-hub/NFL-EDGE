@@ -143,6 +143,17 @@ jobs:
         if: github.event_name != 'schedule'
         with:
           python-version: "3.13"
+      - name: Can a browser on the site reach ESPN? (cross-origin headers)
+        if: github.event_name != 'schedule'
+        continue-on-error: true
+        run: |
+          o="https://gunnarc28-hub.github.io"
+          for u in football/nfl/scoreboard football/nfl/injuries basketball/nba/scoreboard basketball/nba/injuries hockey/nhl/injuries; do
+            for ua in "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36"; do
+              h=$(curl -s -o /dev/null -D - --max-time 20 -H "Origin: $o" -H "User-Agent: $ua" "https://site.api.espn.com/apis/site/v2/sports/$u" | tr -d '\r' | grep -iE "^HTTP|^access-control-allow-origin" | tr '\n' ' ')
+              echo "::notice title=ESPN $u (${ua:13:6})::$h"
+            done
+          done
       - name: Click through every page
         if: github.event_name != 'schedule'
         continue-on-error: true

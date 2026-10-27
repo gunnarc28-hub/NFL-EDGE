@@ -21,7 +21,9 @@ def gh(level, title, msg):
 
 
 async def check(browser, name, path, tabs):
-    ctx = await browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
+    # an iPhone's Safari, so sites that turn away headless browsers answer as they would a real visitor
+    ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1'
+    ctx = await browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True, user_agent=ua)
     pg = await ctx.new_page(); errs = []
     pg.on('pageerror', lambda e: errs.append('error: ' + str(e)))
     pg.on('console', lambda m: errs.append('console: ' + m.text) if m.type == 'error' and 'Failed to load resource' not in m.text and 'net::' not in m.text else None)
