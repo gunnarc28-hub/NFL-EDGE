@@ -1,11 +1,11 @@
-"""Rebuild site/data/data.json from the latest public data.
+"""Rebuild the NFL page's numbers (site/nfl/data/: data.json, grade.json, summary.json) from the latest public data.
 
 Runs on a schedule in GitHub Actions. Pulls the current season from nflverse (play-by-play, player stats, schedules
 and lines, official injury reports, snap counts, Next Gen Stats) plus ESPN's injury and scoreboard feeds, then
 computes records, ratings, model lines, stat ranks, injury outlooks, prop projections, 2+ week trends and the
 model's pick record. The research behind the model (2017-2025) ships in static/ and does not need to be rerun.
 
-    python pipeline/build.py            # writes site/data/data.json
+    python pipeline/build.py            # writes site/nfl/data/
 """
 import os, sys, json, re, math, time, gzip, shutil, datetime as dt, urllib.request, urllib.error
 import numpy as np, pandas as pd

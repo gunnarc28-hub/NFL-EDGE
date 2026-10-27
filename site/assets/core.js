@@ -37,6 +37,7 @@ function evMsg(p, fair, raw){
   if (o == null) return {t: String(raw || '').trim() ? 'Use American odds, like +250 or -120' : "Enter your book's odds to see if the price is worth it", c: ''};
   const ev = evOf(p, o), c = Math.round(ev * 100);
   if (ev >= 0.05) return {t: `Good price: about +${c}¢ back per $1 over time`, c: 'pos'};
+  if (c === 0) return {t: 'About break-even: the price matches the chance', c: 'thin'};
   if (ev >= 0) return {t: `Thin edge: +${c}¢ per $1, inside the model's margin of error`, c: 'thin'};
   return {t: `Not worth it: about −${Math.abs(c)}¢ per $1. Needs ${fmtOdds(fair)} or better`, c: 'neg'};
 }
@@ -119,6 +120,16 @@ const SPORTS = {
   nhl: {key: 'nhl', label: 'NHL', name: 'Hockey', path: 'nhl/', period: 'Day'}
 };
 
+/* a live game's clock: ESPN's "38.7 - 4th" reads "4th · 38.7", the NHL feed's "P3" reads "3rd" */
+function liveTxt(d){
+  d = String(d || '').trim(); if (!d) return 'Live';
+  const ORD = {1: '1st', 2: '2nd', 3: '3rd', 4: '4th'};
+  let m = /^P(\d)$/.exec(d); if (m) return ORD[m[1]] || d;
+  m = /^([\d:.]+)\s*-\s*(.+)$/.exec(d);
+  if (m) return /^0+(:0+)?(\.0+)?$/.test(m[1]) ? `End of ${m[2]}` : `${m[2]} · ${m[1]}`;
+  return d;
+}
+
 window.SE = {$, $$, esc, mkStore, sign, fmtLine, fmtOdds, pct, numOf, parseOdds, dec, amOf, impProb, oddsNum, evOf, evMsg, erf, ncdf, uid, unitsTxt,
-             kick, ago, dayKey, dayLabel, toast, spark, stepWrap, stepInput, SPORTS};
+             kick, ago, dayKey, dayLabel, toast, spark, stepWrap, stepInput, liveTxt, SPORTS};
 })();

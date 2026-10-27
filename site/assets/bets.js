@@ -193,6 +193,7 @@ function legP(l){ return l.sport === A.sport && A.modelP ? A.modelP(l) : (l.p ??
 function addLeg(l, opts){
   opts = opts || {};
   l = Object.assign({}, l); l.sport = l.sport || A.sport; l.key = slipKey(l); l.id = l.id || uid('leg');
+  needGrade(l.sport);
   if (l.line != null && l.line !== '') l.line = Number(l.line);
   if (l.p == null && l.sport === A.sport && A.modelP) l.p = A.modelP(l);
   decorate(l);
@@ -239,7 +240,9 @@ function fairHtml(p, price, same, n){
   if (p == null) return `<div class="small">Give every leg a model chance to see the fair price. Team totals and custom legs have none.</div>`;
   const fair = oddsNum(p);
   let h = `<div class="sf-m"><span class="big num">${pct(p, p < 0.1 ? 1 : 0)}</span><span>model chance all ${n} legs hit · fair price <b>${fmtOdds(fair)}</b></span></div>`;
-  if (price != null){ const r = evMsg(p, fair, String(price)); h += `<div class="ev ${r.c}">${esc(r.t)}</div>`; }
+  const stand = SLIP.mode === 'teaser' || parseOdds(SLIP.book) != null ? 0 : SLIP.legs.filter(l => l.oddsFair).length;
+  if (price != null && stand) h += `<div class="small" style="color:var(--warn)">${stand === 1 ? 'One leg uses' : `${stand} legs use`} the fair price as a stand-in. Type your book's odds on ${stand === 1 ? 'it' : 'them'} to see whether the parlay is worth it.</div>`;
+  else if (price != null){ const r = evMsg(p, fair, String(price)); h += `<div class="ev ${r.c}">${esc(r.t)}</div>`; }
   if (same) h += `<div class="small" style="color:var(--warn)">Two legs come from the same game, so they rise and fall together. The true chance is different from this multiplication, and most books won't let you parlay them straight.</div>`;
   if (SLIP.mode !== 'teaser' && SLIP.legs.some(l => l.tease)) h += `<div class="small" style="color:var(--warn)">A teased leg only exists inside a teaser. Remove the other legs or switch to Teaser.</div>`;
   return h;
@@ -268,7 +271,7 @@ function slipLegHtml(l0){
   const roNote = ro && (hasLine || ou) && A.sport != null ? `<a class="small sl-ed" href="${editHref(l0)}">Change the line on the ${SL(l0.sport)} page</a>` : '';
   return `<div class="sl" data-lid="${l0.id}">
     <div class="sl-top"><div class="sl-l"><div class="sl-n">${mixed() ? sportTag(l0.sport) + ' ' : ''}${esc(legLabel(l))}${l.tease ? ` <span class="pill ghost">${fmtLine(l.from)} → ${fmtLine(l.line)}</span>` : ''}</div>
-      <div class="small">${esc(marketLabel(l))} · ${esc(legSub(l))}${started ? ` · <b style="color:var(--warn)">${g.hs != null ? 'final' : 'started'}</b>` : ''}</div></div>
+      <div class="small">${[marketLabel(l), legSub(l)].filter(Boolean).map(esc).join(' · ')}${started ? ` · <b style="color:var(--warn)">${g.hs != null ? 'final' : 'started'}</b>` : ''}</div></div>
       <button type="button" class="sl-x" data-sldel="${l0.id}" aria-label="Remove ${esc(legLabel(l))}">×</button></div>
     <div class="sl-row">${sideSeg}${lineIn}${oddsIn}${stakeIn}${roNote}</div>
     <div class="sl-fair" data-slfair="${l0.id}">${legFairHtml(l)}${single ? ' · ' + single : ''}</div></div>`;
@@ -660,6 +663,7 @@ function init(adapter){
   A = Object.assign({sport: null, root: '', modelP: null}, adapter || {});
   if (A.sport && A.grade) G[A.sport] = A.grade;
   loadSlip(); BETS = loadBets();
+  SLIP.legs.forEach(l => needGrade(l.sport));
   wire();
   SLIP.legs.forEach(l => { if (l.sport === A.sport){ const p = legP(l); if (p != null) l.p = p; decorate(l); } });
   renderBets(); refreshSlipUI();

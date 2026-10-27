@@ -1,9 +1,9 @@
-name: Update NFL Edge
+name: Update Sports Edge
 
 on:
   schedule:
-    # every 30 minutes, August through February (times are UTC)
-    - cron: "7,37 * * 1,2,8,9,10,11,12 *"
+    # every 30 minutes, all year (times are UTC); a sport with no games just rebuilds its off-season page
+    - cron: "7,37 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -15,13 +15,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: nfl-edge-pages
+  group: sports-edge-pages
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -34,8 +34,59 @@ jobs:
       - name: Install
         run: pip install -r pipeline/requirements.txt
 
-      - name: Build the latest data
-        run: python pipeline/build.py
+      # Each sport builds on its own. If one fails, the site keeps that sport's last good numbers
+      # (downloaded here from the live site) and the other sports still update.
+      - name: Start from the live site's numbers
+        run: |
+          base="https://gunnarc28-hub.github.io/NFL-EDGE"
+          for s in nfl nba nhl; do
+            mkdir -p "site/$s/data"
+            for f in data.json logs.json grade.json summary.json odds_log.json; do
+              if curl -fsSL --retry 2 --max-time 60 "$base/$s/data/$f?t=$(date +%s)" -o "site/$s/data/$f.live"; then
+                mv "site/$s/data/$f.live" "site/$s/data/$f"
+              else
+                rm -f "site/$s/data/$f.live"
+              fi
+            done
+          done
+
+      - name: Build NFL
+        id: nfl
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          python pipeline/build.py 2>&1 | tee nfl.log
+
+      - name: Build NBA
+        id: nba
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          python pipeline/nba.py 2>&1 | tee nba.log
+
+      - name: Build NHL
+        id: nhl
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          python pipeline/nhl.py 2>&1 | tee nhl.log
+
+      - name: Report each sport
+        if: always()
+        run: |
+          note() { tail -n "$3" "$2" 2>/dev/null | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
+          for s in nfl nba nhl; do
+            case $s in nfl) o="${{ steps.nfl.outcome }}";; nba) o="${{ steps.nba.outcome }}";; nhl) o="${{ steps.nhl.outcome }}";; esac
+            S=$(echo $s | tr a-z A-Z)
+            if [ "$o" = "success" ]; then echo "::notice title=$S updated::$(note $s $s.log 12)";
+            else echo "::error title=$S build $o (the site keeps its last good numbers)::$(note $s $s.log 25)"; fi
+          done
+          for s in nfl nba nhl; do
+            test -s "site/$s/data/data.json" || { echo "::error::No $s numbers at all, not deploying"; exit 1; }
+          done
 
       - name: Daily heartbeat commit (keeps GitHub from pausing the schedule)
         run: |

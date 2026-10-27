@@ -2,3 +2,7 @@ pipeline/.cache/
 .cache/
 __pycache__/
 *.pyc
+
+# the line logs persist through the live site, not git (the build reads the deployed copy)
+site/nba/data/odds_log.json
+site/nhl/data/odds_log.json

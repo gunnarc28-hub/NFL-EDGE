@@ -1,7 +1,7 @@
 /* Sports Edge home: a card per sport from each sport's summary.json, live scores while games are on, and the shared bets. */
 (function(){
 'use strict';
-const {$, $$, esc, fmtOdds, pct, sign, unitsTxt, kick, ago, dayKey, toast, SPORTS} = SE;
+const {$, $$, esc, fmtOdds, pct, sign, unitsTxt, kick, ago, dayKey, toast, liveTxt, SPORTS} = SE;
 const store = SE.mkStore('sportsedge.');
 const ORDER = ['nfl', 'nba', 'nhl'];
 const SUM = {};
@@ -17,7 +17,7 @@ function cardHtml(sp){
   const sub = gs.length ? `${esc(S.period)} · ${gs.length} game${gs.length === 1 ? '' : 's'}${live ? ` · <b style="color:#fff">${live} live</b>` : left ? ` · ${left} to go` : ' · all final'}` : S.next ? `Next game ${esc(kick(S.next.k, {weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: undefined}))}` : esc(S.off || 'No games scheduled');
   const shown = gs.slice(0, 5);
   const gameRow = g => {
-    const st = g.st === 'in' ? `<span class="lv">${esc(g.det || 'Live')}</span> · <b>${g.as}–${g.hs}</b>` : g.st === 'post' ? `Final · <b>${g.as}–${g.hs}</b>` : `${esc(kick(g.k, {weekday: dayKey(g.k) === dayKey(new Date().toISOString()) ? undefined : 'short', hour: 'numeric', minute: '2-digit', timeZoneName: undefined}))}${g.line ? ` · <b>${esc(g.line)}</b>` : ''}`;
+    const st = g.st === 'in' ? `<span class="lv">${esc(liveTxt(g.det))}</span> · <b>${g.as}–${g.hs}</b>` : g.st === 'post' ? `Final · <b>${g.as}–${g.hs}</b>` : `${esc(kick(g.k, {weekday: dayKey(g.k) === dayKey(new Date().toISOString()) ? undefined : 'short', hour: 'numeric', minute: '2-digit', timeZoneName: undefined}))}${g.line ? ` · <b>${esc(g.line)}</b>` : ''}`;
     return `<a class="sc-g" href="${C.path}#g-${encodeURIComponent(g.id)}" data-sg="${sp}|${esc(g.id)}"><span class="mu">${esc(g.a)} <span class="small">@</span> ${esc(g.h)}${g.pick ? ` <span class="pill stripe" title="Model's pick to win">${esc(g.pick)}</span>` : ''}</span><span class="st">${st}</span></a>`;
   };
   const picks = (S.picks || []).slice(0, 4).map(p => `<a class="sc-p" href="${C.path}#${esc(p.view || 'hc')}"><span class="tag ${esc(p.tag)}">${esc(({hc: 'High-chance', ls: 'Long shot', md: 'Model'})[p.tag] || p.tag)}</span>
@@ -55,7 +55,7 @@ function homeBets(){
     return `<div class="pk"><span>${sp.map(SB.sportTag).join('')}</span><div style="min-width:0"><div class="d">${esc(t)} <span class="small num">${fmtOdds(Number(b.odds))}</span></div><div class="m">${esc(sub)}${b.type !== 'single' && done ? ` · ${done} of ${b.legs.length} legs won` : ''}</div></div><div class="small num">${unitsTxt(Number(b.stake) || 1)} to win ${unitsTxt((Number(b.stake) || 1) * (SE.dec(b.odds) - 1))}</div></div>`;
   }).join('');
   box.innerHTML = `<div class="sec-head"><div><h2 class="h2">Your bets</h2><p class="lede">Every sport in one place. Each leg grades itself when its game ends.</p></div>
-      <div class="filters"><button class="btn" data-hgo="picks">All bets</button>${SB.slip().legs.length ? `<button class="btn stripe" data-slipopen="">Bet slip (${SB.slip().legs.length})</button>` : ''}</div></div>
+      <div class="filters"><button class="btn" data-hgo="picks">See all bets</button>${SB.slip().legs.length ? `<button class="btn stripe" data-slipopen="">Bet slip (${SB.slip().legs.length})</button>` : ''}</div></div>
     <div class="tiles">
       <div class="tile"><div class="label">Open</div><div class="v num">${s.open}</div><div class="small">${s.open ? unitsTxt(s.openRisk) + ' at risk' : 'No open bets'}</div></div>
       <div class="tile"><div class="label">Record</div><div class="v num">${s.W}-${s.L}${s.P ? '-' + s.P : ''}</div><div class="small">${s.pct == null ? 'Settled bets' : pct(s.pct, 1) + ' of settled bets'}</div></div>

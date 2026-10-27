@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" data-sport="nba">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="NBA games, the model and why, injuries, player props against real lines, high-chance picks, long shots and trends, with one bet slip shared across sports.">
+<title>NBA · Sports Edge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%2317191C%22/%3E%3Crect x=%2210%22 y=%2238%22 width=%2244%22 height=%228%22 rx=%222%22 fill=%22%23F4C400%22/%3E%3Cpath d=%22M14 30 L28 18 L38 26 L50 14%22 stroke=%22%23fff%22 stroke-width=%226%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand-row">
+      <a class="brand" href="../" aria-label="Sports Edge home">Sports <b>Edge</b></a>
+      <nav class="sports" aria-label="Sport"><a href="../nfl/">NFL</a><a href="../nba/" aria-current="page">NBA</a><a href="../nhl/">NHL</a></nav>
+      <div class="brand-meta"><span id="m-day"></span><span id="m-asof"></span></div>
+      <button class="navbtn" id="nav-open" aria-haspopup="dialog" aria-controls="navsheet" aria-label="All sections"><span aria-hidden="true">☰</span><span class="xs-hide"> All sections</span></button>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tab-games" data-view="games" aria-selected="true">Games</button>
+      <button class="tab" role="tab" id="tab-props" data-view="props" aria-selected="false">Props</button>
+      <button class="tab" role="tab" id="tab-model" data-view="model" aria-selected="false">Model</button>
+      <button class="tab" role="tab" id="tab-hc" data-view="hc" aria-selected="false">High-chance</button>
+      <button class="tab" role="tab" id="tab-ls" data-view="ls" aria-selected="false">Long shots</button>
+      <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
+      <button class="tab" role="tab" id="tab-picks" data-view="picks" aria-selected="false">My bets<span class="cnt" id="pick-count"></span></button>
+      <button class="tab" role="tab" id="tab-tips" data-view="tips" aria-selected="false">Tips</button>
+      <button class="tab" role="tab" id="tab-matters" data-view="matters" aria-selected="false">What matters</button>
+      <button class="tab" role="tab" id="tab-teams" data-view="teams" aria-selected="false">Teams</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="stamp-m" id="m-asof2"></div>
+  <section class="view" id="v-games"></section>
+  <section class="view" id="v-props" hidden></section>
+  <section class="view" id="v-model" hidden></section>
+  <section class="view" id="v-hc" hidden></section>
+  <section class="view" id="v-ls" hidden></section>
+  <section class="view" id="v-trends" hidden></section>
+  <section class="view" id="v-picks" hidden></section>
+  <section class="view" id="v-tips" hidden></section>
+  <section class="view" id="v-matters" hidden></section>
+  <section class="view" id="v-teams" hidden></section>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
+<div class="scrim" id="navscrim" hidden></div>
+<div class="sheet navsheet" id="navsheet" role="dialog" aria-modal="true" aria-labelledby="nav-title" hidden></div>
+<div class="scrim" id="cscrim" hidden></div>
+<div class="sheet chart-sheet" id="csheet" role="dialog" aria-modal="true" aria-labelledby="cs-title" hidden></div>
+<div class="scrim" id="slipscrim" hidden></div>
+<div class="sheet slip-sheet" id="slipsheet" role="dialog" aria-modal="true" aria-labelledby="slip-title" hidden></div>
+<button class="slip-fab" id="slip-fab" type="button" aria-haspopup="dialog" aria-controls="slipsheet" hidden><span class="sf-n" id="sf-n">0</span><span class="sf-t" id="sf-t">Bet slip</span><span class="sf-o num" id="sf-o"></span></button>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="../assets/core.js"></script>
+<script src="../assets/bets.js"></script>
+<script src="../assets/app.js"></script>
+</body>
+</html>
