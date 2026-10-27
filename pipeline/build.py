@@ -20,7 +20,7 @@ from teams import TEAMS, INTERNATIONAL          # noqa: E402
 import pbp_agg, metrics, players as pa, espn    # noqa: E402
 import injuries as injm                         # noqa: E402
 
-OUT = os.path.join(ROOT, 'site', 'data', 'data.json')
+OUT = os.path.join(ROOT, 'site', 'nfl', 'data', 'data.json')
 BASE = 'https://github.com/nflverse/nflverse-data/releases/download'
 NOW = dt.datetime.now(dt.timezone.utc)
 TODAY = NOW.date()
@@ -1486,9 +1486,58 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
         'long_shots': long_shots, 'matchups': matchups, 'units': units,
         'grade': {'players': grade_players, 'games': results}}
-os.makedirs(os.path.dirname(OUT), exist_ok=True)
-tmp = OUT + '.tmp'
-with open(tmp, 'w') as f:
-    json.dump(clean(data), f, separators=(',', ':'))
-os.replace(tmp, OUT)
-print('wrote', OUT, round(os.path.getsize(OUT) / 1024), 'KB')
+# ------------------------------------------------------------------ the home page card and the grade file other sports' pages read
+for g_ in results.values():                     # first scorer under the field names the shared bet grader reads
+    if 'ftd' in g_:
+        g_['f'] = g_['ftd'] or ''; g_['fn'] = g_.get('ftdn') or ''
+
+
+def _fav_line(g):
+    if g['spread'] is None:
+        return None
+    if g['spread'] == 0:
+        return 'PK'
+    return f"{g['home'] if g['spread'] > 0 else g['away']} -{abs(g['spread']):g}"
+
+
+summary_games = []
+for g in sorted(games, key=lambda x: x['kickoff']):
+    lv = g.get('live') or {}
+    st = 'post' if g['final'] else ('in' if lv else 'pre')
+    summary_games.append({'id': g['id'], 'a': g['away'], 'h': g['home'], 'k': g['kickoff'], 'st': st,
+                          'as': g['away_score'] if g['final'] else lv.get('away_score'), 'hs': g['home_score'] if g['final'] else lv.get('home_score'),
+                          'det': 'Final' if g['final'] else lv.get('detail'), 'line': _fav_line(g), 'pick': g['model']['pick_su']})
+_up = lambda x: pd.Timestamp(x['kickoff']) > pd.Timestamp(NOW)
+summary_picks = []
+_hc = sorted([x for x in high_chance['picks'] if _up(x)], key=lambda x: -x['p'])
+if _hc:
+    x = _hc[0]; summary_picks.append({'tag': 'hc', 't': x['label'], 's': f"{x['team']} vs {x['opp']}", 'v': f"{round(x['p'] * 100)}%", 'view': 'hc'})
+_ls = sorted([x for x in long_shots['picks'] if _up(x)], key=lambda x: -x['p'])
+if _ls:
+    x = _ls[0]; summary_picks.append({'tag': 'ls', 't': x['label'], 's': f"{x['team']} vs {x['opp']} · fair {('+' if x['fair'] > 0 else '')}{x['fair']}", 'v': f"{round(x['p'] * 100)}%", 'view': 'ls'})
+_md = sorted([g for g in games if not g['final'] and _up(g)], key=lambda g: -abs(g['model']['wp_home'] - 0.5))
+if _md:
+    g = _md[0]; t_ = g['model']['pick_su']; wp_ = g['model']['wp_home'] if t_ == g['home'] else 1 - g['model']['wp_home']
+    summary_picks.append({'tag': 'md', 't': f"{t_} to win", 's': f"{g['away']} @ {g['home']}", 'v': f"{round(wp_ * 100)}%", 'view': 'model'})
+_mw = [x for x in model_picks if x['type'] == 'Winner' and x['result'] in ('W', 'L')]
+summary = {'sport': 'nfl', 'asof': NOW.isoformat(timespec='seconds'), 'season': f'{SEASON} season', 'period': f'Week {WEEK}', 'espn': 'football/nfl',
+           'games': summary_games, 'picks': summary_picks,
+           'record': (f"Model {sum(x['result'] == 'W' for x in _mw)}-{sum(x['result'] == 'L' for x in _mw)} picking winners this season" if _mw else None),
+           'links': [['week', 'This week'], ['props', 'Props'], ['hc', 'High-chance'], ['ls', 'Long shots'], ['trends', 'Trends']]}
+if not summary_games:
+    summary['note'] = 'No games this week.'
+
+
+def write_json(path, obj):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(clean(obj), f, separators=(',', ':'))
+    os.replace(tmp, path)
+    print('wrote', path, round(os.path.getsize(path) / 1024), 'KB')
+
+
+write_json(OUT, data)
+write_json(os.path.join(os.path.dirname(OUT), 'grade.json'), {'sport': 'nfl', 'asof': NOW.isoformat(timespec='seconds'), 'pkey': 'wk',
+                                                              'games': results, 'players': grade_players})
+write_json(os.path.join(os.path.dirname(OUT), 'summary.json'), summary)
