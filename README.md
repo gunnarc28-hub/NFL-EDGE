@@ -7,7 +7,9 @@ https://gunnarc28-hub.github.io/NFL-EDGE/ (the address kept its old name).
 **How it stays current:** a GitHub Action (`.github/workflows/update.yml`) runs every 30 minutes, all year. It
 downloads the latest public data, rebuilds each sport's numbers and redeploys the site. Each sport builds on its own:
 if one fails, the site keeps that sport's last good numbers and the others still update. Every visit loads the newest
-build; live scores and injury statuses come straight from ESPN while the page is open.
+build; live scores and injury statuses come straight from ESPN while the page is open. After each deploy a check job
+loads every page; after a code change it also clicks through every tab in a phone-sized browser
+(`pipeline/check_site.py`) and flags any script error in the run's summary.
 
 ## What's inside
 
