@@ -21,13 +21,18 @@ def gh(level, title, msg):
 
 
 async def check(browser, name, path, tabs):
-    # an iPhone's Safari, so sites that turn away headless browsers answer as they would a real visitor
-    ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1'
-    ctx = await browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True, user_agent=ua)
+    # a phone's Chrome, headers and all: ESPN turns away browsers that announce themselves as headless,
+    # which would hide whether the live scores and injury refresh work for real visitors
+    ua = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+    hints = {'sec-ch-ua': '"Chromium";v="140", "Google Chrome";v="140", "Not=A?Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"'}
+    ctx = await browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True, user_agent=ua,
+                                    extra_http_headers=hints)
     pg = await ctx.new_page(); errs = []
     pg.on('pageerror', lambda e: errs.append('error: ' + str(e)))
     pg.on('console', lambda m: errs.append('console: ' + m.text) if m.type == 'error' and 'Failed to load resource' not in m.text and 'net::' not in m.text else None)
     notes, warn = [], []
+    espn = []                                   # live scores and injuries the page fetches from ESPN itself
+    pg.on('response', lambda r: espn.append(r.status) if 'site.api.espn.com' in r.url else None)
     try:
         await pg.goto(BASE + path, wait_until='networkidle', timeout=60000)
         await pg.wait_for_timeout(1500)
@@ -73,6 +78,8 @@ async def check(browser, name, path, tabs):
                         await close.click(); await pg.wait_for_timeout(200)
     except Exception as e:  # noqa: BLE001
         warn.append(f'could not finish: {e}')
+    if espn:
+        notes.append(f"ESPN live {sum(1 for x in espn if x == 200)} of {len(espn)} ok")
     errs = list(dict.fromkeys(errs))
     if errs:
         gh('warning', f'{name.upper()} page script errors', '\n'.join(errs[:8]))
