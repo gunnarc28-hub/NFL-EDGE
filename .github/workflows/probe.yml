@@ -1,0 +1,28 @@
+name: Probe sources
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python pipeline/probe_sources.py
+      - name: Save raw copies to the probe-data branch
+        run: |
+          date -u +%FT%TZ > probe_out/when.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan probe-data
+          git rm -rfq --cached .
+          git add -f probe_out
+          git commit -qm "Raw source snapshot"
+          git push -qf origin probe-data
