@@ -1440,6 +1440,7 @@ print('matchups:', len(matchups['pos']), 'defenses')
 # compact weekly logs: last season + this season, for every trend and prop player, and every team
 CHART_COLS = ['s', 'wk', 'opp', 'tgt', 'rec', 'recy', 'rectd', 'car', 'ry', 'rtd', 'att', 'cmp', 'py', 'ptd', 'int', 'ts', 'ays', 'snap']
 chart_ids = {p_['id'] for p_ in player_trends[:80]} | {p_['id'] for gm in games for p_ in gm['props']}
+chart_ids |= {x_['id'] for x_ in high_chance['picks'] if x_.get('kind') == 'player'} | {x_['id'] for x_ in long_shots['picks']}   # every card can open a chart
 snap_map = {(r.gsis_id, int(r.week)): float(r.offense_pct) for r in snap26.itertuples() if isinstance(r.gsis_id, str)}
 player_logs = {}
 for src in (p25, p26):

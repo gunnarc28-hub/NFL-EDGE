@@ -370,6 +370,12 @@ ul.plain li{margin:3px 0}
 .hc-meter{height:6px;border-radius:3px;background:var(--muted-bg);overflow:hidden}
 .hc-meter span{display:block;height:100%;background:var(--win)}
 .hc-stats{display:flex;flex-wrap:wrap;gap:6px}
+.hc-chart{appearance:none;border:0;cursor:pointer;width:100%;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;
+  background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--rule);border-radius:8px;padding:7px 10px;color:var(--ink)}
+.hc-chart:hover{box-shadow:inset 0 0 0 1px var(--ink-3)}
+.hc-chart .hc-cw{display:flex;flex-direction:column;gap:1px;min-width:0}
+.hc-chart .small{font-size:12.5px;color:var(--ink-2)}
+.hc-chart .go{font-size:11.5px;font-weight:700;color:var(--info);white-space:nowrap}
 .hc-why{margin:0;font-size:13.5px;color:var(--ink-2)}
 .hc-acts{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--rule);padding-top:10px}
 .hc-acts label{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:600;cursor:pointer}
@@ -1757,6 +1763,28 @@ function hcChips(x){
   return `<span class="pill ghost">${fmtLine(x.from)} → ${fmtLine(x.to)}</span><span class="pill ghost">Six-point teaser leg</span>`;
 }
 const hcKey = x => `hc:${x.week}:${x.kind}:${x.id || x.team}:${x.key || ''}${x.t || ''}`;
+/* the chart a card opens, plus a small game-by-game sparkline with the card's line on it */
+const LS_CHART = {atd: ['td', 0.5], ftd: ['td', 0.5], td2: ['td', 1.5], rec100: ['recy', 99.5], rush100: ['ry', 99.5], pass300: ['py', 299.5]};
+function cardChart(x, from){
+  let spec, stat, line = null, kind = 'p', id = x.id, word;
+  if (from === 'ls'){ [stat, line] = LS_CHART[x.market] || ['td', 0.5]; if (x.line != null) line = x.line; spec = `p|${x.id}|${stat}|${line}|${lsKey(x)}`; }
+  else if (x.kind === 'player'){ stat = CH_DEFAULT_FROM_PROP[x.key] || 'recy'; line = x.t - 0.5; spec = `p|${x.id}|${stat}|${line}|${hcKey(x)}`; }
+  else { kind = 't'; id = x.team; stat = x.kind === 'teaser' ? 'cov' : 'mg'; spec = `t|${x.team}|${x.kind === 'teaser' ? 'ats' : 'su'}`; }
+  const L = kind === 'p' ? LOGS.players[id] : LOGS.teams[id];
+  if (!L) return '';
+  const cols = kind === 'p' ? LOGS.pcols : LOGS.tcols, defs = kind === 'p' ? PSTATS : TSTATS, f = (defs[stat] || [])[1];
+  if (!f) return '';
+  const rows = (kind === 'p' ? L.rows : L).map(r => rowObj(cols, r)).filter(r => r.s === D.meta.season);
+  const pts = rows.map(r => [r.wk, f(r)]).filter(p => p[1] != null);
+  if (!pts.length) return '';
+  const base = kind === 'p' ? line : 0;
+  const over = pts.filter(p => p[1] > base).length;
+  if (kind === 'p') word = stat === 'td' ? (line < 1 ? `Scored ${x.market === 'ftd' ? 'a touchdown ' : ''}in ${over} of ${pts.length} games` : `2+ TDs in ${over} of ${pts.length} games`) : `Over ${line} in ${over} of ${pts.length} games`;
+  else word = x.kind === 'teaser' ? `Beat the spread in ${over} of ${pts.length} games` : `Won ${over} of ${pts.length} games`;
+  const tone = over / pts.length >= 0.5 ? 'up' : 'down';
+  return `<button type="button" class="hc-chart" data-chart="${esc(spec)}" aria-label="Open chart: ${esc(x.label)}"><span class="hc-cw"><span class="label">This season</span><span class="small">${esc(word)}</span></span>
+    <span class="${tone}">${spark(pts, {w: 120, h: 32, base})}</span><span class="go">Chart ›</span></button>`;
+}
 const hcSlipKey = x => x.kind === 'player' ? `${x.key}:${x.game}:${x.id}` : x.kind === 'ml' ? `ml:${x.game}:${x.team}` : `spread:${x.game}:${x.team}`;
 function hcCard(x, i){
   const inj = injPill(x);
@@ -1765,6 +1793,7 @@ function hcCard(x, i){
       <div style="min-width:0"><div class="hc-label">${esc(x.label)}</div>
       <div class="small" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">${chip(x.team, 1)} vs ${chip(x.opp, 1)} <span>${esc(kick(x.kickoff))}</span></div></div></div>
     <div class="hc-meter" aria-hidden="true"><span style="width:${(x.p * 100).toFixed(0)}%"></span></div>
+    ${cardChart(x, 'hc')}
     <div class="hc-stats">${hcChips(x)}${inj}</div>
     <p class="hc-why">${esc(x.reason)}</p>
     ${x.kind === 'teaser' ? '' : valueBox(hcKey(x), x.p, x.fair)}
@@ -1822,6 +1851,7 @@ function lsCard(x, i){
       <div style="min-width:0"><div class="hc-label">${esc(x.label)}</div>
       <div class="small" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">${chip(x.team, 1)} vs ${chip(x.opp, 1)} <span>${esc(kick(x.kickoff))}</span>${started ? '<span class="pill ghost">Kicked off</span>' : ''}</div></div></div>
     <div class="hc-meter" aria-hidden="true"><span style="width:${(x.p * 100).toFixed(0)}%"></span></div>
+    ${cardChart(x, 'ls')}
     <div class="hc-stats">${(x.chips || []).map(c => `<span class="pill ghost">${esc(c)}</span>`).join('')}${inj}</div>
     <p class="hc-why">${esc(x.reason)}</p>
     ${valueBox(lsKey(x), x.p, x.fair)}
@@ -2069,11 +2099,16 @@ function chartSource(){
   return {title: 'Whole league', sub: 'Every game each week, compared with 2021–25', keys: Object.keys(lw), defs, rows, season: SEASON, base: k => lw[k].base, league: true};
 }
 function openChart(spec){
-  const [kind, id, metric] = spec.split('|');
-  CH = {kind, id, stat: null, win: store.get('cwin', 'season')};
+  const [kind, id, metric, ref, oddsKey] = spec.split('|');
+  CH = {kind, id, stat: null, win: store.get('cwin', 'season'), seed: null};
   const src = chartSource(); if (!src){ toast('No game-by-game data for this one yet'); CH = null; return; }
   CH.stat = kind === 'p' ? (TREND2P[metric] || CH_DEFAULT_FROM_PROP[metric] || metric) : kind === 't' ? (TREND2T[metric] || 'mg') : metric;
   if (!src.keys.includes(CH.stat)) CH.stat = src.keys[0];
+  if (kind === 'p' && ref != null && ref !== '' && PROP_STATS[CH.stat]){
+    const saved = PL[plKey()] || {};
+    if (numOf(saved.line) !== Number(ref)) CH.seed = {stat: CH.stat, line: String(ref), side: 'over', odds: (oddsKey && MY_ODDS[oddsKey]) || ''};
+    else if (!saved.odds && oddsKey && MY_ODDS[oddsKey]) CH.seed = {stat: CH.stat, line: saved.line, side: saved.side || 'over', odds: MY_ODDS[oddsKey]};
+  }
   $('#cscrim').hidden = false; $('#csheet').hidden = false; document.body.style.overflow = 'hidden';
   renderChart();
   setTimeout(() => { const b = $('#cs-close'); if (b) b.focus(); }, 0);
@@ -2099,14 +2134,27 @@ const PROP_STATS = {rec: 'receptions', recy: 'receiving yards', tgt: 'targets', 
 let PL = store.get('pl', {});
 (function prunePL(){ const old = Object.keys(PL).filter(k => Number(k.split(':')[0]) < WEEK - 1); if (old.length){ old.forEach(k => delete PL[k]); store.set('pl', PL); } })();
 const plKey = () => `${WEEK}:${CH.id}:${CH.stat}`;
+/* the line shown in the chart: the card's own milestone when the chart was opened from a high-chance or long-shot card,
+   otherwise whatever was typed for this player and stat this week. Editing it in the chart saves it like any other line. */
+function chartLine(){ return CH && CH.seed && CH.seed.stat === CH.stat ? CH.seed : (PL[plKey()] || {}); }
+function chartLineEdit(patch){
+  const k = plKey(), cur = chartLine();
+  PL[k] = Object.assign({}, {line: cur.line, side: cur.side, odds: cur.odds}, patch);
+  if (CH.seed && CH.seed.stat === CH.stat) CH.seed = null;
+  Object.keys(PL[k]).forEach(x => { if (PL[k][x] == null || PL[k][x] === '') delete PL[k][x]; });
+  if (!PL[k].line && !PL[k].odds && !PL[k].side) delete PL[k];
+  store.set('pl', PL);
+}
 function lineModel(stat, L){
   // the model's chance of over/under for this line: needs this week's projection for the player
   const P = LOGS.players[CH.id], ni = P ? nextInfo(P.t) : null, g = ni && ni.g && !ni.g.final ? ni.g : null;
   if (!g) return {why: ni && ni.bye ? 'He is on a bye this week, so there is no projection yet.' : 'His next game isn\'t on this week\'s slate, so there is no projection yet.'};
+  const lsOf = type => ((D.long_shots || {}).picks || []).find(x => x.id === CH.id && x.type === type && x.game === g.id);
+  if (stat === 'td' && L >= 1 && L < 2 && lsOf('td2')){ const p = lsOf('td2').p; return {over: p, under: 1 - p, proj: null}; }
   const pr = (g.props || []).find(x => x.id === CH.id);
   if (!pr) return {why: 'He isn\'t in this week\'s projections (usually a small role or an injury listing).'};
   if (stat === 'td'){
-    if (pr.proj.any_td == null || L >= 1) return {why: 'The model only prices one touchdown or more (a 0.5 line).'};
+    if (pr.proj.any_td == null || L >= 1) return {why: 'The model prices one touchdown or more (a 0.5 line) for every player, and 2+ touchdowns only for players on the Long shots list.'};
     return {over: pr.proj.any_td, under: 1 - pr.proj.any_td, proj: null};
   }
   const key = P2PROP[stat];
@@ -2117,7 +2165,7 @@ function lineModel(stat, L){
 }
 function lineBoxHtml(f){
   if (CH.kind !== 'p' || !PROP_STATS[CH.stat]) return '';
-  const st = PL[plKey()] || {}, side = st.side || 'over', nx = (CH._args || {}).nxt;
+  const st = chartLine(), side = st.side || 'over', nx = (CH._args || {}).nxt;
   const seed = CH.stat === 'td' ? 0 : nx && nx.v != null ? nx.v : (CH._args && CH._args.avg != null ? CH._args.avg : '');
   const ph = CH.stat === 'td' ? '0.5' : seed !== '' ? String(Math.floor(seed) + 0.5) : 'Line';
   return `<div class="clb"><div class="clb-h"><span class="label">Check a sportsbook line · ${esc(PROP_STATS[CH.stat])}</span>
@@ -2131,7 +2179,7 @@ const refLabel = L => L == null ? '' : ` · <b style="color:var(--info)">blue li
 function winPhrase(){ return {l4: 'in his last 4 games', l8: 'in his last 8 games', season: 'this season', all: 'since the start of last season'}[CH.win] || ''; }
 function updateLineBox(redraw){
   const out = $('#clb-out'); if (!out || !CH || !CH._args) return;
-  const A = CH._args, st = PL[plKey()] || {}, side = st.side || 'over', L = numOf(st.line), O = parseOdds(st.odds);
+  const A = CH._args, st = chartLine(), side = st.side || 'over', L = numOf(st.line), O = parseOdds(st.odds);
   if (L == null){
     out.innerHTML = `<div class="note">Type the line from your sportsbook (like ${CH.stat === 'td' ? '0.5' : 'the placeholder'}) and its odds to see the model's chance, the fair price, and how often he has cleared it.</div>`;
   } else {
@@ -2139,7 +2187,7 @@ function updateLineBox(redraw){
     const m = lineModel(CH.stat, L), pSide = m.over != null ? (side === 'over' ? m.over : m.under) : null;
     let h = '';
     if (pSide != null){
-      const what = CH.stat === 'td' ? (side === 'over' ? 'he scores a touchdown' : 'he doesn\'t score') : `of going <b>${side} ${L}</b>`;
+      const what = CH.stat === 'td' ? (L >= 1 ? (side === 'over' ? 'he scores 2 or more touchdowns' : 'he scores 1 or none') : (side === 'over' ? 'he scores a touchdown' : 'he doesn\'t score')) : `of going <b>${side} ${L}</b>`;
       h += `<div class="clb-m"><span class="big num">${pct(pSide)}</span><span>model chance ${what}${m.proj != null ? ` · projection <b>${fmtV(A.f, m.proj)}</b>` : ''} · fair price <b>${fmtOdds(oddsNum(pSide))}</b></span></div>`;
       if (O != null){ const r = evMsg(pSide, oddsNum(pSide), st.odds); h += `<div class="ev ${r.c}">${esc(r.t)}</div>`; }
       else if (String(st.odds || '').trim()) h += `<div class="ev">Use American odds, like -115 or +105.</div>`;
@@ -2210,7 +2258,7 @@ function renderChart(){
   const last = pts[pts.length - 1], hiP = pts.reduce((a, p) => !a || p.v > a.v ? p : a, null), loP = pts.reduce((a, p) => !a || p.v < a.v ? p : a, null);
   const nxt = chartNext(src);
   CH._args = {pts, f, base, season: src.season, nxt, avg};
-  const refL = CH.kind === 'p' && PROP_STATS[CH.stat] ? numOf((PL[plKey()] || {}).line) : null;
+  const refL = CH.kind === 'p' && PROP_STATS[CH.stat] ? numOf(chartLine().line) : null;
   const wins = src.league ? [['l4', 'Last 4'], ['season', 'This season']] : WINDOWS;
   if (src.league && !['l4', 'season'].includes(CH.win)) CH.win = 'season';
   // the data table: newest first, the selected stat highlighted, other stats for context
@@ -2273,7 +2321,7 @@ document.addEventListener('click', e => {
   if (!CH) return;
   if (b.dataset.cstat){ CH.stat = b.dataset.cstat; renderChart(); return; }
   if (b.dataset.cwin){ CH.win = b.dataset.cwin; store.set('cwin', CH.win); renderChart(); return; }
-  if (b.dataset.clside){ const k = plKey(); PL[k] = Object.assign({}, PL[k], {side: b.dataset.clside}); store.set('pl', PL);
+  if (b.dataset.clside){ chartLineEdit({side: b.dataset.clside});
     $$('[data-clside]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.clside === b.dataset.clside))); updateLineBox(false); return; }
   if (b.hasAttribute('data-cclose')) closeChart();
 });
@@ -3037,7 +3085,7 @@ document.addEventListener('click', e => {
   }
   if (d.cladd != null){
     if (!CH || CH.kind !== 'p') return;
-    const st = PL[plKey()] || {}, L = numOf(st.line), O = parseOdds(st.odds), key = CH.stat === 'td' ? 'any_td' : P2PROP[CH.stat];
+    const st = chartLine(), L = numOf(st.line), O = parseOdds(st.odds), key = CH.stat === 'td' ? 'any_td' : P2PROP[CH.stat];
     const P_ = LOGS.players[CH.id], ni = P_ ? nextInfo(P_.t) : null, g = ni && ni.g && !ni.g.final ? ni.g : null, pr = g && (g.props || []).find(x => x.id === CH.id);
     if (!key || !g) return toast('No game this week for that player.');
     if (!pr) return toast('No projection this week for that player.');
@@ -3098,9 +3146,7 @@ document.addEventListener('change', e => {
 document.addEventListener('input', e => {
   const el = e.target; if (!el.dataset) return;
   if (el.dataset.cl && CH){
-    const k = plKey(); PL[k] = Object.assign({}, PL[k], {[el.dataset.cl]: el.value.trim()});
-    if (!PL[k].line && !PL[k].odds && !PL[k].side) delete PL[k];
-    store.set('pl', PL); updateLineBox(el.dataset.cl === 'line'); return;
+    chartLineEdit({[el.dataset.cl]: el.value.trim()}); updateLineBox(el.dataset.cl === 'line'); return;
   }
   if (el.dataset.odds != null){
     const k = el.dataset.odds; if (el.value.trim()) MY_ODDS[k] = el.value.trim(); else delete MY_ODDS[k]; store.set('odds', MY_ODDS);
