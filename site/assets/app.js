@@ -54,6 +54,8 @@ const isLive = g => g.state === 'in';
 const fmtN = (v, d = 1) => v == null || isNaN(v) ? '–' : Number(v).toFixed(d);
 const fairTxt = p => fmtOdds(oddsNum(p));
 const LEVEL_WORD = {out: 'Out', doubt: 'Doubtful', gtd: 'Questionable', likely: 'Probable'};
+/* a teammate is out: the build already raised this player's projection; say by how much and why */
+const bumpTxt = p => p && p.bump && p.bump.txt ? `<div class="bump">▲ ${esc(p.bump.txt)}</div>` : '';
 const liveTxt = SE.liveTxt;
 const shortDay = d => { const [y, mo, da] = String(d).split('-').map(Number); return new Date(y, mo - 1, da).toLocaleDateString([], {month: 'short', day: 'numeric'}); };
 const SEASON_START = `${String(M.season || '').slice(0, 4)}-08-01`;
@@ -293,7 +295,7 @@ function gamePropsHtml(g){
   const goalies = NHL ? (D.goalies || []).filter(x => x.game === g.id) : [];
   if (!lst.length && !goalies.length) return `<div class="small">${g.state === 'pre' ? 'No projections for this game yet.' : 'Props are shown before games start.'}</div>`;
   const keys = NHL ? ['sog', 'points', 'goals'] : ['pts', 'reb', 'ast', 'fg3m'];
-  const row = p => `<div class="prow"><div><div class="pn">${chip(p.team, 1)} <span data-chart="p|${esc(p.id)}|${keys[0]}">${esc(p.name)}</span>${injPill(p.team, p.name, p.id, true)}</div><div class="ps">${esc(p.pos || '')} · ${fmtN(p.min ?? p.toi, 0)} min</div></div>
+  const row = p => `<div class="prow"><div><div class="pn">${chip(p.team, 1)} <span data-chart="p|${esc(p.id)}|${keys[0]}">${esc(p.name)}</span>${injPill(p.team, p.name, p.id, true)}</div><div class="ps">${esc(p.pos || '')} · ${fmtN(p.min ?? p.toi, 0)} min</div>${bumpTxt(p)}</div>
     ${keys.map(k => { const pr = k === 'goals' ? p.p_goal : p.proj[k], ln = (p.lines || {})[k];
       return `<div class="c-avg"><span class="proj num">${k === 'goals' ? pct(pr) : fmtN(pr, 1)}<small>${k === 'goals' ? 'to score' : CFG.short[k] || k}</small></span>${ln ? `<div class="small">line ${ln.line} · over ${pct(ln.p)}</div>` : ''}</div>`; }).join('')}</div>`;
   const byT = t => lst.filter(p => p.team === t).sort((a, b) => (b.proj[keys[0]] || 0) - (a.proj[keys[0]] || 0)).slice(0, 8);
@@ -362,7 +364,7 @@ function ppRow(p, k){
   const chk = L != null ? `<div class="pp-out"><span>${typed != null || !ln ? `At ${L}: over <b>${pct(pm)}</b> · under <b>${pct(pm == null ? null : 1 - pm)}</b> (model)` : ''}</span>${O != null && pm != null ? `<span class="ev ${evMsg(st.side === 'under' ? 1 - pm : pm, oddsNum(st.side === 'under' ? 1 - pm : pm), String(O)).c}">${esc(evMsg(st.side === 'under' ? 1 - pm : pm, oddsNum(st.side === 'under' ? 1 - pm : pm), String(O)).t)}</span>` : ''}</div>` : '';
   return `<article class="pp" data-pid="${esc(p.id)}" data-g="${p.game}" data-key="${k}">
     <div class="pp-who"><div class="pn"><span data-chart="p|${esc(p.id)}|${k === 'goals' ? 'goals' : k}">${esc(p.name)}</span>${injPill(p.team, p.name, p.id, true)}</div>
-      <div class="ps">${chip(p.team, 1)} ${p.home ? 'vs' : '@'} ${chip(p.opp, 1)} <span class="small">${esc(p.pos || '')} · ${fmtN(p.min ?? p.toi, 0)} min · ${esc(when((gameOf(p.game) || {}).k || '', {hour: 'numeric', minute: '2-digit', weekday: 'short'}))}</span></div></div>
+      <div class="ps">${chip(p.team, 1)} ${p.home ? 'vs' : '@'} ${chip(p.opp, 1)} <span class="small">${esc(p.pos || '')} · ${fmtN(p.min ?? p.toi, 0)} min · ${esc(when((gameOf(p.game) || {}).k || '', {hour: 'numeric', minute: '2-digit', weekday: 'short'}))}</span></div>${bumpTxt(p)}</div>
     <div class="pp-proj"><span class="proj num">${fmtN(proj, k === 'fg3m' || NHL ? 2 : 1)}<small>${esc(CFG.short[k] || k)}</small></span><span class="small">${avg}</span></div>
     <div class="pp-chk">${book}
       <div class="pp-in"><div class="f"><span class="clb-l">Line</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-ppl="${esc(key)}" value="${esc(st.line ?? '')}" placeholder="${L ?? ''}" data-proj="${proj ?? ''}" aria-label="Line">`, 'line')}</div>
@@ -376,7 +378,7 @@ function goalsRow(p){
   const y = p.yes || {}, rows = [['atg', 'To score', p.p_goal], ['g2', '2+ goals', pAtLeastNHL('goals', p.proj.goals, 2)], ['first_goal', 'First goal', p.p_first]];
   return `<article class="pp" data-pid="${esc(p.id)}" data-g="${p.game}" data-key="goals">
     <div class="pp-who"><div class="pn"><span data-chart="p|${esc(p.id)}|goals">${esc(p.name)}</span>${injPill(p.team, p.name, p.id, true)}</div>
-      <div class="ps">${chip(p.team, 1)} ${p.home ? 'vs' : '@'} ${chip(p.opp, 1)} <span class="small">${esc(p.pos || '')} · ${fmtN(p.toi, 0)} min</span></div></div>
+      <div class="ps">${chip(p.team, 1)} ${p.home ? 'vs' : '@'} ${chip(p.opp, 1)} <span class="small">${esc(p.pos || '')} · ${fmtN(p.toi, 0)} min</span></div>${bumpTxt(p)}</div>
     <div class="pp-proj"><span class="proj num">${fmtN(p.proj.goals, 2)}<small>expected goals</small></span><span class="small">${fmtN(p.proj.sog, 1)} shots · avg ${fmtN(p.avg.goals, 2)} goals</span></div>
     <div class="pp-chk">${rows.map(([k, l, pr]) => { const o = y[k]; const r = o != null && pr != null ? evMsg(pr, oddsNum(pr), String(o)) : null;
       return `<div class="pp-h" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><span><b>${l}</b> ${pct(pr, pr < 0.1 ? 1 : 0)} · fair ${fairTxt(pr)}${o != null ? ` · book <b>${fmtOdds(o)}</b>` : ''}</span>
@@ -428,7 +430,7 @@ function renderProps(){
   const R = (D.research || {}).props || {}, bm = R.by_market || {};
   const rk = NHL ? ({sog: 'shots_on_goal', points: 'points', assists: 'assists', blocks: 'blocked_shots'}[PPF.key]) : PPF.key;
   const bt = bm[rk];
-  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Player props</h1><p class="lede">Every projection next to the sportsbook's line${(D.props || []).some(p => Object.keys(p.lines || {}).length) ? ' (DraftKings through ESPN)' : ''}. The chance blends the model with the book's own price, weighted by how much the model added in past seasons; the book is usually right.</p></div></div>
+  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Player props</h1><p class="lede">Every projection next to the sportsbook's line${(D.props || []).some(p => Object.keys(p.lines || {}).length) ? ' (DraftKings through ESPN)' : ''}. The chance blends the model with the book's own price, weighted by how much the model added in past seasons; the book is usually right. ${NHL ? 'When a regular is out, skaters at his position get part of his ice time (shots and points barely moved in past games, so those stay put).' : 'When a rotation player is out, teammates at his position get part of his minutes, mostly the bench players.'}</p></div></div>
     <div class="seg pp-types" role="group" aria-label="Market">${CFG.propTabs.map(([k, l]) => `<button type="button" data-ppk="${k}" aria-pressed="${PPF.key === k}">${l}</button>`).join('')}</div>
     <div class="toolbar"><div class="filters">
       <select id="pp-game" aria-label="Game"><option value="all">All games</option>${games.map(g => `<option value="${g.id}" ${PPF.game === g.id ? 'selected' : ''}>${g.away} @ ${g.home} · ${esc(whenDay(g.k))}</option>`).join('')}</select>

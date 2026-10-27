@@ -648,6 +648,33 @@ def r_(v, n=1):
 
 
 props_by_game, absent_by_game = {}, {}
+# when a regular is out, his same-position teammates pick up part of his targets and carries (research/13_injury_bump.py)
+IB = json.load(open(os.path.join(HERE, 'static', 'injury_bump.json')))
+WEEKS_PLAYED = {k: set(v) for k, v in p26.groupby(['player_id', 'team']).week} if len(p26) else {}
+
+
+def nz0(v):
+    return 0.0 if v is None or (isinstance(v, float) and not np.isfinite(v)) else float(v)
+
+
+def bump_for(r, gone, present, t):
+    """(target multiplier, carry multiplier, words) for player r when the regulars in `gone` are out."""
+    mine = WEEKS_PLAYED.get((r.player_id, t), set())
+    S_t = present[present.position == r.position].avg_target_share.fillna(0).sum()
+    S_c = present[present.position == 'RB'].avg_carry_share.fillna(0).sum()
+    gt = gc = 0.0; who = []
+    for _, a in gone.iterrows():
+        if a.position != r.position:
+            continue
+        w = len(mine & WEEKS_PLAYED.get((a.player_id, t), set())) / max(1, len(mine))     # his games played alongside the missing player
+        if w <= 0:
+            continue
+        gt += IB['k']['tgt_' + r.position] * w * nz0(a.avg_target_share) * nz0(r.avg_target_share) / max(S_t, 0.05)
+        if r.position == 'RB':
+            gc += IB['k']['car_RB'] * w * nz0(a.avg_carry_share) * nz0(r.avg_carry_share) / max(S_c, 0.05)
+        who.append(a.player_display_name)
+    m_t = 1 + gt / max(nz0(r.avg_target_share), 0.02); m_c = 1 + gc / max(nz0(r.avg_carry_share), 0.03)
+    return m_t, m_c, who
 upcoming = [gm for gm in games if not gm['final']]
 if len(p26) and upcoming:
     cur_team = p26.sort_values('week').groupby('player_id').tail(1)[['player_id', 'player_display_name', 'position', 'team']]
@@ -679,6 +706,8 @@ if len(p26) and upcoming:
                     absent_by_game.setdefault(gm['id'], {}).setdefault(t, []).append(
                         {'name': r.player_display_name, 'pos': r.position, 'usage': usage_, 'level': ist['level'] if ist else 'ir',
                          'why': (ist['injury'] if ist and ist.get('injury') else None)})
+                gone = c[~ok_ & c.position.isin(['WR', 'TE', 'RB']) & ((c.avg_target_share.fillna(0) >= 0.08) | (c.avg_carry_share.fillna(0) >= 0.15))]
+                gone = gone[~gone.player_id.isin(GONE_IDS)]
                 c = c[ok_]
                 if c.empty:
                     continue
@@ -701,6 +730,21 @@ if len(p26) and upcoming:
                     if pos != 'QB':
                         td_p = ls_cal('atd', atd_chance(r))
                         pj['any_td'] = td_p if td_p is not None else (float(np.clip(pj['any_td'], 0.02, 0.85)) if pj.get('any_td') is not None else None)
+                    bump = None
+                    if pos != 'QB' and len(gone):
+                        m_t, m_c, who = bump_for(r, gone, c, t)
+                        if who and (m_t > 1.01 or m_c > 1.01):
+                            G_ = IB['g']
+                            for k_, mm, gg in (('rec_yds', m_t, G_['rec_yds']), ('receptions', m_t, G_['receptions']), ('rush_yds', m_c, G_['rush_yds'])):
+                                if pj.get(k_) is not None:
+                                    pj[k_] *= 1 + gg * (mm - 1)
+                            if pj.get('any_td') is not None:
+                                m_td = 0.5 * (m_t + m_c) if pos == 'RB' else m_t
+                                pj['any_td'] = float(1 - (1 - pj['any_td']) ** (1 + G_['any_td'] * (m_td - 1)))
+                            d_t = nz0(r.pg_targets) * (m_t - 1); d_c = nz0(r.pg_carries) * (m_c - 1)
+                            parts = ([f"+{d_c:.1f} carries"] if d_c >= 0.3 else []) + ([f"+{d_t:.1f} targets"] if d_t >= 0.3 else [])
+                            if parts:
+                                bump = {'who': who, 'tgt': r_(d_t), 'car': r_(d_c), 'txt': f"{' and '.join(parts)} with {', '.join(who)} out"}
                     snap_now, snap_series = snap_info(r.player_id)
                     out.append({'id': r.player_id, 'name': r.player_display_name, 'pos': pos, 'team': t, 'gp': int(r.n_prior),
                                 'proj': {k: r_(v, 2 if k == 'any_td' else 1) for k, v in pj.items()},
@@ -712,7 +756,7 @@ if len(p26) and upcoming:
                                 'share': {'tgt': r_(r.avg_target_share, 3), 'ay': r_(r.avg_air_yards_share, 3), 'car': r_(r.avg_carry_share, 3),
                                           'wopr': r_(r.avg_wopr, 3)},
                                 'rz': r_((r.pg_rz_carries or 0) + (r.pg_rz_targets or 0), 2), 'implied': r_(r.implied_tt),
-                                'snap': r_(snap_now, 3), 'snaps': snap_series,
+                                'snap': r_(snap_now, 3), 'snaps': snap_series, 'bump': bump,
                                 'inj': ({'level': ist['level'], 'outlook': ist['outlook'], 'status': ist['status'], 'practice': ist['practice']} if ist else None),
                                 'log': player_log(r.player_id)})
             props_by_game[gm['id']] = out

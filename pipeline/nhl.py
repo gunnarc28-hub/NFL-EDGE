@@ -505,6 +505,29 @@ def recent(pid, col, n=10):
 
 
 PROPS, GOALIES, HC, LS = [], [], [], []
+# a missing regular's ice time goes mostly to skaters at his position (research/nba_nhl/nhl_08_injury_bump.py); shots, points and
+# blocks didn't move measurably when it did, so only the ice time changes. What is new decays with each game he has already missed.
+NHB = json.load(open(os.path.join(HERE, 'static', 'nhl_injury_bump.json')))
+TEAM_GAMES = {t: list(x.sort_values('t').game_id.drop_duplicates()) for t, x in pl.groupby('team_abbrev')}
+LAST_GAME = pl.sort_values('t').groupby('player_id').tail(1).set_index('player_id')[['game_id', 'team_abbrev']].to_dict('index')
+
+
+def missing_toi(team):
+    vm = {'F': 0.0, 'D': 0.0}; who = {'F': [], 'D': []}
+    seq = TEAM_GAMES.get(team, [])
+    for e in INJ.get(team, []):
+        pid = e['pid']
+        if not pid or e['level'] not in ('out', 'doubt') or pid not in FORM or PTEAM.get(pid) != team:
+            continue
+        f = FORM[pid]; lg = LAST_GAME.get(pid)
+        if f['toi_ew'] < 14 or not lg or lg['game_id'] not in seq:
+            continue
+        j = len(seq) - 1 - seq.index(lg['game_id'])
+        if j > 9:
+            continue
+        ps_ = 'D' if f['pos1'] == 'D' else 'F'
+        vm[ps_] += (1.0 if e['level'] == 'out' else 0.8) * f['toi_ew'] * 0.5 ** (j / 5); who[ps_].append(PNAME.get(pid) or e['name'])
+    return vm, who
 LAM = {}
 for g in SHOW.itertuples():
     p = PRED.get(g.id)
@@ -517,12 +540,20 @@ for g in SHOW.itertuples():
         last_g = pl[pl.team_abbrev == team].game_id.drop_duplicates().tail(3)
         regulars = set(pl[(pl.team_abbrev == team) & pl.game_id.isin(last_g)].player_id)
         regulars = {x for x in regulars if PTEAM.get(x) == team} | {x for x in lines if PTEAM.get(x) == team and x in FORM}
+        VM, WHO = missing_toi(team)
         for pid in regulars:
             if pid in OUT_IDS:
                 continue
             pr = project(pid, opp, opp_sv)
             if not pr or pr['toi'] < 8:
                 continue
+            bump = None
+            if VM['F'] + VM['D'] > 0:
+                ps_ = 'D' if FORM[pid]['pos1'] == 'D' else 'F'; b_ = int(np.digitize(pr['toi'], NHB['fit']['buckets'][1:-1]))
+                gain = NHB['fit']['same'][b_] * VM[ps_] + NHB['fit']['other'][b_] * VM['D' if ps_ == 'F' else 'F']
+                pr['toi'] = round(pr['toi'] + gain, 1)
+                if gain >= 0.25 and WHO[ps_]:
+                    bump = {'toi': round(gain, 1), 'who': WHO[ps_], 'txt': f"+{gain:.1f} min of ice time with {', '.join(WHO[ps_][:2])} out"}
             lns = lines.get(pid, {})
             name = PNAME.get(pid)
             item = {'id': str(pid), 'name': name, 'team': team, 'opp': opp, 'game': str(g.id), 'home': side == 'h', 'pos': PPOS.get(pid, ''), 'toi': pr['toi'],
@@ -530,7 +561,7 @@ for g in SHOW.itertuples():
                     'avg': {'sog': round(float(np.mean(recent(pid, 'shots_on_goal'))), 2), 'points': round(float(np.mean(recent(pid, 'points'))), 2),
                             'goals': round(float(np.mean(recent(pid, 'goals'))), 2)},
                     'p_goal': round(p_atleast('goals', pr['goals'], 1), 4), 'p_point': round(p_atleast('points', pr['points'], 1), 4),
-                    'p_first': round(pr['goals'] / max(LAM[g.id], 0.1) * (1 - math.exp(-LAM[g.id])), 4), 'lines': {}, 'yes': {}}
+                    'p_first': round(pr['goals'] / max(LAM[g.id], 0.1) * (1 - math.exp(-LAM[g.id])), 4), 'lines': {}, 'yes': {}, 'bump': bump}
             for k, ln in lns.items():
                 if k not in OU_KEYS:
                     continue

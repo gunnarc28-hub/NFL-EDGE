@@ -1,0 +1,80 @@
+{
+ "note": "research/nba_nhl/nba_10_injury_bump.py: minutes only; stats scale with the minutes",
+ "min": {
+  "buckets": [
+   0,
+   15,
+   24,
+   31,
+   99
+  ],
+  "same": [
+   0.052,
+   0.032,
+   0.017,
+   0.002
+  ],
+  "other": [
+   0.022,
+   0.004,
+   -0.004,
+   -0.008
+  ]
+ },
+ "check": {
+  "minutes": {
+   "n": 65901,
+   "mae_plain": 5.209,
+   "mae_before": 5.516,
+   "mae_new": 5.153,
+   "bias_plain": 0.346,
+   "bias_before": -2.306,
+   "bias_new": -0.294
+  },
+  "minutes_fresh_same_position_starter_out": {
+   "n": 24229,
+   "mae_plain": 5.67,
+   "mae_new": 5.479,
+   "bias_plain": 1.391,
+   "bias_new": 0.11
+  },
+  "fresh_stats": {
+   "pts": {
+    "n": 24229,
+    "mae_plain": 5.065,
+    "mae_minutes_only": 5.087,
+    "mae_new": 5.095,
+    "bias_plain": 0.729,
+    "bias_minutes_only": 0.197,
+    "bias_new": -0.4
+   },
+   "reb": {
+    "n": 24229,
+    "mae_plain": 1.817,
+    "mae_minutes_only": 1.821,
+    "mae_new": 1.831,
+    "bias_plain": 0.199,
+    "bias_minutes_only": 0.003,
+    "bias_new": -0.129
+   },
+   "ast": {
+    "n": 24229,
+    "mae_plain": 1.555,
+    "mae_minutes_only": 1.565,
+    "mae_new": 1.581,
+    "bias_plain": 0.223,
+    "bias_minutes_only": 0.085,
+    "bias_new": -0.151
+   },
+   "fg3m": {
+    "n": 23406,
+    "mae_plain": 1.063,
+    "mae_minutes_only": 1.069,
+    "mae_new": 1.077,
+    "bias_plain": 0.108,
+    "bias_minutes_only": 0.034,
+    "bias_new": -0.046
+   }
+  }
+ }
+}

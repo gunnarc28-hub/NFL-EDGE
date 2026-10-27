@@ -1,0 +1,80 @@
+{
+ "note": "research/nba_nhl/nhl_08_injury_bump.py: ice time only; shots, points and blocks did not move",
+ "fit": {
+  "buckets": [
+   0,
+   12,
+   16,
+   20,
+   99
+  ],
+  "same": [
+   0.025,
+   0.023,
+   0.014,
+   0.01
+  ],
+  "other": [
+   -0.007,
+   -0.011,
+   -0.006,
+   -0.011
+  ]
+ },
+ "check": {
+  "all": {
+   "n": 133989,
+   "toi": {
+    "mae_plain": 1.918,
+    "mae_new": 1.904,
+    "bias_plain": 0.03,
+    "bias_new": -0.054
+   },
+   "sog": {
+    "mae_plain": 1.034,
+    "mae_new": 1.035,
+    "bias_plain": -0.029,
+    "bias_new": -0.036
+   },
+   "points": {
+    "mae_plain": 0.533,
+    "mae_new": 0.534,
+    "bias_plain": -0.011,
+    "bias_new": -0.013
+   },
+   "blocks": {
+    "mae_plain": 0.748,
+    "mae_new": 0.749,
+    "bias_plain": 0.006,
+    "bias_new": 0.001
+   }
+  },
+  "fresh_same_position_regular_out": {
+   "n": 56663,
+   "toi": {
+    "mae_plain": 2.048,
+    "mae_new": 2.021,
+    "bias_plain": 0.297,
+    "bias_new": 0.011
+   },
+   "sog": {
+    "mae_plain": 1.003,
+    "mae_new": 1.007,
+    "bias_plain": -0.008,
+    "bias_new": -0.034
+   },
+   "points": {
+    "mae_plain": 0.511,
+    "mae_new": 0.513,
+    "bias_plain": -0.004,
+    "bias_new": -0.01
+   },
+   "blocks": {
+    "mae_plain": 0.809,
+    "mae_new": 0.811,
+    "bias_plain": 0.03,
+    "bias_new": 0.014
+   }
+  }
+ }
+}

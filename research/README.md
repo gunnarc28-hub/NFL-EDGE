@@ -51,3 +51,13 @@ inputs in `raw/` and an empty `work/` folder:
 7. `situational.py`, `trend_carry.py` – rest and schedule spots, and whether streaks carried into the next game.
    Rest is counted in calendar days (Eastern): a back-to-back means the team also played the day before.
 8. `nba_09_export.py`, `nhl_07_export.py` – write the two model files the builds read.
+
+## Injured teammates
+
+- `13a_with_without.py`, `13_injury_bump.py` (NFL): with/without splits show a missing regular's targets and carries go
+  mostly to teammates at his position. The bump (fit 2018-2022, checked 2023-2025) moved backs' rushing projections from
+  8 yards too low to about 1 when the starter sat, and improved target and carry shares, receptions and touchdowns.
+- `nba_nhl/nba_10_injury_bump.py` (NBA): minutes go mostly to bench players at the same position; the old rule (everyone
+  up to 15%) overshot by about 2 minutes. Per-minute rates did not reliably rise, so stats scale with the minutes only.
+- `nba_nhl/nhl_08_injury_bump.py` (NHL): ice time shifts to skaters at the same position; shots, points and blocks did not
+  move measurably, so only the ice time changes.

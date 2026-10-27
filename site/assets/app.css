@@ -883,3 +883,4 @@ a.brand:hover b{text-decoration:underline;text-decoration-thickness:3px;text-und
   .tiles > .tile:last-child:nth-child(odd){grid-column:1/-1}
   .fx{grid-template-columns:minmax(0,1fr) auto}
 }
+.bump{font-size:12px;font-weight:650;color:var(--win);margin-top:3px;line-height:1.3}

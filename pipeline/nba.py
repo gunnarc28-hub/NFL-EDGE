@@ -203,6 +203,7 @@ LINE = {gid: o for gid, o in OLOG.items()}
 
 # ================================================================== team ratings, game by game (the research model)
 R = S['ratings']; MM = S['margin_model']; TM = S['total_model']
+NB = json.load(open(os.path.join(HERE, 'static', 'nba_injury_bump.json')))
 done_games = GAMES[(GAMES.state == 'post') & GAMES.hs.notna()]
 a_ = 0.5 ** (1 / R['half_life_games']); ap_ = 0.5 ** (1 / R['pace_half_life'])
 O, Dd, PACE, LAST, NG = {}, {}, {}, {}, {}
@@ -532,19 +533,42 @@ for g in SHOW.itertuples():
             if not pr:
                 continue
             rows.append([pid, pr, w_out, e])
-        # minutes freed by players who sit go to the rest of the rotation (at most 15% more each, 42 minutes max)
-        tot_avail = sum(r[1]['min'] * (1 - r[2]) for r in rows); freed = sum(r[1]['min'] * r[2] for r in rows)
-        scale = min(1.15, (tot_avail + freed * 0.8) / tot_avail) if tot_avail > 0 and freed > 2 else 1.0
+        # minutes of rotation players who sit go mostly to bench players at their position (research/nba_nhl/nba_10_injury_bump.py).
+        # What is new decays with each game he has already missed: teammates' recent minutes already include those games.
+        vm = {'G': 0.0, 'F': 0.0, 'C': 0.0}; who = {'G': [], 'F': [], 'C': []}
+        for apid, s_ in st_.items():
+            j = i - s_['idx'] - 1
+            if j > 9 or LAST_TEAM.get(apid) != team:
+                continue
+            fa = FORM.get(apid) or {}; mins = fa.get('min_ew', s_['min']); ps_ = fa.get('pos1', 'F')
+            w_a, _ = out_weight(team, apid, NAMES.get(apid))
+            if mins < 15 or w_a <= 0 or ps_ not in vm:
+                continue
+            vm[ps_] += w_a * mins * 0.5 ** (j / 5)
+            if w_a >= 0.5:
+                who[ps_].append(NAMES.get(apid))
+        tot_vm = sum(vm.values())
+        for row in rows:
+            pid, pr, w_out, e = row
+            if tot_vm <= 0 or w_out >= 0.5:
+                continue
+            ps_ = (FORM.get(pid) or {}).get('pos1', 'F'); b_ = int(np.digitize(pr['min'], NB['min']['buckets'][1:-1]))
+            gain = NB['min']['same'][b_] * vm.get(ps_, 0.0) + NB['min']['other'][b_] * (tot_vm - vm.get(ps_, 0.0))
+            if pr['min'] > 0 and abs(gain) >= 0.05:
+                new = project(pid, g, team, opp, abs(tl) if tl is not None else 6.0, minutes_scale=max(0.0, (pr['min'] + gain) / pr['min']))
+                if new:
+                    names = who.get(ps_) or [n for v in who.values() for n in v]
+                    if gain >= 0.3 and names:
+                        new['bump'] = {'min': round(gain, 1), 'who': names, 'txt': f"+{gain:.1f} minutes with {', '.join(names[:2])} out"}
+                    row[1] = new
         for pid, pr, w_out, e in rows:
-            if scale != 1.0 and w_out < 0.5:
-                pr = project(pid, g, team, opp, abs(tl) if tl is not None else 6.0, minutes_scale=scale)
             if pr['min'] < 10 and pid not in lines:
                 continue
             lns = lines.get(pid, {})
             item = {'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'home': side == 'h', 'pos': POS.get(pid, ''),
                     'min': pr['min'], 'proj': {k: round(pr[k], 2) for k in ALL},
                     'avg': {k: round(float(np.mean(v)), 1) for k in ('pts', 'reb', 'ast', 'fg3m', 'pra') for v in [last_n(pid, k)] if v},
-                    'inj': {'level': e['level'], 'status': e['status'], 'detail': e['injury']} if e else None, 'lines': {}}
+                    'inj': {'level': e['level'], 'status': e['status'], 'detail': e['injury']} if e else None, 'lines': {}, 'bump': pr.get('bump')}
             for k, ln in lns.items():
                 if k not in ALL or not isinstance(ln, dict):
                     continue

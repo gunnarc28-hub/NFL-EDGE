@@ -593,11 +593,11 @@ function propsHtml(g){
   return [g.away, g.home].map(t => {
     const ps = g.props.filter(p => p.team === t);
     const ab = (g.absent || {})[t] || [];
-    const absent = ab.length ? `<div class="absent"><span><b>Out:</b></span>${ab.map(a => `<span class="pill lvl-${a.level === 'ir' ? 'ir' : 'out'}" title="${esc(a.why || '')}">${esc(a.name)} <span style="font-weight:500">${esc(a.pos)} · ${esc(a.usage)}</span></span>`).join('')}<span class="small">— their touches are up for grabs</span></div>` : '';
+    const absent = ab.length ? `<div class="absent"><span><b>Out:</b></span>${ab.map(a => `<span class="pill lvl-${a.level === 'ir' ? 'ir' : 'out'}" title="${esc(a.why || '')}">${esc(a.name)} <span style="font-weight:500">${esc(a.pos)} · ${esc(a.usage)}</span></span>`).join('')}<span class="small">— teammates at their position get part of their workload, built into the projections below</span></div>` : '';
     const opp = t === g.home ? g.away : g.home;
     return `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}${ps[0] && ps[0].implied ? ` · Vegas implied total ${ps[0].implied}` : ''}</span></div>${matchupBox(opp)}${absent}
       <div class="plist">${ps.map(p => propRow(g, p)).join('')}</div></div>`;
-  }).join('') + `<div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first). Type the sportsbook's line to see the chance of going over, based on how players with similar projections finished. Players listed as out or doubtful are left off. Matchup numbers are what each defense has allowed per game to that position this season, ranked out of 32 (green = among the 8 softest, red = among the 8 toughest; for sacks and interceptions, more is tougher). In 2018–2025 testing a player's role predicted props far better than the matchup, and the projection already accounts for it, so treat the matchup as context.</div>`;
+  }).join('') + `<div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first). Type the sportsbook's line to see the chance of going over, based on how players with similar projections finished. Players listed as out or doubtful are left off, and their same-position teammates pick up part of their targets and carries: in 2023–2025 games that brought backs' rushing projections from 8 yards too low to about 1. Matchup numbers are what each defense has allowed per game to that position this season, ranked out of 32 (green = among the 8 softest, red = among the 8 toughest; for sacks and interceptions, more is tougher). In 2018–2025 testing a player's role predicted props far better than the matchup, and the projection already accounts for it, so treat the matchup as context.</div>`;
 }
 function propRow(g, p){
   const keys = mainProps(p).filter(k => p.proj[k] != null);
@@ -608,7 +608,7 @@ function propRow(g, p){
   const td = p.proj.any_td != null ? ` · TD ${pct(p.proj.any_td)} (fair ${fairOdds(p.proj.any_td)})` : '';
   const pt = D.trends.player.filter(x => x.id === p.id && x.sticky).slice(0, 1).map(x => `<span class="pill ${x.tone === 'up' ? 'win' : 'loss'}">${esc(x.label)} ${x.tone === 'up' ? '▲' : '▼'} ${x.weeks} wks</span>`).join('');
   return `<div class="prow">
-    <div style="min-width:0"><div class="pn"><span data-chart="p|${esc(p.id)}|${CH_DEFAULT_FROM_PROP[k0] || ''}" role="button" tabindex="0" title="Open ${esc(p.name)}'s game-by-game chart">${esc(p.name)}</span> <span class="small">${p.pos}</span>${inj}${pt}</div><div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div></div>
+    <div style="min-width:0"><div class="pn"><span data-chart="p|${esc(p.id)}|${CH_DEFAULT_FROM_PROP[k0] || ''}" role="button" tabindex="0" title="Open ${esc(p.name)}'s game-by-game chart">${esc(p.name)}</span> <span class="small">${p.pos}</span>${inj}${pt}</div><div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div>${p.bump ? `<div class="bump">▲ ${esc(p.bump.txt)}</div>` : ''}</div>
     <div><div class="proj num">${k0 ? p.proj[k0] : '–'}<small>${k0 ? PROP_LABEL[k0] : ''}</small></div><div class="ps">${keys[1] ? PROP_LABEL[keys[1]] + ' ' + p.proj[keys[1]] : ''}</div></div>
     <div class="c-avg"><div class="ps">${avgTxt}${td}</div>
       <div class="oc c-line">${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" id="ln_${esc(p.id)}_${k0}" data-oc="${k0}" data-proj="${p.proj[k0]}" aria-label="${esc(p.name)} ${PROP_LABEL[k0]} line" placeholder="Line">`, 'line')}<span class="out" id="oc_${esc(p.id)}_${k0}">Enter a line</span><button class="btn tiny slipb" data-slipkey="nfl:${esc(k0 + ':' + g.id + ':' + p.id)}" data-pickprop="${esc(p.id)}" data-key="${k0}" data-g="${g.id}">+ Slip</button></div></div>
@@ -836,7 +836,7 @@ function ppRow(g, p, key){
   return `<article class="pp" data-g="${g.id}" data-pid="${esc(p.id)}" data-key="${key}">
     <div class="pp-who"><div class="pn"><span data-chart="p|${esc(p.id)}|${key}" role="button" tabindex="0" title="Open ${esc(p.name)}'s chart">${esc(p.name)}</span> <span class="small">${p.pos}</span>${inj}</div>
       <div class="ps">${chip(p.team, 1)} ${p.team === g.home ? 'vs' : '@'} ${chip(opp, 1)} · ${esc(kick(g.kickoff, {timeZoneName: undefined}))}</div>
-      <div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div></div>
+      <div class="ps">${usage}${p.snap != null ? ' · ' + pct(p.snap) + ' snaps' : ''}</div>${p.bump ? `<div class="bump">▲ ${esc(p.bump.txt)}</div>` : ''}</div>
     <div class="pp-proj"><div class="proj num">${big}</div><div class="ps">${key === 'any_td' ? `fair ${fmtOdds(oddsNum(proj))}` : `Avg ${f1(avg)} · L3 ${f1(l3)}`}</div>
       ${vals.length > 1 ? `<span class="pp-sp">${spark(log.map(l => [l.wk, ppVal(l, key)]), {w: 84, h: 24, base: key === 'any_td' ? undefined : avg})}</span>` : ''}</div>
     <div class="pp-mx">${mx}</div>
@@ -876,7 +876,7 @@ function renderProps(){
         <input type="text" id="pp-q" placeholder="Search a player or team" autocomplete="off" aria-label="Search players"></div>
       <span class="small" id="pp-count"></span></div>
     <div class="pp-list" id="pp-list"></div><div id="pp-more" style="display:flex;justify-content:center"></div>
-    <div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first), and the chances come from how players with similar projections actually finished. Players listed as out or doubtful are left off. Matchup numbers are what the defense has allowed per game to that position this season. In testing, a player's role mattered far more than the matchup.</div>`;
+    <div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first), and the chances come from how players with similar projections actually finished. Players listed as out or doubtful are left off, and their same-position teammates pick up part of their targets and carries: in 2023–2025 games that brought backs' rushing projections from 8 yards too low to about 1. Matchup numbers are what the defense has allowed per game to that position this season. In testing, a player's role mattered far more than the matchup.</div>`;
   if (!up.some(g => g.id === PPF.game)) PPF.game = 'all';
   $('#pp-game').value = PPF.game; $('#pp-sort').value = PPF.sort; $('#pp-q').value = PPF.q;
   $('#pp-game').addEventListener('change', e => { PPF.game = e.target.value; store.set('ppf', PPF); PPSHOW = 25; renderPPList(); });

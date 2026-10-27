@@ -1,0 +1,82 @@
+{
+ "note": "research/13_injury_bump.py: same-position teammates of a missing regular, fit 2018-2022, checked 2023-2025",
+ "k": {
+  "tgt_WR": 0.276,
+  "tgt_TE": 0.329,
+  "tgt_RB": 0.408,
+  "car_RB": 0.568
+ },
+ "g": {
+  "rec_yds": 0.421,
+  "receptions": 0.58,
+  "rush_yds": 0.568,
+  "any_td": 0.55
+ },
+ "check": {
+  "target share, WR out": {
+   "n": 1562,
+   "mae_plain": 0.0632,
+   "mae_bump": 0.0612,
+   "bias_plain": 0.0212
+  },
+  "target share, TE out": {
+   "n": 267,
+   "mae_plain": 0.0557,
+   "mae_bump": 0.0495,
+   "bias_plain": 0.0361
+  },
+  "target share, RB out": {
+   "n": 479,
+   "mae_plain": 0.0472,
+   "mae_bump": 0.0457,
+   "bias_plain": 0.0162
+  },
+  "carry share, RB out": {
+   "n": 519,
+   "mae_plain": 0.1601,
+   "mae_bump": 0.1239,
+   "bias_plain": 0.0983
+  },
+  "rec_yds": {
+   "n": 2308,
+   "mae_plain": 19.655,
+   "mae_bump": 19.696,
+   "bias_plain": 2.804,
+   "bias_bump": 1.355,
+   "avg_bump": 1.45,
+   "avg_proj": 27.4,
+   "targets_before": 3.41,
+   "targets_actual": 3.96
+  },
+  "receptions": {
+   "n": 1926,
+   "mae_plain": 1.524,
+   "mae_bump": 1.507,
+   "bias_plain": 0.252,
+   "bias_bump": 0.054,
+   "avg_bump": 0.2,
+   "avg_proj": 2.7,
+   "targets_before": 3.97,
+   "targets_actual": 4.47
+  },
+  "rush_yds": {
+   "n": 519,
+   "mae_plain": 22.432,
+   "mae_bump": 21.744,
+   "bias_plain": 8.151,
+   "bias_bump": 1.375,
+   "avg_bump": 6.78,
+   "avg_proj": 31.8,
+   "carries_before": 6.75,
+   "carries_actual": 9.21
+  },
+  "any_td": {
+   "n": 2356,
+   "brier_plain": 0.1572,
+   "brier_bump": 0.1552,
+   "rate_actual": 0.218,
+   "p_plain": 0.181,
+   "p_bump": 0.195
+  }
+ }
+}
