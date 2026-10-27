@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install pandas openpyxl xlrd
+      - run: pip install pandas numpy scipy openpyxl xlrd
       - run: python pipeline/probe_sources.py
       - name: Save raw copies to the probe-data branch
         run: |
