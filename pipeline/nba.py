@@ -710,11 +710,7 @@ def team_stats(season):
                   'orb': S_('orb') / max(S_('orb') + S_('o_drb'), 1), 'drb': S_('drb') / max(S_('drb') + S_('o_orb'), 1),
                   'reb': (S_('orb') + S_('drb')) / n, 'ast': S_('ast') / n, 'stl': S_('stl') / n, 'blk': S_('blk') / n}
         out[t]['net'] = out[t]['ortg'] - out[t]['drtg']
-    ranks = {t: {} for t in out}
-    for k, hi in TSTAT_DIR.items():
-        vals = sorted(((v[k], t) for t, v in out.items() if v.get(k) is not None), key=lambda a: -a[0] if hi in (True, None) else a[0])
-        for i, (v_, t) in enumerate(vals):
-            ranks[t][k] = i + 1
+    ranks = sl.league_ranks(out, TSTAT_DIR)
     return {t: {k: (round(v, 4) if isinstance(v, float) else v) for k, v in d.items()} for t, d in out.items()}, ranks
 
 

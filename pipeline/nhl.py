@@ -751,12 +751,10 @@ def team_stats(season_end):
         d['pp'], d['pk'] = x_.get('pp'), x_.get('pk')
         d['fo'] = x_.get('fo')            # the team boxes' faceoff rate averages players' rates, so take the league's
         out[t] = d
-    ranks = {t: {} for t in out}
-    for k, hi in TSTAT_DIR.items():
-        vals = sorted(((v[k], t) for t, v in out.items() if v.get(k) is not None), key=lambda a: -a[0] if hi in (True, None) else a[0])
-        for i, (v_, t) in enumerate(vals):
-            ranks[t][k] = i + 1
-    sl.log('team stats', season_end, len(out), 'teams |', len(have_), 'games from team boxes,', g.game_id.nunique() - len(have_), 'from skater boxes | special teams for', len(st))
+    ranks = sl.league_ranks(out, TSTAT_DIR)
+    rng = lambda k: '–'.join(f'{100 * f(v[k] for v in out.values() if v.get(k) is not None):.1f}' for f in (min, max)) + '%' if any(v.get(k) is not None for v in out.values()) else 'none'
+    sl.log('team stats', season_end, len(out), 'teams |', len(have_), 'games from team boxes,', g.game_id.nunique() - len(have_), 'from skater boxes | special teams for', len(st),
+           f'(PP {rng("pp")}, PK {rng("pk")}, faceoffs {rng("fo")})')
     return {t: {k: (round(v, 4) if isinstance(v, float) else v) for k, v in d.items()} for t, d in out.items()}, ranks
 
 

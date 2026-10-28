@@ -18,6 +18,25 @@ def notice(title, msg):
     print(f'::notice title={title}::{str(msg)[:3000]}', flush=True)
 
 
+def league_ranks(stats, dirs, nd=4):
+    """League ranks per stat, ties sharing a rank (1, 2, 2, 4). stats: {team: {stat: value}}; dirs[stat] False ranks
+    the lowest value first, True or None (ranked by size) the highest. Values are compared at nd decimals."""
+    ranks = {t: {} for t in stats}
+    for k, hi in dirs.items():
+        vals = []
+        for t, v in stats.items():
+            x = v.get(k)
+            if x is not None and math.isfinite(float(x)):
+                vals.append((round(float(x), nd), t))
+        vals.sort(key=lambda a: -a[0] if hi in (True, None) else a[0])
+        prev, r = None, 0
+        for i, (x, t) in enumerate(vals):
+            if x != prev:
+                r, prev = i + 1, x
+            ranks[t][k] = r
+    return ranks
+
+
 _FIX = None
 
 
