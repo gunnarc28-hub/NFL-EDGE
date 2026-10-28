@@ -125,7 +125,7 @@ def parse_summary(gid):
                 dnp = bool(a.get('didNotPlay')) or not st
                 rows.append({'game_id': gid, 'athlete_id': str(ath.get('id')), 'athlete_display_name': ath.get('displayName'), 'team_abbreviation': ab,
                              'athlete_position_abbreviation': (ath.get('position') or {}).get('abbreviation'), 'minutes': n('minutes') if not dnp else np.nan,
-                             'points': n('points'), 'rebounds': n('rebounds'), 'assists': n('assists'), 'three_point_field_goals_made': f3m, 'steals': n('steals'),
+                             'points': n('points'), 'rebounds': n('rebounds'), 'assists': n('assists'), 'three_point_field_goals_made': f3m, 'three_point_field_goals_attempted': f3a, 'steals': n('steals'),
                              'blocks': n('blocks'), 'turnovers': n('turnovers'), 'field_goals_made': fgm, 'field_goals_attempted': fga, 'free_throws_made': ftm,
                              'free_throws_attempted': fta, 'offensive_rebounds': n('offensiveRebounds'), 'defensive_rebounds': n('defensiveRebounds'), 'fouls': n('fouls'),
                              'plus_minus': n('plusMinus'), 'starter': bool(a.get('starter')), 'did_not_play': dnp, 'reason': a.get('reason')})
@@ -153,7 +153,7 @@ P['team_abbreviation'] = P.team_abbreviation.map(fix_ab); P['opponent_team_abbre
 P['t'] = pd.to_datetime(P.game_date_time, utc=True, format='ISO8601')
 P['min'] = pd.to_numeric(P.minutes, errors='coerce').fillna(0)
 P['played'] = (P['min'] > 0) & (~P.did_not_play.astype(str).str.lower().isin(['true', '1']))
-NUM = ['points', 'rebounds', 'assists', 'three_point_field_goals_made', 'steals', 'blocks', 'turnovers', 'field_goals_made', 'field_goals_attempted',
+NUM = ['points', 'rebounds', 'assists', 'three_point_field_goals_made', 'three_point_field_goals_attempted', 'steals', 'blocks', 'turnovers', 'field_goals_made', 'field_goals_attempted',
        'free_throws_made', 'free_throws_attempted', 'offensive_rebounds', 'defensive_rebounds', 'fouls', 'plus_minus']
 for c in NUM:
     P[c] = pd.to_numeric(P[c], errors='coerce').fillna(0)
@@ -674,11 +674,59 @@ def team_records():
 
 
 TREC = team_records()
+
+# ================================================================== team stats: season to date, with league ranks (this season and last)
+# (key, higher is better? None = neither, e.g. pace)
+TSTAT_DIR = {'pts': True, 'opp': False, 'mov': True, 'pace': None, 'ortg': True, 'drtg': False, 'net': True, 'net_l10': True, 'efg': True, 'opp_efg': False,
+             'fg3m': True, 'fg3a': None, 'fg3p': True, 'opp_fg3p': False, 'opp_fg3m': False, 'ftr': True, 'opp_ftr': False, 'tov': False, 'opp_tov': True,
+             'orb': True, 'drb': True, 'reb': True, 'ast': True, 'stl': True, 'blk': True}
+
+
+def team_stats(season):
+    x = P[P.played & (P.season == season) & (P.season_type == 2)]
+    x = x[x.game_id.isin(set(GAMES[GAMES.state == 'post'].id))]             # finished games only, like the records
+    if x.empty:
+        return {}, {}
+    g = x.groupby(['game_id', 'team_abbreviation', 't'])[['points', 'field_goals_made', 'field_goals_attempted', 'three_point_field_goals_made', 'three_point_field_goals_attempted',
+                                                        'free_throws_made', 'free_throws_attempted', 'offensive_rebounds', 'defensive_rebounds', 'assists', 'steals',
+                                                        'blocks', 'turnovers']].sum().reset_index()
+    g.columns = ['game_id', 'team', 't', 'pts', 'fgm', 'fga', 'f3m', 'f3a', 'ftm', 'fta', 'orb', 'drb', 'ast', 'stl', 'blk', 'tov']
+    o = g.drop(columns='t').rename(columns={c: 'o_' + c for c in g.columns if c not in ('game_id', 't')})
+    g = g.merge(o, on='game_id'); g = g[g.team != g.o_team]
+    g = g[g.groupby('game_id').team.transform('size') == 2].sort_values('t')       # both sides' boxes are in
+    g['poss'] = (g.fga - g.orb + g.tov + 0.44 * g.fta + g.o_fga - g.o_orb + g.o_tov + 0.44 * g.o_fta) / 2
+    out = {}
+    for t, z in g.groupby('team'):
+        if t not in TEAMS:
+            continue
+        S_ = lambda c: float(z[c].sum()); n = len(z); l10 = z.tail(10)
+        out[t] = {'gp': n, 'pts': S_('pts') / n, 'opp': S_('o_pts') / n, 'mov': (S_('pts') - S_('o_pts')) / n, 'pace': S_('poss') / n,
+                  'ortg': 100 * S_('pts') / S_('poss'), 'drtg': 100 * S_('o_pts') / S_('poss'),
+                  'net_l10': 100 * (l10.pts.sum() - l10.o_pts.sum()) / max(l10.poss.sum(), 1),
+                  'efg': (S_('fgm') + 0.5 * S_('f3m')) / max(S_('fga'), 1), 'opp_efg': (S_('o_fgm') + 0.5 * S_('o_f3m')) / max(S_('o_fga'), 1),
+                  'fg3m': S_('f3m') / n, 'fg3a': S_('f3a') / n, 'fg3p': S_('f3m') / max(S_('f3a'), 1), 'opp_fg3p': S_('o_f3m') / max(S_('o_f3a'), 1), 'opp_fg3m': S_('o_f3m') / n,
+                  'ftr': S_('fta') / max(S_('fga'), 1), 'opp_ftr': S_('o_fta') / max(S_('o_fga'), 1),
+                  'tov': S_('tov') / S_('poss'), 'opp_tov': S_('o_tov') / S_('poss'),
+                  'orb': S_('orb') / max(S_('orb') + S_('o_drb'), 1), 'drb': S_('drb') / max(S_('drb') + S_('o_orb'), 1),
+                  'reb': (S_('orb') + S_('drb')) / n, 'ast': S_('ast') / n, 'stl': S_('stl') / n, 'blk': S_('blk') / n}
+        out[t]['net'] = out[t]['ortg'] - out[t]['drtg']
+    ranks = {t: {} for t in out}
+    for k, hi in TSTAT_DIR.items():
+        vals = sorted(((v[k], t) for t, v in out.items() if v.get(k) is not None), key=lambda a: -a[0] if hi in (True, None) else a[0])
+        for i, (v_, t) in enumerate(vals):
+            ranks[t][k] = i + 1
+    return {t: {k: (round(v, 4) if isinstance(v, float) else v) for k, v in d.items()} for t, d in out.items()}, ranks
+
+
+TS_CUR, TR_CUR = team_stats(SEASON)
+TS_PREV, TR_PREV = team_stats(SEASON - 1)
+sl.log('team stats: this season', len(TS_CUR), 'teams, last season', len(TS_PREV))
 rk = lambda key, rev=True: {t: i + 1 for i, (t, v) in enumerate(sorted(RATING.items(), key=lambda kv: -kv[1][key] if rev else kv[1][key]))}
 RK_NET, RK_OFF, RK_DEF, RK_PACE = rk('net'), rk('off'), rk('def'), rk('pace')
 TEAMS_OUT = {}
 for t, v in TEAMS.items():
     TEAMS_OUT[t] = dict(v, **TREC.get(t, {}), rating=RATING.get(t), rk={'net': RK_NET.get(t), 'off': RK_OFF.get(t), 'def': RK_DEF.get(t), 'pace': RK_PACE.get(t)},
+                        st={'cur': TS_CUR.get(t), 'prev': TS_PREV.get(t)}, srk={'cur': TR_CUR.get(t), 'prev': TR_PREV.get(t)},
                         inj=len([e for e in INJ.get(t, []) if e['level'] in ('out', 'doubt')]))
 
 # ================================================================== trends: players on runs, teams on runs (with what the research says about carrying over)
@@ -809,7 +857,7 @@ GRADE = {'sport': LG, 'asof': NOW.isoformat(timespec='seconds'), 'games': gg, 'p
 dist_out = {k: [[round(b['hi'], 3), [round(v, 3) for v in np.array(b['q'])[::5].tolist()]] for b in PR['dist'][k]] for k in ALL}
 season_label = f'{SEASON - 1}-{str(SEASON)[-2:]}'
 BT_ = S['backtest']; PBT = S['prop_backtest']
-meta = {'sport': LG, 'season': season_label, 'asof': NOW.isoformat(timespec='seconds'), 'slate': SLATE, 'days': DAYS[1:], 'espn': 'basketball/nba',
+meta = {'sport': LG, 'season': season_label, 'season_prev': f'{SEASON - 2}-{str(SEASON - 1)[-2:]}', 'asof': NOW.isoformat(timespec='seconds'), 'slate': SLATE, 'days': DAYS[1:], 'espn': 'basketball/nba',
         'stats_through': (P[P.played].t.max().tz_convert(sl.ET).date().isoformat() if len(P) else None), 'resid_sd': SD, 'resid_t': SDT,
         'sources': ['hoopR box scores and schedules (sportsdataverse), refreshed daily', 'ESPN scoreboard, game summaries and injury list',
                     'ESPN odds records: game lines and player props (DraftKings, ESPN BET when DraftKings has none)'],

@@ -884,3 +884,22 @@ a.brand:hover b{text-decoration:underline;text-decoration-thickness:3px;text-und
   .fx{grid-template-columns:minmax(0,1fr) auto}
 }
 .bump{font-size:12px;font-weight:650;color:var(--win);margin-top:3px;line-height:1.3}
+/* team stats: comparison tables on game cards, and the Teams tab */
+.tape.tstat{margin-top:2px}
+.tape.tstat th:first-child{text-transform:none;letter-spacing:0;font-size:11.5px}
+.tape.tstat .gpn{font-weight:500;color:var(--ink-3);white-space:nowrap}
+.tape.tstat tr.tsub th{text-align:left;padding:10px 4px 4px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.tape.tstat td{white-space:nowrap}
+.tape.tstat td .v{color:var(--ink-2)}
+.tape.tstat td.better .v{color:var(--ink)}
+.tstats td .rk{margin-left:4px}
+.tstats td.sel{background:var(--stripe-bg)}
+@media (max-width:620px){
+  .seg.tgroups{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding:2px 16px;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)}
+  .seg.tgroups::-webkit-scrollbar,.seg.dtabs::-webkit-scrollbar{display:none}
+  .seg.tgroups button,.seg.dtabs button{flex:0 0 auto;white-space:nowrap}
+  .seg.dtabs{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .tape.tstat td{padding:5px 2px}
+  .tape.tstat .rk{font-size:11px;padding:1px 4px}
+}

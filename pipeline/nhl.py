@@ -49,7 +49,7 @@ def toi_min(x):
 
 # ================================================================== history (NHL ids)
 def load(kind, season, required):
-    tag = {'skater_box': 'nhl_skater_boxscores', 'goalie_box': 'nhl_goalie_boxscores', 'schedule': 'nhl_schedules'}[kind]
+    tag = {'skater_box': 'nhl_skater_boxscores', 'goalie_box': 'nhl_goalie_boxscores', 'schedule': 'nhl_schedules', 'team_box': 'nhl_team_boxscores'}[kind]
     fname = f'nhl_schedule_{season}.csv' if kind == 'schedule' else f'{kind}_{season}.csv'
     p = sl.sdv_csv(tag, fname, CACHE, required=required)
     return pd.read_csv(p, low_memory=False) if p else pd.DataFrame()
@@ -111,7 +111,8 @@ def nhl_box(gid):
             for p in t.get(grp) or []:
                 sk_.append({'game_id': gid, 'team_abbrev': tm, 'player_id': p.get('playerId'), 'player_name': (p.get('name') or {}).get('default'), 'position': p.get('position'),
                             'goals': p.get('goals', 0), 'assists': p.get('assists', 0), 'points': p.get('points', 0), 'shots_on_goal': p.get('sog', p.get('shots', 0)),
-                            'hits': p.get('hits', 0), 'blocked_shots': p.get('blockedShots', 0), 'toi': p.get('toi', '0:00'), 'power_play_goals': p.get('powerPlayGoals', 0)})
+                            'hits': p.get('hits', 0), 'blocked_shots': p.get('blockedShots', 0), 'toi': p.get('toi', '0:00'), 'power_play_goals': p.get('powerPlayGoals', 0),
+                            'pim': p.get('pim'), 'giveaways': p.get('giveaways'), 'takeaways': p.get('takeaways')})
         for p in t.get('goalies') or []:
             sa = p.get('shotsAgainst'); sv = p.get('saves')
             if sa is None and p.get('saveShotsAgainst'):
@@ -682,6 +683,85 @@ def team_records():
 
 
 TREC = team_records()
+
+# ================================================================== team stats: season to date, with league ranks (this season and last)
+# team boxes (sportsdataverse) for finished games, the skater and goalie boxes for the last day or two they don't have yet,
+# and the league's own power-play and penalty-kill numbers. (key, higher is better? None = neither)
+TSTAT_DIR = {'gf': True, 'ga': False, 'gd': True, 'gd_l10': True, 'sf': True, 'sa': False, 'sfp': True, 'sfp_l10': True, 'shp': True, 'svp': True, 'pdo': None,
+             'pp': True, 'pk': True, 'ppg': True, 'fo': True, 'hits': None, 'blk': None, 'pim': False, 'take': True, 'give': False}
+TBX = pd.concat([load('team_box', SEASON - 1, False), load('team_box', SEASON, False)], ignore_index=True)
+if len(TBX):
+    TBX['game_id'] = pd.to_numeric(TBX.game_id, errors='coerce'); TBX = TBX.dropna(subset=['game_id']); TBX['game_id'] = TBX.game_id.astype(int)
+    TBX = TBX.drop_duplicates(['game_id', 'team_abbrev'], keep='last')
+ID2AB = {int(r.team_id): r.team_abbrev for r in TBX.drop_duplicates('team_id').itertuples()} if len(TBX) else {}
+FULL2AB = {v['name']: k for k, v in TEAMS.items()}
+
+
+def special_teams(season_end):
+    """Power-play and penalty-kill rates from the NHL's stats service: {team: {'pp', 'pk', 'fo'}}."""
+    j = sl.get_json(f'https://api.nhle.com/stats/rest/en/team/summary?cayenneExp=seasonId={season_end - 1}{season_end}%20and%20gameTypeId=2', quiet=True)
+    out = {}
+    for r in (j or {}).get('data') or []:
+        ab = ID2AB.get(r.get('teamId')) or FULL2AB.get(r.get('teamFullName'))
+        if ab not in TEAMS:
+            continue
+        f = lambda v: None if v is None else (v / 100 if v > 1.5 else v)
+        out[ab] = {'pp': f(r.get('powerPlayPct')), 'pk': f(r.get('penaltyKillPct')), 'fo': f(r.get('faceoffWinPct'))}
+    return out
+
+
+def team_stats(season_end):
+    gm = GAMES[(GAMES.season == season_end) & GAMES['gt'].astype(str).isin(['R', '2']) & (GAMES.state == 'post')].sort_values('k')
+    ids = set(gm.id)
+    tb = TBX[TBX.game_id.isin(ids)] if len(TBX) else pd.DataFrame()
+    cols = ['goals', 'shots_on_goal', 'hits', 'blocked_shots', 'pim', 'power_play_goals', 'giveaways', 'takeaways']
+    rows = []
+    for gid, x in (tb.groupby('game_id') if len(tb) else []):
+        if len(x) == 2:
+            for r in x.itertuples():
+                rows.append({'game_id': gid, 'team': r.team_abbrev, **{c: getattr(r, c, np.nan) for c in cols}, 'saves': r.saves, 'fo': r.faceoff_win_pctg})
+    have_ = {r['game_id'] for r in rows}
+    sk = SK[SK.game_id.isin(ids - have_)]; gbx = GB[GB.game_id.isin(ids - have_)]
+    if len(sk):
+        a = sk.groupby(['game_id', 'team_abbrev'])[[c for c in cols if c in sk.columns]].sum(min_count=1)
+        sv = gbx.groupby(['game_id', 'team_abbrev']).saves.sum() if len(gbx) else pd.Series(dtype=float)
+        for (gid, t), r in a.iterrows():
+            rows.append({'game_id': gid, 'team': t, **{c: r.get(c, np.nan) for c in cols}, 'saves': sv.get((gid, t), np.nan), 'fo': np.nan})
+    if not rows:
+        return {}, {}
+    g = pd.DataFrame(rows)
+    o = g.rename(columns={c: 'o_' + c for c in g.columns if c != 'game_id'})
+    g = g.merge(o, on='game_id'); g = g[g.team != g.o_team]
+    g['k'] = g.game_id.map(gm.set_index('id').k); g = g.sort_values('k')
+    st = special_teams(season_end)
+    out = {}
+    for t, z in g.groupby('team'):
+        if t not in TEAMS:
+            continue
+        n = len(z); S_ = lambda c: float(z[c].sum()); M_ = lambda c: float(z[c].mean()) if z[c].notna().any() else None
+        l10 = z.tail(10)
+        gf, ga, sf, sa = S_('goals'), S_('o_goals'), S_('shots_on_goal'), S_('o_shots_on_goal')
+        sav = float(z.saves.sum()) if z.saves.notna().all() else sa - ga
+        d = {'gp': n, 'gf': gf / n, 'ga': ga / n, 'gd': (gf - ga) / n, 'gd_l10': float((l10.goals - l10.o_goals).mean()),
+             'sf': sf / n, 'sa': sa / n, 'sfp': sf / max(sf + sa, 1), 'sfp_l10': float(l10.shots_on_goal.sum() / max(l10.shots_on_goal.sum() + l10.o_shots_on_goal.sum(), 1)),
+             'shp': gf / max(sf, 1), 'svp': sav / max(sa, 1), 'ppg': S_('power_play_goals') / n,
+             'hits': M_('hits'), 'blk': M_('blocked_shots'), 'pim': M_('pim'), 'take': M_('takeaways'), 'give': M_('giveaways')}
+        d['pdo'] = d['shp'] + d['svp']
+        x_ = st.get(t, {})
+        d['pp'], d['pk'] = x_.get('pp'), x_.get('pk')
+        d['fo'] = x_.get('fo')            # the team boxes' faceoff rate averages players' rates, so take the league's
+        out[t] = d
+    ranks = {t: {} for t in out}
+    for k, hi in TSTAT_DIR.items():
+        vals = sorted(((v[k], t) for t, v in out.items() if v.get(k) is not None), key=lambda a: -a[0] if hi in (True, None) else a[0])
+        for i, (v_, t) in enumerate(vals):
+            ranks[t][k] = i + 1
+    sl.log('team stats', season_end, len(out), 'teams |', len(have_), 'games from team boxes,', g.game_id.nunique() - len(have_), 'from skater boxes | special teams for', len(st))
+    return {t: {k: (round(v, 4) if isinstance(v, float) else v) for k, v in d.items()} for t, d in out.items()}, ranks
+
+
+TS_CUR, TR_CUR = team_stats(SEASON)
+TS_PREV, TR_PREV = team_stats(SEASON - 1)
 RATING = {t: {'att': round(O.get(t, 0), 3), 'def': round(Dd.get(t, 0), 3), 'shots_for': round(SO.get(t, 0), 3), 'shots_against': round(SD.get(t, 0), 3),
               'gk': usual_starter(t)} for t in TEAMS}
 for t, r in RATING.items():
@@ -689,6 +769,7 @@ for t, r in RATING.items():
 rk = lambda key, rev=True: {t: i + 1 for i, (t, v) in enumerate(sorted(RATING.items(), key=lambda kv: (-kv[1][key] if rev else kv[1][key])))}
 RK_A, RK_D, RK_S = rk('att'), rk('def'), rk('shots_for')
 TEAMS_OUT = {t: dict(v, **TREC.get(t, {}), rating=RATING.get(t), rk={'att': RK_A.get(t), 'def': RK_D.get(t), 'shots': RK_S.get(t)},
+                     st={'cur': TS_CUR.get(t), 'prev': TS_PREV.get(t)}, srk={'cur': TR_CUR.get(t), 'prev': TR_PREV.get(t)},
                      inj=len([e for e in INJ.get(t, []) if e['level'] in ('out', 'doubt')])) for t, v in TEAMS.items()}
 TRENDS_P, TRENDS_T = [], []
 for it in PROPS:
@@ -804,7 +885,7 @@ for r in GB[GB.game_id.isin(recent_ids) & (GB.shots_against > 0)].itertuples():
     e['g'][str(r.game_id)] = [0, 0, 0, 0, 0, 0, round(toi_min(r.toi)), int(r.saves), int(r.shots_against - r.saves), int(r.shots_against)]
 GRADE = {'sport': LG, 'asof': NOW.isoformat(timespec='seconds'), 'games': gg, 'players': gp}
 season_label = f'{SEASON - 1}-{str(SEASON)[-2:]}'
-meta = {'sport': LG, 'season': season_label, 'asof': NOW.isoformat(timespec='seconds'), 'slate': SLATE, 'days': DAYS[1:], 'espn': 'hockey/nhl',
+meta = {'sport': LG, 'season': season_label, 'season_prev': f'{SEASON - 2}-{str(SEASON - 1)[-2:]}', 'asof': NOW.isoformat(timespec='seconds'), 'slate': SLATE, 'days': DAYS[1:], 'espn': 'hockey/nhl',
         'stats_through': SK.t.max().tz_convert(sl.ET).date().isoformat() if len(SK) else None, 'lg_sv': round(LG_SV, 4),
         'sources': ['fastRhockey box scores and schedules (sportsdataverse), refreshed daily', "The NHL's schedule, box-score and scoring feeds",
                     'ESPN scoreboard (probable goalies), rosters and injury list', 'ESPN odds records: game lines and player props (DraftKings, ESPN BET when DraftKings has none)'],

@@ -57,6 +57,48 @@ const LEVEL_WORD = {out: 'Out', doubt: 'Doubtful', gtd: 'Questionable', likely: 
 /* a teammate is out: the build already raised this player's projection; say by how much and why */
 const bumpTxt = p => p && p.bump && p.bump.txt ? `<div class="bump">▲ ${esc(p.bump.txt)}</div>` : '';
 const liveTxt = SE.liveTxt;
+/* ---------------- team stats: season to date with league ranks (the build computes both seasons) ---------------- */
+const NTEAMS = Object.keys(T).length;
+const TSG = NHL ? [
+  ['overview', 'Overview', [['gd', 'Goal diff / game', 'sgn2', 'Diff'], ['gf', 'Goals for / game', 'n2', 'GF'], ['ga', 'Goals against / game', 'n2', 'GA'], ['gd_l10', 'Goal diff, last 10', 'sgn2', 'Diff L10'], ['pdo', 'PDO (shooting + save %)', 'n3', 'PDO']]],
+  ['shots', 'Shots', [['sf', 'Shots for / game', 'n1', 'Shots'], ['sa', 'Shots against / game', 'n1', 'Shots vs'], ['sfp', 'Shot share', 'pct1', 'Shot %'], ['shp', 'Shooting %', 'pct1', 'Sh%'], ['svp', 'Save %', 'pct1', 'Sv%']]],
+  ['special', 'Special teams', [['pp', 'Power play', 'pct1', 'PP%'], ['pk', 'Penalty kill', 'pct1', 'PK%'], ['ppg', 'Power-play goals / game', 'n2', 'PPG'], ['pim', 'Penalty minutes / game', 'n1', 'PIM'], ['fo', 'Faceoffs won', 'pct1', 'FO%']]],
+  ['physical', 'Physical', [['hits', 'Hits / game', 'n1', 'Hits'], ['blk', 'Blocked shots / game', 'n1', 'Blocks'], ['take', 'Takeaways / game', 'n1', 'Take'], ['give', 'Giveaways / game', 'n1', 'Give'], ['sfp_l10', 'Shot share, last 10', 'pct1', 'Shot% L10']]]
+] : [
+  ['overview', 'Overview', [['net', 'Net rating', 'sgn1', 'Net'], ['ortg', 'Offensive rating', 'n1', 'Off rtg'], ['drtg', 'Defensive rating', 'n1', 'Def rtg'], ['pace', 'Pace', 'n1', 'Pace'], ['net_l10', 'Net rating, last 10', 'sgn1', 'Net L10']]],
+  ['scoring', 'Scoring', [['pts', 'Points / game', 'n1', 'Pts'], ['opp', 'Points allowed / game', 'n1', 'Opp pts'], ['mov', 'Margin / game', 'sgn1', 'Margin'], ['efg', 'Effective FG%', 'pct1', 'eFG%'], ['opp_efg', 'Opponent eFG%', 'pct1', 'Opp eFG%']]],
+  ['shooting', 'Shooting', [['fg3m', '3-pointers / game', 'n1', '3PM'], ['fg3a', '3-point tries / game', 'n1', '3PA'], ['fg3p', '3-point %', 'pct1', '3P%'], ['opp_fg3p', 'Opponent 3-point %', 'pct1', 'Opp 3P%'], ['ftr', 'Free-throw rate', 'pct1', 'FT rate']]],
+  ['ball', 'Possessions', [['tov', 'Turnover rate', 'pct1', 'TOV%'], ['opp_tov', 'Turnovers forced', 'pct1', 'Forced'], ['orb', 'Offensive rebound %', 'pct1', 'OREB%'], ['drb', 'Defensive rebound %', 'pct1', 'DREB%'], ['ast', 'Assists / game', 'n1', 'Ast']]],
+  ['defense', 'Defense', [['stl', 'Steals / game', 'n1', 'Stl'], ['blk', 'Blocks / game', 'n1', 'Blk'], ['opp_fg3m', 'Opponent 3s / game', 'n1', 'Opp 3PM'], ['opp_ftr', 'Opponent free-throw rate', 'pct1', 'Opp FT'], ['reb', 'Rebounds / game', 'n1', 'Reb']]]
+];
+const TS_NEUTRAL = new Set(NHL ? ['pdo', 'hits', 'blk'] : ['pace', 'fg3a']);       // ranked by size, not good or bad
+const TS_KEY = NHL ? ['gd', 'sfp', 'pp', 'pk'] : ['net', 'ortg', 'drtg', 'pace'];
+const TS_DEF = Object.fromEntries(TSG.flatMap(([, , rows]) => rows.map(r => [r[0], r])));
+const fmtStat = (v, f) => v == null ? '–' : f === 'pct1' ? (v * 100).toFixed(1) + '%' : f === 'sgn1' ? sign(v, 1) : f === 'sgn2' ? sign(v, 2) : f === 'n3' ? Number(v).toFixed(3) : f === 'n2' ? Number(v).toFixed(2) : Number(v).toFixed(1);
+const rkCls = (k, r) => r == null || TS_NEUTRAL.has(k) ? '' : r <= 8 ? 'good' : r > NTEAMS - 8 ? 'bad' : '';
+const tStat = (t, k, sea = 'cur') => (((T[t] || {}).st || {})[sea] || {})[k];
+const tRank = (t, k, sea = 'cur') => (((T[t] || {}).srk || {})[sea] || {})[k];
+const rkTag = (t, k, sea = 'cur') => { const r = tRank(t, k, sea); return r == null ? '' : `<span class="rk ${rkCls(k, r)}">#${r}</span>`; };
+function statTape(g, keys, head){
+  const gpA = tStat(g.away, 'gp'), gpH = tStat(g.home, 'gp');
+  const rows = keys.map(k => { if (k[0] === '#') return `<tr class="tsub"><th colspan="3">${esc(k.slice(1))}</th></tr>`;
+    const [key, label, f] = TS_DEF[k], ra = tRank(g.away, key), rh = tRank(g.home, key);
+    const ba = !TS_NEUTRAL.has(key) && ra != null && rh != null && ra < rh, bh = !TS_NEUTRAL.has(key) && ra != null && rh != null && rh < ra;
+    return `<tr><td>${esc(label)}</td><td class="${ba ? 'better' : ''}"><span class="v">${fmtStat(tStat(g.away, key), f)}</span>${rkTag(g.away, key)}</td><td class="${bh ? 'better' : ''}"><span class="v">${fmtStat(tStat(g.home, key), f)}</span>${rkTag(g.home, key)}</td></tr>`; }).join('');
+  return `<table class="tape tstat"><thead><tr><th>${esc(head || `This season, rank of ${NTEAMS}`)}${gpA != null ? ` <span class="gpn">${gpA} and ${gpH ?? '–'} games</span>` : ''}</th><th>${chip(g.away, 1)}</th><th>${chip(g.home, 1)}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+const keyTape = g => tStat(g.away, 'gp') || tStat(g.home, 'gp') ? statTape(g, TS_KEY) : '';
+/* a strength meeting a weakness: a top-8 unit against a bottom-8 one (context, not a pick) */
+function statMismatches(g){
+  if ((tStat(g.away, 'gp') || 0) < 5 || (tStat(g.home, 'gp') || 0) < 5) return [];
+  const pairs = NHL ? [['pp', 'pk', 'power play', 'penalty kill']] : [['ortg', 'drtg', 'offense', 'defense'], ['fg3p', 'opp_fg3p', '3-point shooting', '3-point defense']];
+  const out = [];
+  pairs.forEach(([a, b, la, lb]) => [[g.away, g.home], [g.home, g.away]].forEach(([o, d]) => {
+    const ro = tRank(o, a), rd = tRank(d, b);
+    if (ro != null && rd != null && ro <= 8 && rd > NTEAMS - 8) out.push(`${o} ${la} #${ro} vs ${d} ${lb} #${rd}`);
+  }));
+  return out;
+}
 const shortDay = d => { const [y, mo, da] = String(d).split('-').map(Number); return new Date(y, mo - 1, da).toLocaleDateString([], {month: 'short', day: 'numeric'}); };
 const SEASON_START = `${String(M.season || '').slice(0, 4)}-08-01`;
 
@@ -113,7 +155,7 @@ const NAV = [['games', 'Games', NHL ? 'Every game: lines, starting goalies, the 
   ['hc', 'High-chance', 'Legs rated 80% or better, checked against past results'], ['ls', 'Long shots', NHL ? 'Goal scorers, multi-point nights and the first goal' : 'Big scoring nights, double- and triple-doubles'],
   ['trends', 'Trends', 'Players and teams on runs, and whether runs last'], ['picks', 'My bets', 'Every bet across sports: record, units, closing line'],
   ['tips', 'Betting tips', 'Where real edges come from, applied to today'], ['matters', 'What matters', 'What the research says predicts games and props'],
-  ['teams', 'Teams', 'Records, ratings and trends for all ' + Object.keys(T).length]];
+  ['teams', 'Teams', 'Team stats with league ranks, records and ratings for all ' + Object.keys(T).length]];
 function tabFade(){ const n = $('.tabs'); if (!n) return; n.classList.toggle('fl', n.scrollLeft > 4); n.classList.toggle('fr', n.scrollLeft + n.clientWidth < n.scrollWidth - 4); }
 function openNav(){
   const cur = store.get('tab', 'games');
@@ -213,6 +255,7 @@ function gameChips(g){
   if (m && !NHL && m.pick_ats) out.push(`<span class="pill stripe">Lean ${m.pick_ats} ${fmtLine(lineFor(g, m.pick_ats))}</span>`);
   if (m && !NHL && m.pick_total) out.push(`<span class="pill stripe">Lean ${m.pick_total === 'O' ? 'over' : 'under'} ${g.odds.total}</span>`);
   if (m && NHL && m.value) out.push(`<span class="pill stripe">Value: ${m.value} ML</span>`);
+  statMismatches(g).forEach(x => out.push(`<span class="pill info" title="A top-8 unit against a bottom-8 one this season">${esc(x)}</span>`));
   ['a', 'h'].forEach(sd => {
     const t = sd === 'h' ? g.home : g.away;
     const outs = (D.injuries[t] || []).filter(i => i.key && (i.level === 'out' || i.level === 'doubt')).slice(0, 3);
@@ -243,19 +286,22 @@ function gameCard(g){
       ${fin || live ? '' : `<div class="obh"><span></span><span>${CFG.spread}</span><span>Total</span><span>Money</span></div>`}
       ${teamRow(g, 'away')}${teamRow(g, 'home')}
       ${modelBlock(g)}
+      ${keyTape(g)}
       <div class="g-chips">${gameChips(g)}</div>
     </div>
-    <button class="g-more" data-more="${g.id}" aria-expanded="false"><span>Injuries, props, trends and why</span><span>＋</span></button>
+    <button class="g-more" data-more="${g.id}" aria-expanded="false"><span>Injuries, team stats, props, trends and why</span><span>＋</span></button>
     <div class="g-detail" id="d-${g.id}" hidden></div>
   </article>`;
 }
-const DETAIL_TABS = [['inj', 'Injuries'], ['props', 'Props'], ['trends', 'Trends'], ['why', 'Why']];
+const DETAIL_TABS = [['inj', 'Injuries'], ['stats', 'Team stats'], ['props', 'Props'], ['trends', 'Trends'], ['why', 'Why']];
 function detailHtml(g, which){
   which = which || 'inj';
-  const tabs = `<div class="seg" role="group" aria-label="Details">${DETAIL_TABS.map(([k, l]) => `<button type="button" data-dtab="${k}" data-g="${g.id}" aria-pressed="${k === which}">${l}</button>`).join('')}</div>`;
+  const tabs = `<div class="seg dtabs" role="group" aria-label="Details">${DETAIL_TABS.map(([k, l]) => `<button type="button" data-dtab="${k}" data-g="${g.id}" aria-pressed="${k === which}">${l}</button>`).join('')}</div>`;
   let body = '';
   if (which === 'inj') body = `<div class="twocol">${[g.away, g.home].map(t => injCol(t)).join('')}</div><div class="note">From ESPN's injury list, refreshed every few minutes while this page is open. Bold names are rotation regulars.</div>`;
   if (which === 'props') body = gamePropsHtml(g);
+  if (which === 'stats') body = (tStat(g.away, 'gp') || tStat(g.home, 'gp') ? statTape(g, TSG.flatMap(([, l, rows]) => ['#' + l, ...rows.map(r => r[0])])) : `<div class="small">${hasTeamStats() ? 'Team stats start once both teams have played this season.' : 'Team stats fill in with the next data update (every 30 minutes).'}</div>`)
+    + `<p class="small" style="margin:6px 0 0">Ranks are out of ${NTEAMS} (green = top 8, red = bottom 8); the better side of each row is in bold. ${NHL ? 'Power play, penalty kill and faceoffs come from the NHL\'s own stats; the rest from the box scores.' : 'Ratings are points per 100 possessions; pace is possessions per game.'} Tap a team's name on the Teams tab for its game-by-game chart.</p>`;
   if (which === 'trends') body = `<div class="twocol">${[g.away, g.home].map(t => teamTrendBox(t)).join('')}</div>`;
   if (which === 'why') body = whyHtml(g);
   return tabs + body;
@@ -763,8 +809,8 @@ RENDER.matters = renderMatters;
    TEAMS
    ====================================================================== */
 let TS = store.get('ts', {k: NHL ? 'pts' : 'net', dir: 'desc'});
-function renderTeams(){
-  const v = $('#v-teams');
+function recordsTable(){
+  if (!TS.k || TS.k.startsWith('s:')) TS = {k: NHL ? 'pts' : 'net', dir: 'desc'};
   const cols = NHL ? [['team', 'Team'], ['rec', 'W-L-OTL'], ['pts', 'Pts'], ['l10', 'Last 10'], ['gf', 'GF/G'], ['ga', 'GA/G'], ['att', 'Attack rk'], ['def', 'Defense rk'], ['gk', 'Usual goalie'], ['ou', 'O/U'], ['streak', 'Streak'], ['inj', 'Out']]
     : [['team', 'Team'], ['rec', 'W-L'], ['l10', 'Last 10'], ['net', 'Net rating'], ['off', 'Offense rk'], ['def', 'Defense rk'], ['pace', 'Pace'], ['ats', 'ATS'], ['ou', 'O/U'], ['pd', 'Diff/G'], ['streak', 'Streak'], ['inj', 'Out']];
   const val = (t, k) => { const x = T[t]; switch (k){
@@ -780,14 +826,46 @@ function renderTeams(){
     case 'net': return `<td class="r num">${sign(r.net, 1)} <span class="small">#${rk.net ?? '–'}</span></td>`; case 'off': return `<td class="r num">${rk.off ?? '–'}</td>`; case 'pace': return `<td class="r num">${fmtN(r.pace, 1)}</td>`;
     case 'ats': return `<td class="r num">${wl(x.ats)}</td>`; case 'ou': return `<td class="r num">${ouTxt(x.ou)}</td>`; case 'pd': return `<td class="r num">${sign(x.pd, 1)}</td>`;
     case 'streak': return `<td class="r num">${esc(x.streak || '–')}</td>`; case 'inj': return `<td class="r num">${x.inj || ''}</td>`; } return '<td></td>'; };
-  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Teams</h1><p class="lede">${NHL ? 'Records, goals for and against, the model\'s attack and defense ranks, and each team\'s usual starting goalie.' : 'Records, the model\'s efficiency ratings (points per 100 possessions better than an average team), against-the-spread and over/under records from the closing lines.'} Tap a column to sort.</p></div></div>
-    <div class="tbl-wrap"><table class="grid tight"><thead><tr>${cols.map(([k, l]) => `<th class="sortable${k === 'team' || k === 'gk' ? '' : ' r'}" data-sort="${k}" tabindex="0" aria-sort="${TS.k === k ? (TS.dir === 'desc' ? 'descending' : 'ascending') : 'none'}">${l}</th>`).join('')}</tr></thead>
+  return `<div class="tbl-wrap"><table class="grid tight"><thead><tr>${cols.map(([k, l]) => `<th class="sortable${k === 'team' || k === 'gk' ? '' : ' r'}" data-sort="${k}" tabindex="0" aria-sort="${TS.k === k ? (TS.dir === 'desc' ? 'descending' : 'ascending') : 'none'}">${l}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(t => `<tr data-chart="t|${t}">${cols.map(([k]) => cell(t, k)).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+let TG = store.get('tg', 'overview'), TSEA = store.get('tsea', 'cur');
+if (TG !== 'records' && !TSG.some(([k]) => k === TG)) TG = 'overview';
+function hasTeamStats(){ return Object.values(T).some(x => x && x.st); }
+function statTable(){
+  // data built before team stats existed: say so and show the records meanwhile
+  if (!hasTeamStats()) return '<div class="empty"><div class="h3">Coming with the next update</div><p class="lede" style="margin:0">Team stats fill in when the data next refreshes (every 30 minutes). Records are below meanwhile.</p></div>' + recordsTable();
+  const grp = TSG.find(([k]) => k === TG), rows = grp[2], sea = TSEA;
+  if (!TS.k.startsWith('s:') || !rows.some(r => 's:' + r[0] === TS.k)) TS = {k: 's:' + rows[0][0], dir: 'desc'};
+  const key = TS.k.slice(2);
+  const sv = t => { const r = tRank(t, key, sea); return r == null ? 999 : r; };
+  const teams = Object.keys(T).sort((a, b) => TS.dir === 'desc' ? sv(a) - sv(b) : sv(b) - sv(a));
+  const anyData = teams.some(t => tStat(t, 'gp', sea));
+  if (!anyData) return `<div class="empty"><div class="h3">No games yet</div><p class="lede" style="margin:0">${sea === 'cur' ? 'Team stats start after the first games of the season. Switch to last season above.' : 'Last season\'s stats aren\'t available.'}</p></div>`;
+  return `<div class="tbl-wrap"><table class="grid tight tstats"><thead><tr><th>Team</th><th class="r">GP</th>${rows.map(([k, l, , sh]) => `<th class="sortable r" data-sort="s:${k}" tabindex="0" title="${esc(l)}" aria-sort="${TS.k === 's:' + k ? (TS.dir === 'desc' ? 'descending' : 'ascending') : 'none'}">${esc(sh || l)}</th>`).join('')}</tr></thead>
+    <tbody>${teams.map(t => `<tr data-chart="t|${t}"><td>${chip(t, 1)} ${esc(nick(t))}</td><td class="r num">${tStat(t, 'gp', sea) ?? '–'}</td>${rows.map(([k, , f]) => `<td class="r num${TS.k === 's:' + k ? ' sel' : ''}">${fmtStat(tStat(t, k, sea), f)} ${rkTag(t, k, sea)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function renderTeams(){
+  const v = $('#v-teams');
+  const groups = TSG.map(([k, l]) => [k, l]).concat([['records', 'Records']]);
+  const seaSeg = TG === 'records' || !hasTeamStats() ? '' : `<div class="seg" role="group" aria-label="Season">${[['cur', M.season], ['prev', M.season_prev || 'Last season']].map(([k, l]) => `<button type="button" data-tsea="${k}" aria-pressed="${TSEA === k}">${esc(l)}</button>`).join('')}</div>`;
+  const lede = TG === 'records' ? (NHL ? 'Records, goals for and against, the model\'s attack and defense ranks, and each team\'s usual starting goalie.' : 'Records, the model\'s efficiency ratings (points per 100 possessions better than an average team), against-the-spread and over/under records from the closing lines.')
+    : `Season-to-date team stats with league ranks (green = top 8, red = bottom 8; ${NHL ? 'hits, blocks and PDO are ranked by size' : 'pace and 3-point tries are ranked by size'}). ${NHL ? 'Power play, penalty kill and faceoffs come from the NHL\'s own stats; the rest from the box scores.' : 'Ratings are points per 100 possessions.'} Early in a season a few games swing these a lot, so check GP.`;
+  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Teams</h1><p class="lede">${lede} Tap a column to sort, or a team for its game-by-game chart.</p></div></div>
+    <div class="seg tgroups" role="group" aria-label="Stat group">${groups.map(([k, l]) => `<button type="button" data-tg="${k}" aria-pressed="${TG === k}">${esc(l)}</button>`).join('')}</div>
+    ${seaSeg}
+    ${TG === 'records' ? recordsTable() : statTable()}`;
 }
 RENDER.teams = renderTeams;
 document.addEventListener('click', e => {
   const th = e.target.closest('th[data-sort]'); if (!th) return;
   const k = th.dataset.sort; TS = {k, dir: TS.k === k && TS.dir === 'desc' ? 'asc' : 'desc'}; store.set('ts', TS); renderTeams();
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-tg], [data-tsea]'); if (!b) return;
+  if (b.dataset.tg){ TG = b.dataset.tg; store.set('tg', TG); TS = TG === 'records' ? {k: NHL ? 'pts' : 'rec', dir: 'desc'} : {k: '', dir: 'desc'}; }
+  else { TSEA = b.dataset.tsea; store.set('tsea', TSEA); }
+  renderTeams();
 });
 
 /* ======================================================================

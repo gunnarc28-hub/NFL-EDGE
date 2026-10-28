@@ -23,7 +23,10 @@ loads every page; after a code change it also clicks through every tab in a phon
   expected return dates, live scores).
 - `pipeline/nba.py`, `pipeline/nhl.py`: the NBA and NHL builds. Sources: hoopR and fastRhockey box scores and schedules
   (sportsdataverse), the NHL's own schedule and box-score feed, and ESPN (scoreboard, injuries, rosters, game lines and
-  player-prop lines). Shared helpers are in `pipeline/sportslib.py`.
+  player-prop lines). Shared helpers are in `pipeline/sportslib.py`. Each build also adds season-to-date team stats with
+  league ranks for this season and last (NBA: ratings per 100 possessions, shooting, turnovers, rebounds; NHL: goals,
+  shot share, save %, hits and blocks from the box scores, plus power play, penalty kill and faceoffs from the NHL's
+  stats API), shown on the Teams tab and on each game.
 - `pipeline/injuries.py`: each NFL player's status for his team's next game, merged from the official report and ESPN's
   feed. The page runs the same merge live; `research/inj_parity.py` checks the two give identical answers.
 - `pipeline/static/`: the research each model is built on: which stats predict results, model weights, backtests
