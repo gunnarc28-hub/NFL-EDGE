@@ -1055,12 +1055,27 @@ function hcCard(x, i){
       <button class="btn tiny slipb" data-slipkey="nfl:${esc(hcSlipKey(x))}" data-hcpick="${i}">+ Slip</button></div>
   </article>`;
 }
+/* which day's picks: 'all' is the week's regular list; a day shows that day's own best, picked by the same rules */
+const pickDayOf = x => x.day || String(x.kickoff || '').slice(0, 10);
+const todayKey = () => SE.dayKey(new Date().toISOString());
+let PDAY = (s => s && s.set === todayKey() && s.v ? s.v : 'all')(store.get('pday', null));
+function pickDays(picks){
+  const days = [...new Set(picks.map(pickDayOf))].filter(Boolean).sort();
+  if (PDAY !== 'all' && !days.includes(PDAY)) PDAY = 'all';
+  const hasTop = picks.some(x => x.top);
+  const inDay = x => PDAY === 'all' ? (!hasTop || !!x.top) : pickDayOf(x) === PDAY;
+  const label = d => SE.dayLabel(d);
+  const seg = days.length ? `<div class="seg days" role="group" aria-label="Day">${[['all', 'All days']].concat(days.map(d => [d, label(d)])).map(([k, l]) => `<button type="button" data-pday="${k}" aria-pressed="${PDAY === k}">${esc(l)}</button>`).join('')}</div>` : '';
+  const dayTxt = PDAY === 'all' ? `Week ${WEEK}` : label(PDAY);
+  const onDay = PDAY === 'all' ? 'this week' : /^(Today|Tomorrow)$/.test(label(PDAY)) ? label(PDAY).toLowerCase() : 'on ' + label(PDAY);
+  return {days, inDay, seg, dayTxt, onDay};
+}
 function renderHC(){
   const v = $('#v-hc'); const H = D.high_chance; if (!H){ v.innerHTML = ''; return; }
   const R_ = H.research || {}, all = R_.all || {}, p3 = R_.parlay3 || {};
-  const picks = H.picks;
-  const players = picks.map((x, i) => [x, i]).filter(([x]) => x.kind === 'player');
-  const games = picks.map((x, i) => [x, i]).filter(([x]) => x.kind !== 'player');
+  const picks = H.picks, DD = pickDays(picks), byP = (a, b) => b[0].p - a[0].p;
+  const players = picks.map((x, i) => [x, i]).filter(([x]) => x.kind === 'player' && DD.inDay(x)).sort(byP);
+  const games = picks.map((x, i) => [x, i]).filter(([x]) => x.kind !== 'player' && DD.inDay(x));
   const rec = k => { const l = H.history.filter(h => h.kind === k); return {w: l.filter(h => h.result === 'W').length, l: l.filter(h => h.result === 'L').length}; };
   const rp = rec('player'), rt = rec('teaser'), rm = rec('ml');
   const weeks = [...new Set(H.history.map(h => h.week))].sort((a, b) => b - a);
@@ -1073,10 +1088,11 @@ function renderHC(){
       <div class="tile"><div class="label">Teaser legs this season</div><div class="v num">${rt.w}-${rt.l}</div><div class="small">+1.5 to +2.5 underdogs teased six points${rm.w + rm.l ? ` · favorites ${rm.w}-${rm.l}` : ''}</div></div>
       <div class="tile"><div class="label">3-leg parlays (2024–25)</div><div class="v num">${pct(p3.hit)}</div><div class="small">Top picks from different games all hit; expected ${pct(p3.expected)} (${p3.n || 0} weeks)</div></div>
     </div>
-    <div class="sec-head"><h2 class="h3">Player milestones <span class="small">(${players.length})</span></h2><span class="small">Week ${WEEK} · the highest milestone each player clears 80% on</span></div>
-    ${players.length ? `<div class="hc-grid">${players.map(([x, i]) => hcCard(x, i)).join('')}</div>` : '<div class="empty">No player clears 80% on a milestone yet this week. Picks appear once players have three games of data.</div>'}
+    ${DD.seg}
+    <div class="sec-head"><h2 class="h3">Player milestones <span class="small">(${players.length})</span></h2><span class="small">${esc(DD.dayTxt)} · the highest milestone each player clears 80% on</span></div>
+    ${players.length ? `<div class="hc-grid">${players.map(([x, i]) => hcCard(x, i)).join('')}</div>` : `<div class="empty">No player clears 80% on a milestone ${esc(DD.onDay)}${PDAY === 'all' ? ' yet' : ''}. Picks appear once players have three games of data.</div>`}
     <div class="sec-head"><h2 class="h3">Game picks <span class="small">(${games.length})</span></h2><span class="small">Teaser legs and heavy favorites</span></div>
-    ${games.length ? `<div class="hc-grid">${games.map(([x, i]) => hcCard(x, i)).join('')}</div>` : '<div class="empty">No teaser spots or 75%+ favorites this week.</div>'}
+    ${games.length ? `<div class="hc-grid">${games.map(([x, i]) => hcCard(x, i)).join('')}</div>` : `<div class="empty">No teaser spots or 75%+ favorites ${esc(DD.onDay)}.</div>`}
     <div class="sec-head"><h2 class="h3">Past weeks</h2><span class="small">Picked the same way, using only what was known before each game</span></div>
     ${weeks.length ? weeks.map(w => { const l = H.history.filter(h => h.week === w);
       return `<details ${w === weeks[0] ? 'open' : ''}><summary class="small" style="cursor:pointer;padding:6px 0">Week ${w}: ${l.filter(h => h.result === 'W').length}-${l.filter(h => h.result === 'L').length}</summary>
@@ -1123,13 +1139,14 @@ function renderLS(){
       <td class="r num">${pct(b.expected)}</td><td class="r num"><b>${pct(b.actual)}</b></td>
       <td class="r num" style="white-space:normal">${r.w + r.l ? `${r.w}-${r.l}<div class="small">${r.exp.toFixed(1)} expected</div>` : '–'}</td></tr>`; }).join('');
   const all = recOf(hist);
-  const picks = L.picks.map((x, i) => [x, i]);
+  const DD = pickDays(L.picks);
+  const picks = L.picks.map((x, i) => [x, i]).filter(([x]) => DD.inDay(x));
   const sections = LS_GROUPS.filter(([g]) => LS_F === 'all' || LS_F === g).map(([g, name, , blurb]) => {
-    const list = picks.filter(([x]) => x.group === g), b = B[g] || {};
+    const list = picks.filter(([x]) => x.group === g).sort((a, b) => b[0].p - a[0].p), b = B[g] || {};
     return `<div class="mk-head"><h2 class="h3">${name} <span class="small">(${list.length})</span></h2>
         <span class="small">${esc(blurb)} Tested on ${span}: picks like these hit <b>${pct(b.actual)}</b> (rated ${pct(b.expected)}).</span></div>
       ${list.length ? `<div class="hc-grid">${list.map(([x, i]) => lsCard(x, i)).join('')}</div>` :
-        `<div class="empty">No ${name.toLowerCase()} long shots right now. They show up once the betting lines are out and players have three games of data.</div>`}`;
+        `<div class="empty">No ${name.toLowerCase()} long shots ${PDAY === 'all' ? 'right now' : esc(DD.onDay)}. They show up once the betting lines are out and players have three games of data.</div>`}`;
   }).join('');
   const pr = R_.predictors || [], maxc = Math.max.apply(null, pr.map(r => Math.abs(r.coef)).concat([0.01]));
   const weeks = [...new Set(hist.map(h => h.week))].sort((a, b) => b - a);
@@ -1138,8 +1155,9 @@ function renderLS(){
       <p class="lede">Plus-money bets with a real chance: the likeliest touchdown scorers, first-TD and multi-TD threats, and 100- and 300-yard games. Long shots miss more often than they hit, so they only pay off over time when your sportsbook pays more than the fair price on the card. Type your book's odds into any card to check.</p></div></div>
     <div class="tbl-wrap"><table class="grid tight"><thead><tr><th>Market</th><th class="r">Rated</th><th class="r">Hit</th><th class="r">${D.meta.season}</th></tr></thead><tbody>${table}</tbody></table></div>
     <p class="note" style="margin:-10px 0 0">"Rated" is the model's average chance and "Hit" is how often the picks came in when every week from ${span} was replayed using only what was known before kickoff: the touchdown model was refit on earlier seasons only, and yardage chances came from seasons other than the one tested. The ${D.meta.season} column grades the same picks from box scores${all.w + all.l ? ` (${all.w}-${all.l} overall, ${all.exp.toFixed(1)} hits expected)` : ''}.</p>
+    ${DD.seg}
     <div class="toolbar"><div class="seg" role="group" aria-label="Filter long shots">${[['all', 'All']].concat(LS_GROUPS.map(g => [g[0], g[2]])).map(([k, l]) => `<button data-lsf="${k}" aria-pressed="${LS_F === k}">${l}</button>`).join('')}</div>
-      <span class="small">Week ${WEEK} · ${L.picks.length} long shots</span></div>
+      <span class="small">${esc(DD.dayTxt)} · ${picks.length} long shot${picks.length === 1 ? '' : 's'}</span></div>
     ${sections}
     <div class="sec-head"><div><h2 class="h3">What predicts a touchdown</h2><p class="lede">Weights from the touchdown model, fit on 2018–2025. A player's share of his team's targets and carries, his yards per game and his team's projected points matter more than how often he has already scored, which is why a busy player who hasn't found the end zone can still rate well.</p></div></div>
     <div class="bars">${pr.map((r, i) => `<div class="br ${i < 4 ? 'top' : ''}"><div class="l"><span class="rank">${i + 1}</span>${esc(r.label)}</div>
@@ -1880,6 +1898,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.tmore){ TSHOW[t.dataset.tmore] += 20; const y = window.scrollY; renderTrends(); window.scrollTo({top: y}); return; }
   if (t.dataset.prop){ PROP_SEL = t.dataset.prop; renderMatters(); return; }
   if (t.dataset.lsf){ LS_F = t.dataset.lsf; store.set('lsf', LS_F); renderLS(); return; }
+  if (t.dataset.pday){ PDAY = t.dataset.pday; store.set('pday', {v: PDAY, set: todayKey()}); renderHC(); renderLS(); return; }
 });
 document.addEventListener('keydown', e => {
   const th = e.target.closest && e.target.closest('th[data-sort]');

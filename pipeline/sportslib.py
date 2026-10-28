@@ -18,6 +18,32 @@ def notice(title, msg):
     print(f'::notice title={title}::{str(msg)[:3000]}', flush=True)
 
 
+def day_lists(items, n, per_player, kinds=None):
+    """High-chance and long-shot lists, best first: the regular list across every day (n long, at most per_player entries
+    per player; those get top=1) plus the same cut made within each day, so a day picked on the page still has a full
+    list. kinds limits the per-player cap to entries of those kinds (None: every entry, by its id)."""
+    def cut(lst):
+        seen, out = {}, []
+        for x in sorted(lst, key=lambda x: -x['p']):
+            pid = x.get('id') if kinds is None or x.get('kind') in kinds else None
+            if pid is not None:
+                if seen.get(pid, 0) >= per_player:
+                    continue
+                seen[pid] = seen.get(pid, 0) + 1
+            out.append(x)
+            if len(out) >= n:
+                break
+        return out
+    keep = {}
+    for x in cut(items):
+        x['top'] = 1
+        keep[id(x)] = x
+    for d in sorted({x['day'] for x in items}):
+        for x in cut([x for x in items if x['day'] == d]):
+            keep.setdefault(id(x), x)
+    return sorted(keep.values(), key=lambda x: -x['p'])
+
+
 def league_ranks(stats, dirs, nd=4):
     """League ranks per stat, ties sharing a rank (1, 2, 2, 4). stats: {team: {stat: value}}; dirs[stat] False ranks
     the lowest value first, True or None (ranked by size) the highest. Values are compared at nd decimals."""

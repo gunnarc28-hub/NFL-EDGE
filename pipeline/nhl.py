@@ -286,6 +286,8 @@ for g in GAMES.itertuples():
                  'rest_h': min((pd.Timestamp(g.day) - LAST[h]).days, 5) if h in LAST else 5, 'rest_a': min((pd.Timestamp(g.day) - LAST[w]).days, 5) if w in LAST else 5,
                  'gk_h': starters.get((g.id, h)), 'gk_a': starters.get((g.id, w)), 'GK': None}
     if g.state != 'post' or g.hs is None or g.hs != g.hs:
+        if g.k <= NOW or g.day >= SLATE:          # a game still to play counts for rest too: tomorrow's after one tonight is a back-to-back
+            LAST[h] = pd.Timestamp(g.day); LAST[w] = pd.Timestamp(g.day)
         continue
     eg_h = lg_g * math.exp(O[h] - Dd[w] + GP['hca'] / 2); eg_a = lg_g * math.exp(O[w] - Dd[h] - GP['hca'] / 2)
     es_h = lg_s * math.exp(SO[h] - SD[w] + GP['hca'] / 2); es_a = lg_s * math.exp(SO[w] - SD[h] - GP['hca'] / 2)
@@ -588,7 +590,7 @@ for g in SHOW.itertuples():
                 if best:
                     t, pt = best; r = recent(pid, col); hits = sum(1 for v in r if v >= t)
                     word = 'shots on goal' if k == 'sog' else 'blocked shots'
-                    HC.append({'kind': 'player', 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'key': k, 't': t,
+                    HC.append({'kind': 'player', 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'key': k, 't': t,
                                'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(pr[k], 2), 'avg': round(float(np.mean(r)), 2) if r else None, 'hits': [hits, len(r)],
                                'book': (lns.get('yes', {}).get((k + '+', float(t))) or {}).get('odds'), 'label': f"{nm} {t}+ {word}",
                                'reason': f"{short} has {t}+ {word} in {hits} of his last {len(r)} games and is projected for {pr[k]:.1f} in about {pr['toi']:.0f} minutes."})
@@ -608,7 +610,7 @@ for g in SHOW.itertuples():
                 col = 'points' if key.startswith('pts') else 'shots_on_goal' if key == 'sog5' else 'goals'
                 need = {'atg': 1, 'g2': 2, 'pts2': 2, 'pts3': 3, 'sog5': 5, 'first_goal': 1}[key]
                 r = recent(pid, col, 20); hits = sum(1 for v in r if v >= need)
-                LS.append({'type': key, 'key': key, 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'p': round(pt, 4),
+                LS.append({'type': key, 'key': key, 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'p': round(pt, 4),
                            'fair': sl.odds_of(pt), 'book': bo['odds'] if bo else None, 'hits': [hits, len(r)], 'label': f"{nm} {label}", 'group': key,
                            'proj': round(pr['goals'] if col == 'goals' else pr['points'] if col == 'points' else pr['sog'], 2),
                            'reason': (f"{short} has {'scored' if col == 'goals' else 'had ' + str(need) + '+ ' + ('points' if col == 'points' else 'shots')} in {hits} of his last {len(r)} games. "
@@ -627,12 +629,14 @@ for g in SHOW.itertuples():
                 pm = 1 - 0.5 * (1 + math.erf((ln['line'] - mu) / (sd * math.sqrt(2)))); pb = ln['p_book']; pp_ = blend('saves', pm, pb)
                 gi_['lines']['saves'] = {'line': ln['line'], 'o': ln['o'], 'u': ln['u'], 'p_book': round(pb, 4), 'p_model': round(pm, 4), 'p': round(pp_, 4),
                                          'ev_o': round(pp_ * dec(ln['o']) - 1, 4), 'ev_u': round((1 - pp_) * dec(ln['u']) - 1, 4), 'book': ln['book']}
+            # starters rarely play both nights of a back-to-back, so no saves pick on the second night until the starter is announced
+            second_night = gi_['src'] == 'Expected' and (p['b2b_h'] if side == 'h' else p['b2b_a'])
             if g.state == 'pre':
                 GOALIES.append(gi_)
-                for t in (30, 28, 26, 24, 22, 20, 18):
+                for t in ((30, 28, 26, 24, 22, 20, 18) if not second_night else ()):
                     pt = 1 - 0.5 * (1 + math.erf((t - 0.5 - mu) / (sd * math.sqrt(2))))
                     if 0.80 <= pt <= 0.95:
-                        HC.append({'kind': 'goalie', 'id': str(gid_), 'name': PNAME.get(gid_), 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'key': 'saves',
+                        HC.append({'kind': 'goalie', 'id': str(gid_), 'name': PNAME.get(gid_), 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'key': 'saves',
                                    't': t, 'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(mu, 1), 'label': f"{PNAME.get(gid_)} {t}+ saves", 'src': gi_['src'],
                                    'reason': f"{opp} is expected to put about {es:.0f} shots on goal; at his {sv * 100:.1f}% save rate that's {mu:.0f} saves. Starter status: {gi_['src'].lower()}."})
                         break
@@ -644,15 +648,14 @@ for g in SHOW.itertuples():
     for team, wp, ml in ((g.home, p['wp_home'], o.get('ml_h')), (g.away, 1 - p['wp_home'], o.get('ml_a'))):
         mk = sl.implied(ml) if ml else None
         if wp >= 0.68 and (mk is None or mk >= 0.62):
-            HC.append({'kind': 'ml', 'team': team, 'opp': g.away if team == g.home else g.home, 'game': str(g.id), 'k': g.k.isoformat(), 'p': round(wp, 4), 'fair': sl.odds_of(wp),
+            HC.append({'kind': 'ml', 'team': team, 'opp': g.away if team == g.home else g.home, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'p': round(wp, 4), 'fair': sl.odds_of(wp),
                        'book': ml, 'mkt_p': round(mk, 4) if mk else None, 'label': f"{team} to win",
                        'reason': f"The model makes {team} {wp * 100:.0f}% to win{f', the market {mk * 100:.0f}%' if mk else ''}, counting the starting goalies."})
-HC.sort(key=lambda x: -x['p']); LS.sort(key=lambda x: -x['p'])
-cnt = {}
-HC = [x for x in HC if x.get('kind') != 'player' or (cnt.setdefault(x['id'], 0) < 1 and not cnt.__setitem__(x['id'], 1))][:40]
-cnt = {}
-LS = [x for x in LS if cnt.setdefault(x['id'], 0) < 2 and not cnt.__setitem__(x['id'], cnt[x['id']] + 1)][:80]
-sl.log('props', len(PROPS), 'with lines', sum(1 for x in PROPS if x['lines'] or x['yes']), '| goalies', len(GOALIES), '| high-chance', len(HC), '| long shots', len(LS))
+# keep the lists readable: one high-chance leg and two long shots per player; the regular list across both days plus each day's own
+HC = sl.day_lists(HC, 40, 1, kinds=('player',))
+LS = sl.day_lists(LS, 80, 2)
+sl.log('props', len(PROPS), 'with lines', sum(1 for x in PROPS if x['lines'] or x['yes']), '| goalies', len(GOALIES), '| high-chance', len(HC), '| long shots', len(LS),
+       '| by day', {d: [sum(1 for x in HC if x['day'] == d), sum(1 for x in LS if x['day'] == d)] for d in sorted({x['day'] for x in HC + LS})})
 
 # ================================================================== records, trends, chart logs
 def team_records():

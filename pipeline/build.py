@@ -1079,13 +1079,21 @@ if 'feat' in globals() and len(p26):
                                  'proj': proj, 'avg': avg, 'l3': l3, 'hits': [hits, n], 'reason': reason,
                                  'label': f"{r.player_display_name} {thr}+ {STAT_WORD[key]}",
                                  'inj': ({'level': ist['level'], 'outlook': ist['outlook']} if ist else None)})
-    hc_picks.sort(key=lambda x: -x['p'])
-    per_game, kept = {}, []
+    def hc_cut(lst):
+        per_game, kept = {}, []
+        for x in sorted(lst, key=lambda x: -x['p']):
+            if per_game.get(x['game'], 0) >= 3:
+                continue
+            per_game[x['game']] = per_game.get(x['game'], 0) + 1; kept.append(x)
+        return kept[:12]
+    # the week's list (top=1), plus the same cut within each day so the page can show, say, Thursday's best on their own
     for x in hc_picks:
-        if per_game.get(x['game'], 0) >= 3:
-            continue
-        per_game[x['game']] = per_game.get(x['game'], 0) + 1; kept.append(x)
-    hc_picks = kept[:12]
+        x['day'] = x['kickoff'][:10]                   # kickoffs are Eastern local times
+    week_list = hc_cut(hc_picks)
+    for x in week_list:
+        x['top'] = 1
+    extra = [x for d_ in sorted({x['day'] for x in hc_picks}) for x in hc_cut([x for x in hc_picks if x['day'] == d_]) if not x.get('top')]
+    hc_picks = week_list + sorted(extra, key=lambda x: -x['p'])
     # past weeks this season, picked the same way from what was known before each game
     fin = feat[feat.game_id.isin(set(done.game_id)) & (feat.n_prior >= 3)]
     hist_p = []
@@ -1117,7 +1125,7 @@ for gm in games:
                 reason += f" They rank {ordinal(rt_)} in point differential; the {teams[o]['nick']} rank {ordinal(ro_)}."
             if qb_o:
                 reason += f" The {teams[o]['nick']} start {qb_o['starter']} in place of {qb_o['usual']}."
-            hc_picks.append({'kind': 'ml', 'team': t, 'opp': o, 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'], 'p': kp, 'model_p': mp,
+            hc_picks.append({'kind': 'ml', 'team': t, 'opp': o, 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'], 'day': gm['kickoff'][:10], 'top': 1, 'p': kp, 'model_p': mp,
                              'odds': ml, 'fair': fair_odds(kp), 'reason': reason, 'label': f"{teams[t]['city']} {teams[t]['nick']} to win"})
     for x in gm.get('teaser') or []:
         if x['kind'] != 'dog':
@@ -1130,7 +1138,7 @@ for gm in games:
         reason = (f"Teasing the {teams[x['team']]['nick']} from {x['from']:+g} to {x['to']:+g} covers a loss by a field goal or a touchdown. "
                   f"Since 2018, +1.5 to +2.5 underdogs teased six points won {x['rate']:.0%} of legs"
                   f"{' when the total was 49 or less' if (gm['total'] or 99) <= 49 else ''}. {view}")
-        hc_picks.append({'kind': 'teaser', 'team': x['team'], 'opp': o, 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'],
+        hc_picks.append({'kind': 'teaser', 'team': x['team'], 'opp': o, 'game': gm['id'], 'week': WEEK, 'kickoff': gm['kickoff'], 'day': gm['kickoff'][:10], 'top': 1,
                          'p': x['rate'], 'from': x['from'], 'to': x['to'], 'fair': fair_odds(x['rate']), 'reason': reason,
                          'label': f"{teams[x['team']]['nick']} {x['to']:+g} in a teaser (from {x['from']:+g})"})
 for _, g in done.iterrows():
@@ -1343,12 +1351,17 @@ if 'feat' in globals() and len(p26):
     for gid_ in {c['game'] for c in cands}:
         for i_, c in enumerate(sorted([c for c in cands if c['game'] == gid_ and c['market'] == 'ftd'], key=lambda c: -c['p'])):
             ftd_rank[(gid_, c['_r'].player_id)] = i_ + 1
-    for c in ls_select(cands):
+    # the week's picks (top=1), then the same rules applied within each day, so a day picked on the page has its own best
+    sel = ls_select(cands)
+    top_ids = {id(c) for c in sel}
+    for d_ in sorted({c['kickoff'][:10] for c in cands}):
+        sel += [c for c in ls_select([c for c in cands if c['kickoff'][:10] == d_]) if id(c) not in top_ids]
+    for c in sel:
         r = c['_r']
         reason, chips = ls_writeup(c, ftd_rank.get((c['game'], r.player_id)))
         ptype, line = LS_PICK[c['market']]
         ls_picks.append({'market': c['market'], 'group': LS_GROUP[c['market']], 'id': r.player_id, 'name': r.player_display_name, 'pos': r.position,
-                         'team': c['team'], 'opp': c['opp'], 'game': c['game'], 'week': WEEK, 'kickoff': c['kickoff'], 'p': c['p'],
+                         'team': c['team'], 'opp': c['opp'], 'game': c['game'], 'week': WEEK, 'kickoff': c['kickoff'], 'day': c['kickoff'][:10], 'top': int(id(c) in top_ids), 'p': c['p'],
                          'fair': fair_odds(c['p']), 'label': f"{r.player_display_name} {LS_WORD[c['market']]}", 'reason': reason, 'chips': chips,
                          'type': ptype, 'line': line, 'inj': c['inj']})
     # past weeks this season, chosen the same way from what was known before each game

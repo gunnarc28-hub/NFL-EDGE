@@ -26,6 +26,7 @@ const CFG = NHL ? {
   mk: {sog: 'Shots on goal', points: 'Points', assists: 'Assists', blocks: 'Blocked shots', saves: 'Saves', goals: 'Goals', hits: 'Hits', atg: 'Anytime goal', g2: '2+ goals', first_goal: 'First goal'},
   short: {sog: 'shots', points: 'points', assists: 'assists', blocks: 'blocks', saves: 'saves', goals: 'goals', hits: 'hits'},
   propTabs: [['sog', 'Shots'], ['points', 'Points'], ['goals', 'Goals'], ['assists', 'Assists'], ['blocks', 'Blocks'], ['saves', 'Goalie saves']],
+  hcCut: [40, 1], lsCut: [80, 2],              // the regular lists: how many, and how many per player (as the build cuts them)
   lsGroups: [['all', 'All'], ['atg', 'Anytime goal'], ['g2', '2+ goals'], ['first_goal', 'First goal'], ['pts2', '2+ points'], ['pts3', '3+ points'], ['sog5', '5+ shots']],
   chartStats: [['sog', 'SOG'], ['goals', 'G'], ['assists', 'A'], ['points', 'PTS'], ['hits', 'HITS'], ['blocks', 'BLK'], ['toi', 'TOI']],
   goalieStats: [['saves', 'SAVES'], ['ga', 'GA'], ['shots', 'SHOTS']]
@@ -35,6 +36,7 @@ const CFG = NHL ? {
   mk: {pts: 'Points', reb: 'Rebounds', ast: 'Assists', fg3m: '3-pointers', pra: 'Pts + reb + ast', pr: 'Pts + reb', pa: 'Pts + ast', ra: 'Reb + ast', stl: 'Steals', blk: 'Blocks', tov: 'Turnovers', dd: 'Double-double', td3: 'Triple-double'},
   short: {pts: 'points', reb: 'rebounds', ast: 'assists', fg3m: '3-pointers', pra: 'pts+reb+ast', pr: 'pts+reb', pa: 'pts+ast', ra: 'reb+ast', stl: 'steals', blk: 'blocks', tov: 'turnovers'},
   propTabs: [['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['pr', 'P+R'], ['pa', 'P+A'], ['ra', 'R+A'], ['stl', 'Steals'], ['blk', 'Blocks'], ['tov', 'Turnovers']],
+  hcCut: [40, 2], lsCut: [60, 2],
   lsGroups: [['all', 'All'], ['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['dd', 'Double-double'], ['td3', 'Triple-double']],
   chartStats: [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['fg3m', '3PM'], ['pra', 'PRA'], ['stl', 'STL'], ['blk', 'BLK'], ['tov', 'TOV'], ['min', 'MIN']]
 };
@@ -358,14 +360,15 @@ function renderGames(){
   const shown = gs.filter(g => GF === 'all' || (GF === 'picks' ? g.model && (g.model.pick_ats || g.model.pick_total || g.model.value) : GF === 'b2b' ? g.rest && (g.rest.b2b_h || g.rest.b2b_a) : GF === 'inj' ? [g.home, g.away].some(t => (D.injuries[t] || []).some(i => i.key && i.level !== 'likely')) : true));
   const live = gs.filter(isLive).length, fin = gs.filter(g => g.state === 'post').length;
   const strong = gs.filter(g => g.state === 'pre' && g.model).sort((a, b) => Math.abs(b.model.wp_home - .5) - Math.abs(a.model.wp_home - .5))[0];
-  const hc = (D.high_chance || []).filter(x => x.kind !== 'ml')[0], ls = (D.long_shots || [])[0];
+  const onDay = L => (L || []).filter(x => pickDay(x) === DAY && (gameOf(x.game) || {}).state !== 'post');
+  const hc = pickCut(onDay(D.high_chance), CFG.hcCut, true).filter(x => x.kind !== 'ml')[0], ls = pickCut(onDay(D.long_shots), CFG.lsCut, false)[0];
   const edges = [strong ? `<div class="edge"><div class="label">${Math.max(strong.model.wp_home, 1 - strong.model.wp_home) >= 0.6 ? "Model's surest winner" : "Model's strongest lean"}</div><div class="big">${strong.model.pick_su} ${pct(Math.max(strong.model.wp_home, 1 - strong.model.wp_home))}</div><div class="d">${strong.away} @ ${strong.home}, ${esc(when(strong.k, {hour: 'numeric', minute: '2-digit', weekday: 'short'}))}</div><a href="#" data-jump="${strong.id}">Open matchup →</a></div>` : '',
-    hc ? `<div class="edge"><div class="label">Safest player leg</div><div class="big">${pct(hc.p)} · ${esc(hc.label)}</div><div class="d">Fair price ${fmtOdds(hc.fair)}${hc.book != null ? ` · book ${fmtOdds(hc.book)}` : ''}</div><a href="#" data-goto="hc">All high-chance picks →</a></div>` : '',
-    ls ? `<div class="edge"><div class="label">Likeliest long shot</div><div class="big">${pct(ls.p)} · ${esc(ls.label)}</div><div class="d">Fair price ${fmtOdds(ls.fair)}${ls.book != null ? ` · book ${fmtOdds(ls.book)}` : ''}</div><a href="#" data-goto="ls">All long shots →</a></div>` : ''].join('');
+    hc ? `<div class="edge"><div class="label">Safest player leg</div><div class="big">${pct(hc.p)} · ${esc(hc.label)}</div><div class="d">Fair price ${fmtOdds(hc.fair)}${hc.book != null ? ` · book ${fmtOdds(hc.book)}` : ''}</div><a href="#" data-goto="hc" data-gopday="${DAY}">More high-chance picks →</a></div>` : '',
+    ls ? `<div class="edge"><div class="label">Likeliest long shot</div><div class="big">${pct(ls.p)} · ${esc(ls.label)}</div><div class="d">Fair price ${fmtOdds(ls.fair)}${ls.book != null ? ` · book ${fmtOdds(ls.book)}` : ''}</div><a href="#" data-goto="ls" data-gopday="${DAY}">More long shots →</a></div>` : ''].join('');
   v.innerHTML = `<div class="sec-head"><div><h1 class="h2">${esc(dayLabel(DAY))}${DAY !== dayKey(new Date().toISOString()) && !['Today', 'Tomorrow', 'Yesterday'].includes(dayLabel(DAY)) ? '' : ''} · ${gs.length} game${gs.length === 1 ? '' : 's'}</h1>
       <p class="lede">${live ? `<b style="color:var(--loss)">${live} live</b> · ` : ''}${fin ? fin + ' final · ' : ''}${gs.length - live - fin} to play. Tap a line to add it to the bet slip.${NHL ? ' Starting goalies show under each team as they are confirmed.' : ''}</p></div></div>
     <div class="seg days" role="group" aria-label="Day">${days.map(d => `<button type="button" data-day="${d}" aria-pressed="${d === DAY}">${esc(dayLabel(d))}</button>`).join('')}</div>
-    ${edges && DAY === M.slate ? `<div class="edges">${edges}</div>` : ''}
+    ${edges && DAY >= M.slate ? `<div class="edges">${edges}</div>` : ''}
     <div class="toolbar gtools"><div class="seg" role="group" aria-label="Filter games">${[['all', 'All games'], ['picks', 'Model leans'], ['b2b', 'Back-to-backs'], ['inj', 'Key injuries']].map(([k, l]) => `<button type="button" data-gf="${k}" aria-pressed="${GF === k}">${l}</button>`).join('')}</div>
       <button class="btn" data-addpick="">+ Custom<span class="xs-hide"> bet</span></button></div>
     ${shown.length ? `<div class="games">${shown.map(gameCard).join('')}</div>` : `<div class="empty"><div class="h3">No games here</div><p class="lede" style="margin:0">${gs.length ? 'Nothing matches that filter.' : 'No games on this day. Try another day above.'}</p></div>`}`;
@@ -576,6 +579,27 @@ function valueBox(key, p, fair, book){
 const hcKey = x => `hc:${x.game}:${x.id || x.team}:${x.key || 'ml'}:${x.t || ''}`;
 const lsKey = x => `ls:${x.game}:${x.id}:${x.type}`;
 const oddsFor = (key, fallback) => parseOdds(MY_ODDS[key]) ?? fallback;
+/* which day's picks: 'all' is the regular list, likeliest first across every day the data covers */
+const todayKey = () => dayKey(new Date().toISOString());
+const pickDay = x => x.day || (gameOf(x.game) || {}).day || dayKey(x.k);
+let PDAY = (s => s && s.set === todayKey() && s.v ? s.v : 'all')(store.get('pday', null));
+function pickCut(L, [n, per], playersOnly){
+  const seen = {}, out = [];
+  for (const x of L.slice().sort((a, b) => b.p - a.p)){
+    const id = !playersOnly || x.kind === 'player' ? x.id : null;
+    if (id != null){ if ((seen[id] || 0) >= per) continue; seen[id] = (seen[id] || 0) + 1; }
+    out.push(x); if (out.length >= n) break;
+  }
+  return out;
+}
+function pickView(all, cut, playersOnly){
+  const days = [...new Set(all.map(pickDay))].sort();
+  if (PDAY !== 'all' && !days.includes(PDAY)) PDAY = 'all';
+  const list = pickCut(PDAY === 'all' ? all : all.filter(x => pickDay(x) === PDAY), cut, playersOnly);
+  const seg = days.length ? `<div class="seg days" role="group" aria-label="Day">${[['all', 'All days']].concat(days.map(d => [d, dayLabel(d)])).map(([k, l]) => `<button type="button" data-pday="${k}" aria-pressed="${PDAY === k}">${esc(l)}</button>`).join('')}</div>` : '';
+  const when = PDAY === 'all' ? (days.length > 1 ? `${days.length} days, likeliest first` : 'likeliest first') : `${dayLabel(PDAY)}, likeliest first`;
+  return {days, list, seg, when};
+}
 function cardChartBtn(x){
   if (x.kind === 'ml') return `<button class="hc-chart" data-chart="t|${x.team}|margin|-0.5"><span class="hc-cw"><b>${esc(x.team)} game by game</b><span class="small">Wins, losses and margins</span></span><span></span><span class="go">Chart →</span></button>`;
   const stat = x.kind === 'goalie' ? 'saves' : NHL ? ({sog: 'sog', blocks: 'blocks', atg: 'goals', g2: 'goals', first_goal: 'goals', pts2: 'points', pts3: 'points', sog5: 'sog'}[x.key] || 'points') : ({dd: 'pts', td3: 'pra'}[x.key] || x.key);
@@ -616,10 +640,12 @@ function lsCalNote(){
     rows.map(r => `legs rated ${rangeTxt(r)} hit ${pct(r[4], 1)}`).join(', ') + '.';
 }
 function renderHC(){
-  const v = $('#v-hc'), L = (D.high_chance || []).filter(x => (gameOf(x.game) || {}).state !== 'post');
+  const v = $('#v-hc'), all = (D.high_chance || []).filter(x => (gameOf(x.game) || {}).state !== 'post');
+  const {list: L, seg, when} = pickView(all, CFG.hcCut, true);
   v.innerHTML = `<div class="sec-head"><div><h1 class="h2">High-chance picks</h1><p class="lede">Legs the model rates 80% or better: ${NHL ? 'shots on goal and blocked shots for steady players, goalie saves, and the biggest favorites' : 'round-number points, rebounds and assists for players in big roles, and the biggest favorites'}. Likely is not the same as good value: check the price before you bet.</p></div></div>
+    ${seg}
     <div class="tnote">${esc(hcCalNote())} A parlay of three 85% legs only hits about 61% of the time, and books price these legs short.</div>
-    ${L.length ? `<div class="hc-grid">${L.map((x) => hcCard(x, D.high_chance.indexOf(x))).join('')}</div>` : '<div class="empty"><div class="h3">Nothing rated 80% or better right now</div><p class="lede" style="margin:0">New picks appear when the next games are on the schedule.</p></div>'}`;
+    ${L.length ? `<div class="sec-head pk-count"><h2 class="h3">${L.length} pick${L.length === 1 ? '' : 's'}</h2><span class="small">${esc(when)}</span></div><div class="hc-grid">${L.map((x) => hcCard(x, D.high_chance.indexOf(x))).join('')}</div>` : `<div class="empty"><div class="h3">Nothing rated 80% or better ${PDAY === 'all' ? 'right now' : esc(dayLabel(PDAY).replace(/^(Today|Tomorrow)$/, s => s.toLowerCase()))}</div><p class="lede" style="margin:0">New picks appear when the next games are on the schedule.</p></div>`}`;
   SB.refresh();
 }
 RENDER.hc = renderHC;
@@ -640,14 +666,16 @@ function lsCard(x, i){
 }
 function renderLS(){
   const v = $('#v-ls'), all = (D.long_shots || []).filter(x => (gameOf(x.game) || {}).state !== 'post');
-  const groups = CFG.lsGroups.filter(([k]) => k === 'all' || all.some(x => x.group === k));
+  const {list: day, seg, when} = pickView(all, CFG.lsCut, false);
+  const groups = CFG.lsGroups.filter(([k]) => k === 'all' || day.some(x => x.group === k));
   if (!groups.some(([k]) => k === LS_F)) LS_F = 'all';
-  const L = all.filter(x => LS_F === 'all' || x.group === LS_F);
+  const L = day.filter(x => LS_F === 'all' || x.group === LS_F);
   const AG = ((D.research || {}).props || {}).anytime_goal;
   v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Long shots</h1><p class="lede">${NHL ? 'Goal scorers, multi-point nights, the first goal of the game and big shot totals' : 'Big scoring, rebounding and assist nights, plus double- and triple-doubles'}, each with the model's chance and the fair price. These lose most of the time; they're only worth it when your price beats fair.</p></div></div>
+    ${seg}
     <div class="seg" role="group" aria-label="Kind">${groups.map(([k, l]) => `<button type="button" data-lsf="${k}" aria-pressed="${LS_F === k}">${l}</button>`).join('')}</div>
     <div class="tnote">${NHL && AG ? `Anytime-goal prices run long on margin: over ${AG.lines.toLocaleString()} past lines the books implied ${pct(AG.book_implied_mean, 1)} on average and players scored ${pct(AG.hit, 1)}. Betting every player the model rated above the price returned ${(AG.bets_model_above_price[1] * 100).toFixed(1)}% per bet.` : esc(lsCalNote())}</div>
-    ${L.length ? `<div class="hc-grid">${L.map(x => lsCard(x, D.long_shots.indexOf(x))).join('')}</div>` : '<div class="empty"><div class="h3">No long shots right now</div><p class="lede" style="margin:0">They appear when the next games are on the schedule.</p></div>'}`;
+    ${L.length ? `<div class="sec-head pk-count"><h2 class="h3">${L.length} long shot${L.length === 1 ? '' : 's'}</h2><span class="small">${esc(when)}</span></div><div class="hc-grid">${L.map(x => lsCard(x, D.long_shots.indexOf(x))).join('')}</div>` : `<div class="empty"><div class="h3">No long shots ${PDAY === 'all' ? 'right now' : esc(dayLabel(PDAY).replace(/^(Today|Tomorrow)$/, s => s.toLowerCase()))}</div><p class="lede" style="margin:0">They appear when the next games are on the schedule.</p></div>`}`;
   SB.refresh();
 }
 RENDER.ls = renderLS;
@@ -1192,7 +1220,8 @@ document.addEventListener('click', e => {
   if (t.dataset.dtab){ const g = gameOf(t.dataset.g); $('#d-' + g.id).innerHTML = detailHtml(g, t.dataset.dtab); SB.refresh(); return; }
   if (t.dataset.jump){ e.preventDefault(); const g = gameOf(t.dataset.jump); if (!g) return; DAY = g.day; GF = 'all'; GOPEN.add(g.id); if ($('#v-games').hidden) show('games'); renderGames();
     const el = $('#g-' + g.id); if (el){ el.scrollIntoView({block: 'start'}); const b = $('[data-more]', el); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); } return; }
-  if (t.dataset.goto){ e.preventDefault(); show(t.dataset.goto); return; }
+  if (t.dataset.goto){ e.preventDefault(); if (t.dataset.gopday){ PDAY = t.dataset.gopday; store.set('pday', {v: PDAY, set: todayKey()}); } show(t.dataset.goto); return; }
+  if (t.dataset.pday){ PDAY = t.dataset.pday; store.set('pday', {v: PDAY, set: todayKey()}); (!$('#v-ls').hidden ? renderLS : renderHC)(); return; }
   if (t.dataset.tsub){ TSUB = t.dataset.tsub; store.set('tsub', TSUB); renderTrends(); return; }
   if (t.dataset.lsf){ LS_F = t.dataset.lsf; store.set('lsf', LS_F); renderLS(); return; }
 });
