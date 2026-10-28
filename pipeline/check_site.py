@@ -65,6 +65,20 @@ async def check(browser, name, path, tabs):
                         b = g.locator(f'[data-dtab="{dt}"]')
                         if await b.count():
                             await b.click(); await pg.wait_for_timeout(200)
+            # the day picker on the high-chance and long-shot tabs: every day it offers shows cards
+            for t in ('hc', 'ls'):
+                await pg.locator(f'.tab[data-view="{t}"]').first.click(); await pg.wait_for_timeout(300)
+                btns = await pg.locator(f'#v-{t} [data-pday]').evaluate_all('els => els.map(e => [e.dataset.pday, e.textContent])')
+                got = []
+                for k, label in btns:
+                    await pg.locator(f'#v-{t} [data-pday="{k}"]').click(); await pg.wait_for_timeout(250)
+                    n = await pg.locator(f'#v-{t} article.hc').count()
+                    got.append(f'{label} {n}')
+                    if not n:
+                        warn.append(f'{t} shows nothing for {label}')
+                if btns:
+                    await pg.locator(f'#v-{t} [data-pday="all"]').click(); await pg.wait_for_timeout(200)
+                notes.append(f"{t} by day: {', '.join(got) if got else 'no day picker'}")
             # a chart from the first high-chance card
             await pg.locator('.tab[data-view="hc"]').first.click(); await pg.wait_for_timeout(400)
             c = pg.locator('#v-hc .hc-chart, #v-hc [data-chart]').first
