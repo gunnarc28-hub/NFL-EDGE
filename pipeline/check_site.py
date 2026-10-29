@@ -65,6 +65,38 @@ async def check(browser, name, path, tabs):
                         b = g.locator(f'[data-dtab="{dt}"]')
                         if await b.count():
                             await b.click(); await pg.wait_for_timeout(200)
+            # quarters / periods on the first game that has them (and the NBA's first basket), then 1st-quarter props
+            parts_n, fb_n = 0, None
+            for i in range(min(n_games, 6)):
+                g = pg.locator('.game').nth(i)
+                s_ = g.locator('.g-sum')
+                if await s_.count() and await s_.get_attribute('aria-expanded') != 'true':
+                    await s_.click(); await pg.wait_for_timeout(150)
+                more = g.locator('[data-more]')
+                if not await more.count():
+                    continue
+                if await more.get_attribute('aria-expanded') != 'true':
+                    await more.click(); await pg.wait_for_timeout(250)
+                b = g.locator('[data-dtab="parts"]')
+                if not await b.count():
+                    warn.append('no quarters/periods tab on the game cards'); break
+                await b.click(); await pg.wait_for_timeout(250)
+                parts_n = await g.locator('.parts .pb').count()
+                if parts_n:
+                    fb = g.locator('[data-dtab="fb"]')
+                    if await fb.count():
+                        await fb.click(); await pg.wait_for_timeout(250); fb_n = await g.locator('.fb-r').count()
+                    break
+            notes.append(f"{'periods' if name == 'nhl' else 'quarters'} {parts_n} prices" + (f', first basket {fb_n} players' if fb_n is not None else ''))
+            if name in ('nfl', 'nba'):
+                await pg.locator('.tab[data-view="props"]').first.click(); await pg.wait_for_timeout(300)
+                q1 = pg.locator('[data-pppart="q1"]')
+                if await q1.count():
+                    await q1.click(); await pg.wait_for_timeout(400)
+                    notes.append(f"1st-quarter props {await pg.locator('#pp-list .pq').count()} rows")
+                    await pg.locator('[data-pppart=""]').click(); await pg.wait_for_timeout(200)
+                else:
+                    warn.append('no 1st-quarter switch on props')
             # the day picker on the high-chance and long-shot tabs: every day it offers shows cards
             for t in ('hc', 'ls'):
                 await pg.locator(f'.tab[data-view="{t}"]').first.click(); await pg.wait_for_timeout(300)

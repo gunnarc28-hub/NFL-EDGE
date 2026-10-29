@@ -19,6 +19,7 @@ sys.path.insert(0, HERE)
 from teams import TEAMS, INTERNATIONAL          # noqa: E402
 import pbp_agg, metrics, players as pa, espn    # noqa: E402
 import injuries as injm                         # noqa: E402
+import parts as PT, sportslib as sl             # noqa: E402
 
 OUT = os.path.join(ROOT, 'site', 'nfl', 'data', 'data.json')
 BASE = 'https://github.com/nflverse/nflverse-data/releases/download'
@@ -764,6 +765,73 @@ for gm in games:
     gm['props'] = props_by_game.get(gm['id'], [])
     gm['absent'] = absent_by_game.get(gm['id'], {})
 
+# ------------------------------------------------------------------ quarters and halves: game lines and 1st-quarter / 1st-half player props
+# research/15_segments.py (each team's points by part, real score shapes) and 16_player_periods.py (shares of the projection)
+NFLP = json.load(open(os.path.join(HERE, 'static', 'nfl_parts.json')))
+NFLPP = json.load(open(os.path.join(HERE, 'static', 'nfl_player_parts.json')))
+TEAM_OF, EV_OF = {}, {}                                   # ESPN team id -> abbreviation; game -> ESPN event
+for (aa, ha), b_ in board.items():
+    if b_.get('tid_h'):
+        TEAM_OF[b_['tid_h']] = ha
+    if b_.get('tid_a'):
+        TEAM_OF[b_['tid_a']] = aa
+for _, g_ in S.iterrows():
+    if pd.notna(g_.get('espn')):
+        EV_OF[g_.game_id] = str(int(g_.espn))
+for (aa, ha), b_ in board.items():
+    m_ = S[(S.week == WEEK) & (S.home_team == ha) & (S.away_team == aa)]
+    if len(m_) and b_.get('event'):
+        EV_OF[m_.game_id.iloc[0]] = b_['event']
+if not TEAM_OF:                                           # the week's scoreboard didn't load: ask by day
+    for day_ in sorted({gm['kickoff'][:10] for gm in games if not gm['final']}):
+        for e_ in sl.scoreboard('nfl', day_):
+            ha, aa = espn.ESPN_ABBR.get(e_['home']['abbr'], e_['home']['abbr']), espn.ESPN_ABBR.get(e_['away']['abbr'], e_['away']['abbr'])
+            TEAM_OF[e_['home']['espn_id']] = ha; TEAM_OF[e_['away']['espn_id']] = aa
+            m_ = S[(S.week == WEEK) & (S.home_team == ha) & (S.away_team == aa)]
+            if len(m_):
+                EV_OF[m_.game_id.iloc[0]] = e_['id']
+GSIS2ESPN = {}
+try:
+    _ro = pd.read_csv(f'{RAW}/roster_weekly_{SEASON}.csv', usecols=['gsis_id', 'espn_id'], low_memory=False).dropna()
+    GSIS2ESPN = {r.gsis_id: str(int(float(r.espn_id))) for r in _ro.itertuples() if str(r.espn_id).replace('.0', '').isdigit()}
+except Exception as e:
+    print('rosters for ESPN ids unavailable:', repr(e)[:120])
+n_book = 0
+for gm in games:
+    if gm['final'] or gm['model'] is None:
+        continue
+    try:
+        gm['parts'] = PT.nfl(gm['model']['margin'], gm['model']['total'], NFLP)
+        ev_ = EV_OF.get(gm['id'])
+        bk_ = sl.part_lines('nfl', ev_, TEAM_OF) if ev_ and TEAM_OF else None
+        if bk_ and bk_['parts']:
+            n_book += 1
+            for s_, v_ in gm['parts'].items():
+                if bk_['parts'].get(s_):
+                    v_['book'] = PT.book_side(bk_['parts'][s_], gm['home'], gm['away'])
+        sp_h = gm['spread'] if gm['spread'] is not None else gm['model']['margin']
+        for pr_ in gm['props']:
+            tm_ = sp_h if pr_['team'] == gm['home'] else -sp_h
+            pq_ = {}
+            for part in ('q1', 'h1'):
+                d_ = {}
+                for k_ in ('pass_yds', 'rush_yds', 'rec_yds', 'receptions'):
+                    v_ = pr_['proj'].get(k_)
+                    if v_ is not None:                        # share of the game: s0 + s1 * margin / 10 + s2 * ln(projection / median)
+                        s0, s1, s2, med = NFLPP['parts'][f'{part}_{k_}']['share']
+                        sh_ = max(0.02, s0 + s1 * tm_ / 10 + s2 * math.log(max(v_, 0.1) / med))
+                        d_[k_] = round(max(0.0, sh_ * v_), 2 if k_ == 'receptions' else 1)
+                if pr_['proj'].get('any_td') is not None:
+                    d_['td'] = round(1 - (1 - pr_['proj']['any_td']) ** NFLPP['parts'][f'{part}_td']['share'], 3)
+                pq_[part] = d_
+            pr_['pq'] = pq_
+            e_id = GSIS2ESPN.get(pr_['id'])
+            if bk_ and e_id and (bk_['players'] or {}).get(e_id):
+                pr_['pl'] = bk_['players'][e_id]
+    except Exception as e:                                # never worth losing the whole build over
+        print('quarters for', gm['id'], 'failed:', repr(e)[:160])
+print('quarters and halves:', sum(1 for gm in games if gm.get('parts')), 'games', '| with book lines', n_book, '| ESPN ids for', len(GSIS2ESPN), 'players')
+
 # ------------------------------------------------------------------ trends (must last 2+ weeks)
 CARRY = {r['trend']: r for r in TR['team'] + TR['player']}
 
@@ -1462,6 +1530,66 @@ results = {g.game_id: {'wk': int(g.week), 'a': g.away_team, 'h': g.home_team,
 for gid_, (fid_, fname_, _) in FIRST_TD.items():
     if gid_ in results:
         results[gid_]['ftd'] = fid_; results[gid_]['ftdn'] = fname_
+
+
+def part_scores(lh, la):
+    """{'q1': [home, away], ..., 'h1', 'h2' (overtime counts in the 2nd half)} from points by quarter."""
+    if len(lh) < 4 or len(la) < 4:
+        return None
+    ps_ = {f'q{i + 1}': [int(lh[i]), int(la[i])] for i in range(4)}
+    ps_['h1'] = [ps_['q1'][0] + ps_['q2'][0], ps_['q1'][1] + ps_['q2'][1]]
+    ps_['h2'] = [int(sum(lh[2:])), int(sum(la[2:]))]
+    return ps_
+
+
+# quarters and 1st-quarter / 1st-half player lines of finished games, from this season's play-by-play (plus ESPN's line scores
+# for games the play-by-play hasn't caught up with). Player lines: [q1 pass yds, rush yds, rec yds, catches, TDs, then the same for the 1st half]
+PART_PLAYERS, PLAYED_PBP = {}, set()
+if have_pbp.get(SEASON):
+    try:
+        _c = ['game_id', 'week', 'qtr', 'total_home_score', 'total_away_score', 'two_point_attempt', 'passer_player_id', 'passing_yards', 'rusher_player_id',
+              'rushing_yards', 'receiver_player_id', 'receiving_yards', 'complete_pass', 'td_player_id', 'touchdown']
+        _pp = pd.read_csv(f'{RAW}/pbp_{SEASON}.csv.gz', usecols=_c, low_memory=False)
+        _end = _pp.groupby(['game_id', 'qtr'])[['total_home_score', 'total_away_score']].max().reset_index().sort_values(['game_id', 'qtr'])
+        _end[['ph', 'pa']] = _end.groupby('game_id')[['total_home_score', 'total_away_score']].diff().fillna(_end[['total_home_score', 'total_away_score']])
+        for gid_, x_ in _end.groupby('game_id'):
+            if gid_ in results and results[gid_]['hs'] is not None:
+                lh_ = [float(x_[x_.qtr == q].ph.sum()) for q in (1, 2, 3, 4)] + [float(x_[x_.qtr > 4].ph.sum())]
+                la_ = [float(x_[x_.qtr == q].pa.sum()) for q in (1, 2, 3, 4)] + [float(x_[x_.qtr > 4].pa.sum())]
+                if sum(lh_) == results[gid_]['hs'] and sum(la_) == results[gid_]['as']:
+                    results[gid_]['ps'] = part_scores(lh_, la_)
+        PLAYED_PBP = set(_pp.game_id)
+        _pp = _pp[_pp.two_point_attempt != 1]
+        for i0, qs_ in ((0, [1]), (5, [1, 2])):
+            z_ = _pp[_pp.qtr.isin(qs_)]
+            for j_, (col_, who_) in enumerate((('passing_yards', 'passer_player_id'), ('rushing_yards', 'rusher_player_id'), ('receiving_yards', 'receiver_player_id'))):
+                for (gid_, pid_), v_ in z_.groupby(['game_id', who_])[col_].sum().items():
+                    PART_PLAYERS.setdefault((gid_, pid_), [0] * 10)[i0 + j_] += int(v_)
+            for (gid_, pid_), v_ in z_[z_.complete_pass == 1].groupby(['game_id', 'receiver_player_id']).size().items():
+                PART_PLAYERS.setdefault((gid_, pid_), [0] * 10)[i0 + 3] += int(v_)
+            for (gid_, pid_), v_ in z_[z_.touchdown == 1].groupby(['game_id', 'td_player_id']).size().items():
+                PART_PLAYERS.setdefault((gid_, pid_), [0] * 10)[i0 + 4] += int(v_)
+    except Exception as e:
+        print('part results from play-by-play unavailable:', repr(e)[:160])
+for (aa, ha), b_ in board.items():                         # finals the play-by-play doesn't have yet
+    m_ = S[(S.week == WEEK) & (S.home_team == ha) & (S.away_team == aa)]
+    if len(m_) and b_.get('completed') and 'ps' not in results.get(m_.game_id.iloc[0], {'ps': 1}):
+        ps_ = part_scores(b_.get('ls_h') or [], b_.get('ls_a') or [])
+        if ps_:
+            results[m_.game_id.iloc[0]]['ps'] = ps_
+wk_of = {g.game_id: int(g.week) for _, g in S.iterrows()}
+for (gid_, pid_), v_ in PART_PLAYERS.items():
+    if pid_ in grade_players and gid_ in wk_of:
+        grade_players[pid_].setdefault('q', {})[wk_of[gid_]] = v_
+gid_by_wt = {}
+for gid_, r_ in results.items():
+    if r_.get('ps') and gid_ in PLAYED_PBP:
+        gid_by_wt[(r_['wk'], r_['h'])] = gid_; gid_by_wt[(r_['wk'], r_['a'])] = gid_
+for pid_, e_ in grade_players.items():                     # played but had nothing early: zeros, so unders grade
+    for wk_ in e_['w']:
+        if (wk_, e_['t']) in gid_by_wt and wk_ not in e_.get('q', {}):
+            e_.setdefault('q', {})[wk_] = [0] * 10
+print('part results:', sum(1 for v in results.values() if v.get('ps')), 'games with quarters |', len(PART_PLAYERS), 'player lines')
 last_stats_date = (str(S[S.game_id.isin(p26.game_id)].gameday.max()) if len(p26) else None)
 
 # ------------------------------------------------------------------ matchups: what each defense has allowed to each position this season
@@ -1542,7 +1670,11 @@ data = {'meta': {'season': SEASON, 'week': WEEK, 'asof': NOW.isoformat(timespec=
                    'logs': {'pcols': CHART_COLS, 'players': player_logs, 'tcols': TEAM_COLS, 'teams': team_logs}},
         'model_picks': model_picks, 'prop_bins': BINS, 'prop_dist': PD['dists'], 'research': research, 'high_chance': high_chance,
         'long_shots': long_shots, 'matchups': matchups, 'units': units,
-        'grade': {'players': grade_players, 'games': results}}
+        'grade': {'players': grade_players, 'games': results},
+        'part_dist': {k: v for k, v in NFLPP['parts'].items() if 'bins' in v},
+        'parts_model': {'seasons': NFLP['fit_seasons'], 'check_seasons': NFLP['check_seasons'], 'check': NFLP['check'],
+                        'player_seasons': NFLPP['fit_seasons'], 'player_check': NFLPP['check'],
+                        'td_share': {k: v['share'] for k, v in NFLPP['parts'].items() if k.endswith('_td')}}}
 # ------------------------------------------------------------------ the home page card and the grade file other sports' pages read
 for g_ in results.values():                     # first scorer under the field names the shared bet grader reads
     if 'ftd' in g_:

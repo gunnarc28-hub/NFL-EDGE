@@ -27,6 +27,11 @@ loads every page; after a code change it also clicks through every tab in a phon
   league ranks for this season and last (NBA: ratings per 100 possessions, shooting, turnovers, rebounds; NHL: goals,
   shot share, save %, hits and blocks from the box scores, plus power play, penalty kill and faceoffs from the NHL's
   stats API), shown on the Teams tab and on each game.
+- Quarters, halves and periods (`pipeline/parts.py`, priced on the page by `site/assets/parts.js`): spreads, totals and
+  winners for each quarter and half (NFL, NBA) and each period (NHL, plus a goal in the first 10 minutes), 1st-quarter
+  and 1st-half player props (NFL, NBA) and the NBA's first basket, each next to DraftKings' price through ESPN when
+  one is posted. The NBA build keeps this season's opening tips and part results in `data/parts_log.json` on the live
+  site between runs.
 - `pipeline/injuries.py`: each NFL player's status for his team's next game, merged from the official report and ESPN's
   feed. The page runs the same merge live; `research/inj_parity.py` checks the two give identical answers.
 - `pipeline/static/`: the research each model is built on: which stats predict results, model weights, backtests

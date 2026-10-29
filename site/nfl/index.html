@@ -62,6 +62,7 @@
 
 <script src="../assets/core.js"></script>
 <script src="../assets/bets.js"></script>
+<script src="../assets/parts.js"></script>
 <script>
 (async function(){
 'use strict';
@@ -453,7 +454,7 @@ function gameCard(g){
       <table class="tape"><thead><tr><th>Season stats (rank of 32)</th><th>${g.away}</th><th>${g.home}</th></tr></thead><tbody>${tapeRows(g, KEY_ROWS)}</tbody></table>
       <div class="g-chips">${gameChips(g)}</div>
     </div>
-    <button class="g-more" data-more="${g.id}" aria-expanded="false" aria-controls="d-${g.id}"><span>Injuries, player props, trends and results</span><span aria-hidden="true">＋</span></button>
+    <button class="g-more" data-more="${g.id}" aria-expanded="false" aria-controls="d-${g.id}"><span>Injuries, quarters, player props, trends and results</span><span aria-hidden="true">＋</span></button>
     <div class="g-detail" id="d-${g.id}" hidden></div>
   </article>`;
 }
@@ -479,7 +480,7 @@ function gameSummary(g){
     <span class="r1"><span class="mu">${chip(a, 1)}<span class="rc">${rec(T[a].rec)}</span><span class="small">@</span>${chip(h, 1)}<span class="rc">${rec(T[h].rec)}</span></span><span class="rt">${right}</span></span>
     <span class="r2">${bits.join('<span aria-hidden="true">·</span>')}<span class="chev" aria-hidden="true">${GOPEN.has(g.id) ? '▲' : '▼'}</span></span></button>`;
 }
-const DETAIL_TABS = [['inj', 'Injuries'], ['props', 'Player props'], ['trends', 'Trends'], ['stats', 'All stats'], ['log', 'Results']];
+const DETAIL_TABS = [['inj', 'Injuries'], ['parts', 'Quarters'], ['props', 'Player props'], ['trends', 'Trends'], ['stats', 'All stats'], ['log', 'Results']];
 function detailHtml(g, which){
   which = which || (g.final ? 'log' : 'inj');
   const seg = `<div class="seg" role="group" aria-label="Game details">${DETAIL_TABS.map(([k, l]) => `<button data-dtab="${k}" data-g="${g.id}" aria-pressed="${k === which}">${l}</button>`).join('')}</div>`;
@@ -487,6 +488,7 @@ function detailHtml(g, which){
   if (which === 'inj') body = `<div class="twocol">${[g.away, g.home].map(t => injCol(t)).join('')}</div>
       <div class="note">Every status is for that team's next game. ESPN's injury news is checked live every few minutes (<span class="inj-stamp">${injStampText()}</span>), and practice participation and game designations come from the official NFL report, pulled from NFL.com every 30 minutes. "Latest on X" opens a live search for beat-reporter updates.</div>`;
   if (which === 'props') body = propsHtml(g);
+  if (which === 'parts') body = SE.parts.tabHtml(g, {sport: 'nfl', chip});
   if (which === 'trends') body = `<div class="twocol">${[g.away, g.home].map(t => `<div><div class="team-sub">${chip(t, 1)}<span class="label">${esc(T[t].nick)}</span></div>${trendMini(t)}</div>`).join('')}</div>`;
   if (which === 'stats') body = `<table class="tape"><thead><tr><th>Season stats (rank of 32)</th><th>${g.away}</th><th>${g.home}</th></tr></thead><tbody>${tapeRows(g, KEY_ROWS.concat(MORE_ROWS))}</tbody></table>`;
   if (which === 'log') body = `<div class="twocol">${[g.away, g.home].map(t => logCol(t)).join('')}</div>`;
@@ -796,7 +798,8 @@ let _uRes; window.addEventListener('resize', () => { clearTimeout(_uRes); _uRes 
 const PP_TYPES = {pass_yds: {label: 'Passing yards', short: 'pass yds', stat: 'py', mx: 'py'}, rush_yds: {label: 'Rushing yards', short: 'rush yds', stat: 'ry', mx: 'ry'},
   rec_yds: {label: 'Receiving yards', short: 'rec yds', stat: 'recy', mx: 'recy'}, receptions: {label: 'Receptions', short: 'catches', stat: 'rec', mx: 'rec'},
   any_td: {label: 'Anytime TD', short: 'TD', stat: 'td', mx: null}};
-let PPF = Object.assign({key: 'rec_yds', game: 'all', sort: 'proj', q: ''}, store.get('ppf', {})), PPSHOW = 25, PPIDX = {};
+let PPF = Object.assign({key: 'rec_yds', game: 'all', sort: 'proj', q: '', part: ''}, store.get('ppf', {})), PPSHOW = 25, PPIDX = {};
+if (!['', 'q1', 'h1'].includes(PPF.part)) PPF.part = '';
 const ppVal = (l, key) => key === 'any_td' ? (l.rtd || 0) + (l.rectd || 0) : l[PP_TYPES[key].stat];
 function propChance(pr, key, L){
   if (key === 'any_td'){ const p = pr.proj.any_td; return p == null ? null : {over: p, under: 1 - p}; }
@@ -848,9 +851,70 @@ function ppRow(g, p, key){
       <div class="pp-acts"><button class="btn tiny slipb" data-slipkey="nfl:${esc(key + ':' + g.id + ':' + p.id)}" data-pppick="">+ Slip</button><button class="btn tiny" data-chart="p|${esc(p.id)}|${key}">Chart</button></div></div>
   </article>`;
 }
+/* 1st-quarter and 1st-half props: the full-game projection times the share of it a player usually gets in that part (teams
+   ahead run more late, teams behind throw more), priced on how players with similar projections finished
+   (research/16_player_periods.py). A touchdown in a part: 1 - (1 - full-game chance)^share. */
+const PQK = k => k === 'any_td' ? 'td' : k;
+const PQ_WORD = {pass_yds: 'passing yards', rush_yds: 'rushing yards', rec_yds: 'receiving yards', receptions: 'catches', td: 'TD'};
+const pqMean = (p, part, key) => ((p.pq || {})[part] || {})[PQK(key)];
+function pqOU(dist, mean, L){                                 // over, under and push at line L
+  const sv = t => SE.parts.survNFL(dist, mean, t);
+  if (Number.isInteger(L)){ const a = sv(L), b = sv(L + 1); return a == null || b == null ? null : {over: b, push: Math.max(0, a - b), under: 1 - a}; }
+  const o = sv(Math.ceil(L)); return o == null ? null : {over: o, push: 0, under: 1 - o};
+}
+function partBtnsNFL(g, p, part, key){
+  const k = PQK(key), mean = pqMean(p, part, key); if (mean == null) return [];
+  const bk = ((p.pl || {})[`${part}_${k}`]) || {}, base = {game: g.id, week: g.week, market: `${part}_${k}`, player: p.id, player_name: p.name, team: p.team};
+  if (k === 'td') return [{label: `TD in the ${part === 'q1' ? '1st quarter' : '1st half'}`, r: {p: mean, push: 0}, odds: (bk.yes || {})[1] ?? null, leg: Object.assign({side: 'Y', line: null}, base)}];
+  const dist = (D.part_dist || {})[`${part}_${k}`]; if (!dist) return [];
+  const out = [], unit = k === 'receptions' ? 'catches' : 'yds';
+  const ou = (L, o, u) => { const c = pqOU(dist, mean, L); if (!c) return;
+    out.push({label: `Over ${L}`, r: {p: c.over, push: c.push}, odds: o, leg: Object.assign({side: 'O', line: L}, base)},
+             {label: `Under ${L}`, r: {p: c.under, push: c.push}, odds: u, leg: Object.assign({side: 'U', line: L}, base)}); };
+  if (bk.ou && bk.ou[0] != null) ou(Number(bk.ou[0]), bk.ou[1], bk.ou[2]);
+  Object.keys(bk.yes || {}).map(Number).filter(t => t > 0).sort((a, b) => a - b).forEach(t => {
+    const pr = SE.parts.survNFL(dist, mean, t);
+    if (pr != null) out.push({label: `${t}+ ${unit}`, r: {p: pr, push: 0}, odds: bk.yes[t], leg: Object.assign({side: 'O', line: t - 0.5}, base)}); });
+  if (!out.length){                                            // no book line yet: the model's own line, where over and under are closest to even
+    let best = null, bd = 9;
+    for (let L = 0.5; L <= Math.max(12, mean * 2.5); L += 1){ const c = pqOU(dist, mean, L); if (c && Math.abs(c.over - 0.5) < bd){ bd = Math.abs(c.over - 0.5); best = L; } }
+    if (best != null) ou(best, null, null);
+  }
+  return out;
+}
+const pqBook = (p, part, key) => { const b = ((p.pl || {})[`${part}_${PQK(key)}`]) || {}; return !!(b.ou || b.yes); };
+function partRowNFL(g, p, part, key){
+  const k = PQK(key), mean = pqMean(p, part, key), opp = p.team === g.home ? g.away : g.home, pw = part === 'q1' ? '1st-quarter' : '1st-half';
+  const f = v => k === 'receptions' ? Number(v).toFixed(1) : String(Math.round(v));
+  const btns = partBtnsNFL(g, p, part, key).map(b => SE.parts.btn(b.label, b.r, b.odds, b.leg)).join('');
+  const projTxt = k === 'td' ? `<b class="num">${pct(mean)}</b> to score in the ${part === 'q1' ? '1st quarter' : '1st half'} (${pct(p.proj.any_td)} in the game)`
+    : `projected <b class="num">${f(mean)}</b> ${pw} ${PQ_WORD[k]} of ${f(p.proj[key])}`;
+  return `<article class="pp pq"><div class="pq-h"><span>${chip(p.team, 1)} <span class="pn-l" data-chart="p|${esc(p.id)}|${key}" role="button" tabindex="0" title="Open ${esc(p.name)}'s chart"><b>${esc(p.name)}</b></span> <span class="small">${p.pos} · ${p.team === g.home ? 'vs' : '@'} ${opp} · ${esc(kick(g.kickoff, {timeZoneName: undefined}))}</span> ${injPill(p)}</span>
+      <span class="small">${projTxt}</span></div>
+    <div class="pq-l">${btns || '<span class="small">No line</span>'}</div></article>`;
+}
+function renderPartList(host){
+  const part = PPF.part, key = PPF.key, rows = [];
+  D.games.filter(g => !g.final).forEach(g => (g.props || []).forEach(p => { if (pqMean(p, part, key) != null && p.proj[key] != null) rows.push({g, p}); }));
+  let list = PPF.game !== 'all' ? rows.filter(r => r.g.id === PPF.game) : rows;
+  const q = PPF.q.trim().toLowerCase(); if (q) list = list.filter(r => r.p.name.toLowerCase().includes(q) || r.p.team.toLowerCase() === q);
+  const mv = r => pqMean(r.p, part, key);
+  const mr = r => { const mk = ppMxStat(key, r.p.pos), opp = r.p.team === r.g.home ? r.g.away : r.g.home, m = mk && ((M_.pos[opp] || {})[r.p.pos] || {})[mk]; return m ? m[1] : 99; };
+  const EV = new Map();                                        // the best price on the row against the model's chance
+  const evOf = r => { if (!EV.has(r)){ const bs = partBtnsNFL(r.g, r.p, part, key).filter(b => b.odds != null);
+    EV.set(r, bs.length ? Math.max(...bs.map(b => SE.parts.effP(b.r) * dec(b.odds) - 1)) : -9); } return EV.get(r); };
+  list.sort(PPF.sort === 'matchup' ? (a, b) => mr(a) - mr(b) || mv(b) - mv(a) : PPF.sort === 'kick' ? (a, b) => a.g.kickoff.localeCompare(b.g.kickoff) || mv(b) - mv(a)
+    : PPF.sort === 'value' ? (a, b) => evOf(b) - evOf(a) || mv(b) - mv(a) : (a, b) => mv(b) - mv(a));
+  host.innerHTML = list.slice(0, PPSHOW).map(r => partRowNFL(r.g, r.p, part, key)).join('') || '<div class="empty">No players match. 1st-quarter and 1st-half numbers show up for games that haven\'t been played yet.</div>';
+  const more = $('#pp-more'); if (more) more.innerHTML = list.length > PPSHOW ? `<button class="btn more" data-ppmore="">Show ${Math.min(25, list.length - PPSHOW)} more of ${list.length}</button>` : '';
+  const nb = list.filter(r => pqBook(r.p, part, key)).length;
+  const cnt = $('#pp-count'); if (cnt) cnt.textContent = `${list.length} player${list.length === 1 ? '' : 's'}${nb ? ` · ${nb} with book lines` : ''}`;
+  if (window.SB && SB.refresh) SB.refresh();
+}
 function renderPPList(){
   const host = $('#pp-list'); if (!host) return;
   PPIDX = {};
+  if (PPF.part) return renderPartList(host);
   let rows = ppRowsFor(PPF.key);
   if (PPF.game !== 'all') rows = rows.filter(r => r.g.id === PPF.game);
   const q = PPF.q.trim().toLowerCase(); if (q) rows = rows.filter(r => r.p.name.toLowerCase().includes(q) || r.p.team.toLowerCase() === q);
@@ -865,19 +929,24 @@ function renderPPList(){
 function renderProps(){
   const v = $('#v-props'); if (!v) return;
   const up = D.games.filter(g => !g.final);
-  const counts = Object.fromEntries(Object.keys(PP_TYPES).map(k => [k, up.reduce((a, g) => a + (g.props || []).filter(p => p.proj[k] != null).length, 0)]));
+  const part = PPF.part;
+  const counts = Object.fromEntries(Object.keys(PP_TYPES).map(k => [k, up.reduce((a, g) => a + (g.props || []).filter(p => p.proj[k] != null && (!part || pqMean(p, part, k) != null)).length, 0)]));
+  const pw = part === 'q1' ? '1st-quarter' : '1st-half';
   v.innerHTML = `
     <div class="sec-head"><div><h1 class="h2">Player props</h1>
-      <p class="lede">Every player with a projection this week. Type your sportsbook's line and odds to see the model's chance, the fair price, whether the price is worth it, and how often he has cleared that line. Lines you enter here also show up on his chart.</p></div></div>
-    <div class="seg pp-types" role="group" aria-label="Prop type">${Object.entries(PP_TYPES).map(([k, t]) => `<button data-ppk="${k}" aria-pressed="${PPF.key === k}">${t.label} <span class="small">${counts[k]}</span></button>`).join('')}</div>
+      <p class="lede">${part ? `${pw[0].toUpperCase() + pw.slice(1)} lines for every player with a projection this week. Tap a price to add it to your slip; you can change the line there.` : "Every player with a projection this week. Type your sportsbook's line and odds to see the model's chance, the fair price, whether the price is worth it, and how often he has cleared that line. Lines you enter here also show up on his chart."}</p></div></div>
+    <div class="seg pp-part" role="group" aria-label="Part of the game">${[['', 'Full game'], ['h1', '1st half'], ['q1', '1st quarter']].map(([k, l]) => `<button type="button" data-pppart="${k}" aria-pressed="${part === k}">${l}</button>`).join('')}</div>
+    <div class="seg pp-types" role="group" aria-label="Prop type">${Object.entries(PP_TYPES).map(([k, t]) => `<button data-ppk="${k}" aria-pressed="${PPF.key === k}">${part && k === 'any_td' ? 'Touchdown' : t.label} <span class="small">${counts[k]}</span></button>`).join('')}</div>
+    ${part ? `<div class="tnote">${pw[0].toUpperCase() + pw.slice(1)} numbers are his full-game projection times the share players usually get by then (${part === 'q1' ? 'about a fifth' : 'about half'}; a bit more for starters and favorites, since backups take over late). Chances come from how players with similar projections finished in 2021-2025, and the method held within about 2 points on 2023-2025 games it wasn't fit on. Book lines are DraftKings' through ESPN; with none posted, the buttons show the model's own line at the fair price. Green means the book pays more than fair.</div>` : ''}
     <div class="toolbar"><div class="filters">
         <select id="pp-game" aria-label="Game"><option value="all">All games</option>${up.map(g => `<option value="${g.id}">${g.away} @ ${g.home} · ${esc(kick(g.kickoff, {timeZoneName: undefined}))}</option>`).join('')}</select>
-        <select id="pp-sort" aria-label="Sort"><option value="proj">Highest projection</option><option value="matchup">Softest matchup</option><option value="kick">Kickoff time</option></select>
+        <select id="pp-sort" aria-label="Sort">${part ? '<option value="value">Best price first</option>' : ''}<option value="proj">Highest projection</option><option value="matchup">Softest matchup</option><option value="kick">Kickoff time</option></select>
         <input type="text" id="pp-q" placeholder="Search a player or team" autocomplete="off" aria-label="Search players"></div>
       <span class="small" id="pp-count"></span></div>
     <div class="pp-list" id="pp-list"></div><div id="pp-more" style="display:flex;justify-content:center"></div>
     <div class="note">Projections use the stats that predicted props best from 2018–2025 (volume and share first), and the chances come from how players with similar projections actually finished. Players listed as out or doubtful are left off, and their same-position teammates pick up part of their targets and carries: in 2023–2025 games that brought backs' rushing projections from 8 yards too low to about 1. Matchup numbers are what the defense has allowed per game to that position this season. In testing, a player's role mattered far more than the matchup.</div>`;
   if (!up.some(g => g.id === PPF.game)) PPF.game = 'all';
+  if (!part && PPF.sort === 'value') PPF.sort = 'proj';
   $('#pp-game').value = PPF.game; $('#pp-sort').value = PPF.sort; $('#pp-q').value = PPF.q;
   $('#pp-game').addEventListener('change', e => { PPF.game = e.target.value; store.set('ppf', PPF); PPSHOW = 25; renderPPList(); });
   $('#pp-sort').addEventListener('change', e => { PPF.sort = e.target.value; store.set('ppf', PPF); renderPPList(); });
@@ -896,6 +965,7 @@ document.addEventListener('input', e => {
 document.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.ppk){ PPF.key = b.dataset.ppk; store.set('ppf', PPF); PPSHOW = 25; $$('[data-ppk]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.ppk === PPF.key))); renderPPList(); return; }
+  if (b.dataset.pppart != null){ PPF.part = b.dataset.pppart; store.set('ppf', PPF); PPSHOW = 25; renderProps(); return; }
   if (b.hasAttribute('data-ppmore')){ PPSHOW += 25; renderPPList(); return; }
   const row = b.closest('.pp'); if (!row) return;
   const {g, p} = PPIDX[row.dataset.g + ':' + row.dataset.pid] || {}; if (!p) return;
@@ -1633,6 +1703,20 @@ function modelPFor(l){
     if (L == null || m.total == null) return null;
     return l.side === 'U' ? ncdf((L - half(L) - m.total) / RESID_T) : 1 - ncdf((L + half(L) - m.total) / RESID_T);
   }
+  const gp_ = /^([qh][1-4])_(spread|total|ml)$/.exec(l.market || '');
+  if (gp_){                                                // quarters and halves (../assets/parts.js prices them)
+    const pm_ = (g.parts || {})[gp_[1]]; if (!pm_ || (gp_[2] !== 'ml' && L == null)) return null;
+    return SE.parts.effP(SE.parts.prob(pm_, gp_[2], gp_[2] === 'total' ? l.side : (home ? 'h' : 'a'), L));
+  }
+  const pq_ = /^(q1|h1)_(pass_yds|rush_yds|rec_yds|receptions|td)$/.exec(l.market || '');
+  if (pq_){                                                // 1st-quarter and 1st-half player props
+    const pr = (g.props || []).find(x => x.id === l.player), mean = pr && pr.pq && pr.pq[pq_[1]] ? pr.pq[pq_[1]][pq_[2]] : null;
+    if (mean == null) return null;
+    if (pq_[2] === 'td') return mean;
+    if (L == null) return null;
+    const c = pqOU((D.part_dist || {})[pq_[1] + '_' + pq_[2]], mean, L); if (!c) return null;
+    return SE.parts.effP({p: l.side === 'U' ? c.under : c.over, push: c.push});
+  }
   const def = SB.MK.nfl[l.market];
   if (def && def.cat === 'Player' && l.player){
     const pr = (g.props || []).find(x => x.id === l.player);
@@ -1906,11 +1990,12 @@ document.addEventListener('keydown', e => {
 });
 /* slip legs only this page knows how to build (the shared engine handles the slip itself).
    Capture phase, so a + Slip button inside a chart row or odds grid doesn't also open the chart. */
-const NFL_SLIP_SEL = '[data-pickprop],[data-mpick],[data-hcpick],[data-lspick],[data-tzleg],[data-trleg],[data-cladd]';
+const NFL_SLIP_SEL = '[data-pickprop],[data-mpick],[data-hcpick],[data-lspick],[data-tzleg],[data-trleg],[data-cladd],[data-pleg]';
 document.addEventListener('click', e => {
   const t = e.target.closest(NFL_SLIP_SEL); if (!t) return;
   e.stopPropagation();
   const d = t.dataset;
+  if (d.pleg){ try { addLeg(JSON.parse(d.pleg)); } catch(err){} return; }     // quarter, half and part-prop prices (../assets/parts.js)
   if (d.pickprop){
     const g = gameOf(d.g), p = g && (g.props || []).find(x => x.id === d.pickprop), key = d.key; if (!p) return;
     const inp = $(`#ln_${CSS.escape(d.pickprop)}_${key}`);

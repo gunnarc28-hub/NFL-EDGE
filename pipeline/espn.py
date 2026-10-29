@@ -56,10 +56,17 @@ def scoreboard():
                     return int(float(c.get('score')))
                 except Exception:
                     return None
+            def ls(c):
+                try:
+                    return [float(x.get('value')) for x in c.get('linescores') or []]
+                except Exception:
+                    return []
             out[(aa, ha)] = {'state': st.get('state'), 'completed': bool(st.get('completed')),
                              'detail': st.get('shortDetail') or st.get('detail'),
                              'home_score': score(h), 'away_score': score(a),
-                             'odds_detail': odds.get('details'), 'over_under': odds.get('overUnder')}
+                             'odds_detail': odds.get('details'), 'over_under': odds.get('overUnder'),
+                             'event': str(ev.get('id') or ''), 'tid_h': str((h.get('team') or {}).get('id') or ''), 'tid_a': str((a.get('team') or {}).get('id') or ''),
+                             'ls_h': ls(h), 'ls_a': ls(a)}                     # points by quarter, overtime last
         except Exception:
             continue
     print('ESPN scoreboard games:', len(out))

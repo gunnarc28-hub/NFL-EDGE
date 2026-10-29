@@ -12,7 +12,7 @@ from scipy.stats import poisson
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-import sportslib as sl, sports_teams as stt          # noqa: E402
+import sportslib as sl, sports_teams as stt, parts as PT          # noqa: E402
 
 LG = 'nhl'
 OUT = os.path.join(ROOT, 'site', 'nhl', 'data')
@@ -124,14 +124,29 @@ def nhl_box(gid):
 
 
 def first_goal(gid):
+    """The first goal's scorer, plus goals by period and when the first goal came (seconds into the game), from the
+    NHL's game page: (gid, scorer id or '' if nobody scored or None if unknown, name, {'ps': {p1..p3: [home, away]}, 'ft': secs})."""
     j = sl.get_json(f'{NHLAPI}/gamecenter/{gid}/landing', quiet=True)
+    first, ps, ft = None, {f'p{i}': [0, 0] for i in (1, 2, 3)}, None
     for per in ((j or {}).get('summary') or {}).get('scoring') or []:
-        if (per.get('periodDescriptor') or {}).get('periodType') == 'SO':
+        pd_ = per.get('periodDescriptor') or {}
+        if pd_.get('periodType') == 'SO':
             continue
+        n_ = int(pd_.get('number') or 0)
         for gl in per.get('goals') or []:
-            nm = gl.get('name') or {}
-            return gid, int(gl.get('playerId')), (gl.get('firstName') or {}).get('default', '') + ' ' + (gl.get('lastName') or {}).get('default', '') if gl.get('firstName') else nm.get('default', '')
-    return gid, (None if not j else ''), ''
+            if first is None:
+                nm = gl.get('name') or {}
+                first = (int(gl.get('playerId')), (gl.get('firstName') or {}).get('default', '') + ' ' + (gl.get('lastName') or {}).get('default', '') if gl.get('firstName') else nm.get('default', ''))
+                try:
+                    mm, ss = str(gl.get('timeInPeriod') or '').split(':'); ft = (n_ - 1) * 1200 + int(mm) * 60 + int(ss)
+                except ValueError:
+                    ft = None
+            if 1 <= n_ <= 3:
+                ps[f'p{n_}'][0 if gl.get('isHome') else 1] += 1
+    extra = {'ps': ps, 'ft': ft if first else 99999} if j and (j.get('gameState') in ('OFF', 'FINAL') or ((j.get('summary') or {}).get('scoring'))) else None
+    if first:
+        return gid, first[0], first[1], extra
+    return gid, (None if not j else ''), '', extra
 
 
 need = [g.id for g in recent_final if g.id not in have]
@@ -144,7 +159,9 @@ if need:
     if xg:
         GB = pd.concat([GB, pd.DataFrame(xg)], ignore_index=True)
     sl.log('box scores from the NHL feed:', len(need), 'games')
-FIRST = {gid: (pid, nm) for gid, pid, nm in sl.parallel(first_goal, [g.id for g in recent_final], 6)}
+_fg = sl.parallel(first_goal, [g.id for g in recent_final], 6)
+FIRST = {gid: (pid, nm) for gid, pid, nm, _x in _fg}
+PERDONE = {gid: x for gid, _p, _n, x in _fg if x}                        # goals by period and the first goal's time, for grading
 
 # ================================================================== tidy boxes; finals from the boxes (the schedule file's scores are unreliable)
 SK = SK.drop_duplicates(['game_id', 'player_id'], keep='last').copy()
@@ -478,6 +495,13 @@ def blend(k, pm, pb):
 SHOW = GAMES[(GAMES.day >= SLATE) & (GAMES.day <= DAYS[-2])]
 PROP_GAMES = [g for g in SHOW.itertuples() if g.state == 'pre' and g.id in G2E]
 PLINES = dict(zip([g.id for g in PROP_GAMES], sl.parallel(lambda gid: sl.prop_lines(LG, G2E[gid]), [g.id for g in PROP_GAMES], 8)))
+TEAM_OF = {v: k for k, v in ESPN_TEAM.items() if v}                     # ESPN team id -> the site's abbreviation
+try:                                                                     # period lines, from the same prop-bet pages
+    PBOOK = {g.id: sl.part_lines(LG, G2E[g.id], TEAM_OF) for g in PROP_GAMES}
+except Exception as e:
+    sl.log('period lines unavailable:', repr(e)[:160]); PBOOK = {}
+NPER = json.load(open(os.path.join(HERE, 'static', 'nhl_periods.json')))
+sl.log('period lines:', sum(1 for v in PBOOK.values() if v['parts']), 'of', len(PBOOK), 'games')
 sl.log('prop lines:', {k: len(v) for k, v in PLINES.items()})
 OU_KEYS = ('points', 'assists', 'sog', 'blocks', 'saves')
 
@@ -855,6 +879,19 @@ for g in GAMES[(GAMES.day >= DAYS[1]) & (GAMES.day <= DAYS[-1])].itertuples():
                                   'a': {'id': str(p['gk_a']) if p and p['gk_a'] else None, 'name': PNAME.get(p['gk_a']) if p else None, 'src': p['gk_src_a'] if p else None, 'sv': p['sv_a'] if p else None}} if p else None,
                       'rest': {'h': p['rest_h'], 'a': p['rest_a'], 'b2b_h': bool(p['b2b_h']), 'b2b_a': bool(p['b2b_a'])} if p else None,
                       'rec': {'h': json.loads(rec_h) if isinstance(rec_h, str) else None, 'a': json.loads(rec_a) if isinstance(rec_a, str) else None}})
+    if p and g.state != 'post':                                          # periods and a goal in the first 10 minutes (research/nba_nhl/nhl_09_periods.py)
+        try:
+            per_ = PT.nhl(p['lam_h'], p['lam_a'], NPER)
+            bk_ = (PBOOK.get(g.id) or {}).get('parts') or {}
+            for s_, v_ in per_.items():
+                if bk_.get(s_):
+                    v_['book'] = PT.book_side(bk_[s_], g.home, g.away)
+            games_out[-1]['parts'] = per_
+            games_out[-1]['f10'] = PT.first10(p['lam_h'], p['lam_a'], NPER)
+        except Exception as e:
+            sl.log('period lines for', g.id, 'failed:', repr(e)[:120])
+    if g.id in PERDONE and g.state == 'post':
+        games_out[-1]['ps'] = PERDONE[g.id]['ps']
 inj_out = {}
 for t, lst in INJ.items():
     rows = []
@@ -875,6 +912,10 @@ for g in GAMES[(GAMES.k >= cut) & (GAMES.day <= DAYS[-1])].itertuples():
         rec_['b'] = 1
     if g.id in FIRST and FIRST[g.id][0] is not None:
         rec_['f'] = str(FIRST[g.id][0]) if FIRST[g.id][0] else ''; rec_['fn'] = FIRST[g.id][1]
+    if rec_['hs'] is not None and g.id in PERDONE:                       # periods and a goal in the first 10 minutes
+        rec_['ps'] = PERDONE[g.id]['ps']
+        if PERDONE[g.id].get('ft') is not None:
+            rec_['f10'] = int(PERDONE[g.id]['ft'] < 600)
     gg[str(g.id)] = rec_
 gp = {}
 recent_ids = set(int(k) for k in gg)
@@ -895,7 +936,8 @@ data = {'meta': meta, 'teams': TEAMS_OUT, 'games': games_out, 'injuries': inj_ou
         'trends': {'player': TRENDS_P[:60], 'team': TRENDS_T[:40]},
         'model': {'record': REC, 'log': model_log[-400:], 'backtest': S['backtest']},
         'research': {'props': S['prop_backtest'], 'situational': S['situational'], 'carry': S['carry'], 'blend': BLEND},
-        'cal': CAL, 'sv_sd': PP['sv_sd']}
+        'cal': CAL, 'sv_sd': PP['sv_sd'],
+        'parts_model': {'seasons': NPER['fit_seasons'], 'check_seasons': NPER['check_seasons'], 'check': NPER['check'], 'first10': NPER['check_first10']}}
 sl.write_json(os.path.join(OUT, 'data.json'), data)
 sl.write_json(os.path.join(OUT, 'logs.json'), {'pcols': PCOLS, 'players': PLOGS, 'gcols': GCOLS, 'goalies': GLOGS, 'tcols': TCOLS, 'teams': TLOGS})
 sl.write_json(os.path.join(OUT, 'grade.json'), GRADE)

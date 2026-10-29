@@ -11,7 +11,7 @@ import numpy as np, pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-import sportslib as sl, sports_teams as stt          # noqa: E402
+import sportslib as sl, sports_teams as stt, parts as PT          # noqa: E402
 
 LG = 'nba'
 OUT = os.path.join(ROOT, 'site', 'nba', 'data')
@@ -103,8 +103,17 @@ have = set(PB.game_id.astype(str))
 need = [g for g in GAMES.itertuples() if g.state == 'post' and g.id not in have and g.k > NOW - pd.Timedelta(days=4)]
 
 
+SUMM = {}
+
+
+def summ(gid):
+    if gid not in SUMM:
+        SUMM[gid] = sl.summary(LG, gid)
+    return SUMM[gid]
+
+
 def parse_summary(gid):
-    j = sl.summary(LG, gid)
+    j = summ(gid)
     rows = []
     for tm in ((j or {}).get('boxscore') or {}).get('players') or []:
         ab = fix_ab((tm.get('team') or {}).get('abbreviation'))
@@ -476,6 +485,19 @@ SHOW = GAMES[(GAMES.day >= SLATE) & (GAMES.day <= DAYS[-2])]            # today 
 PROP_GAMES = [g for g in SHOW.itertuples() if g.state == 'pre']
 PLINES = dict(zip([g.id for g in PROP_GAMES], sl.parallel(lambda e: sl.prop_lines(LG, e), [g.id for g in PROP_GAMES], 8)))
 sl.log('prop lines:', {k: len(v) for k, v in PLINES.items()})
+TEAM_OF = {}                                                             # ESPN team id -> the site's abbreviation
+for e in BOARD.values():
+    for side in ('home', 'away'):
+        if e[side].get('espn_id'):
+            TEAM_OF[e[side]['espn_id']] = fix_ab(e[side]['abbr'])
+try:                                                                     # the book's quarter, half and first-basket prices
+    PBOOK = {g.id: sl.part_lines(LG, g.id, TEAM_OF) for g in PROP_GAMES}
+except Exception as e:                                                   # never worth losing the whole build over
+    sl.log('quarter and half lines unavailable:', repr(e)[:160]); PBOOK = {}
+sl.log('quarter and half lines:', {k: sorted(v['parts']) for k, v in PBOOK.items() if v['parts']}, '| first-basket prices', sum(len(v['fb']) for v in PBOOK.values()))
+NPARTS = json.load(open(os.path.join(HERE, 'static', 'nba_parts.json')))
+NPP = json.load(open(os.path.join(HERE, 'static', 'nba_player_parts.json')))
+NFB = json.load(open(os.path.join(HERE, 'static', 'nba_first_basket.json')))
 BL = PR['blend']
 lgt = lambda p: math.log(p / (1 - p)); sgm = lambda x: 1 / (1 + math.exp(-x))
 
@@ -580,6 +602,14 @@ for g in SHOW.itertuples():
                 pm = p_over(k, pr[k], ln['line']); pb = ln['p_book']; p = blend(k, pm, pb)
                 item['lines'][k] = {'line': ln['line'], 'o': ln['o'], 'u': ln['u'], 'open': ln['open'], 'p_book': round(pb, 4), 'p_model': round(pm, 4), 'p': round(p, 4),
                                     'ev_o': round(p * dec(ln['o']) - 1, 4), 'ev_u': round((1 - p) * dec(ln['u']) - 1, 4), 'book': ln['book']}
+            # 1st quarter and 1st half: his share of the game depends on whether he starts (research/nba_nhl/nba_13_player_periods.py)
+            S_ = min(max(float((FORM.get(pid) or {}).get('started', 0.0)), 0.0), 1.0); M_ = pr['min'] / 36
+            item['pq'] = {pt_: {k: round(min(1.0, max(0.02, b[0] + b[1] * S_ + b[2] * M_ + b[3] * S_ * M_)) * pr[k], 2)
+                                for k in ('pts', 'reb', 'ast') for b in [NPP['model'][f'{pt_}_{k}']['share']]} for pt_ in ('q1', 'h1')}
+            item['start'] = round(S_, 2)
+            bl_ = ((PBOOK.get(g.id) or {}).get('players') or {}).get(str(pid))
+            if bl_:
+                item['pl'] = bl_
             if g.state == 'pre' and w_out < 0.5:
                 PROPS.append(item)
             GAME_PROPS.setdefault(g.id, []).append(item)
@@ -639,9 +669,155 @@ for g in SHOW.itertuples():
             HC.append({'kind': 'ml', 'team': team, 'opp': g.away if team == g.home else g.home, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day, 'p': round(wp, 4), 'fair': sl.odds_of(wp),
                        'book': ml, 'mkt_p': round(mk, 4) if mk else None, 'label': f"{team} to win",
                        'reason': f"The model makes {team} {wp * 100:.0f}% to win{f', the market {mk * 100:.0f}%' if mk else ''}. Favorites this big lose about one game in {max(2, round(1 / (1 - wp)))}."})
+PLOG = sl.live_log(LIVE, OUT, 'parts_log.json', NOW)                     # this season's opening tips and part results, kept between runs
+# ================================================================== finished games: quarters, the opening tip, the first basket, 1st-quarter and 1st-half lines
+def part_scores(lh, la):
+    """{'q1': [home, away], ..., 'h1', 'h2' (overtime counts in the 2nd half)} from points by period."""
+    if len(lh) < 4 or len(la) < 4 or any(v is None for v in lh[:4] + la[:4]):
+        return None
+    ps = {f'q{i + 1}': [int(lh[i]), int(la[i])] for i in range(4)}
+    ps['h1'] = [ps['q1'][0] + ps['q2'][0], ps['q1'][1] + ps['q2'][1]]
+    ps['h2'] = [int(sum(v or 0 for v in lh[2:])), int(sum(v or 0 for v in la[2:]))]
+    return ps
+
+
+def parse_parts(gid):
+    try:
+        return _parse_parts(gid)
+    except Exception as e:                                                # an odd play-by-play shouldn't stop the build
+        sl.log('part results for', gid, 'failed:', repr(e)[:160])
+        return None
+
+
+def _parse_parts(gid):
+    """One finished game's opening tip [home jumper, away jumper, winning team], first basket [player, name],
+    1st-quarter and 1st-half lines {player: [q1 pts, reb, ast, h1 pts, reb, ast]} and quarter scores, from ESPN's summary."""
+    j = summ(gid)
+    plays = (j or {}).get('plays') or []
+    if not plays:
+        return None
+    comp = (((j.get('header') or {}).get('competitions')) or [{}])[0]
+    side = {c.get('homeAway'): c for c in comp.get('competitors') or []}
+    ls = {k: [sl.num(x.get('displayValue') if x.get('displayValue') is not None else x.get('value')) for x in (side.get(k) or {}).get('linescores') or []]
+          for k in ('home', 'away')}
+    home_ab = fix_ab((((side.get('home') or {}).get('team')) or {}).get('abbreviation'))
+    team_of_ath, name_of = {}, {}
+    for tm in ((j.get('boxscore') or {}).get('players')) or []:
+        ab = fix_ab((tm.get('team') or {}).get('abbreviation'))
+        for blk in tm.get('statistics') or []:
+            for a in blk.get('athletes') or []:
+                ath = a.get('athlete') or {}
+                team_of_ath[str(ath.get('id'))] = ab; name_of[str(ath.get('id'))] = ath.get('displayName')
+    pq, fb, tip, fts = {}, None, None, None
+    for pl in plays:
+        per = int(((pl.get('period') or {}).get('number')) or 0)
+        typ = str(((pl.get('type') or {}).get('text')) or '')
+        ath = [str(((x.get('athlete') or {}).get('id')) or '') for x in pl.get('participants') or []]
+        if tip is None and per == 1 and typ.startswith('Jump') and len(ath) >= 2:
+            jh = next((a for a in ath[:2] if team_of_ath.get(a) == home_ab), None)
+            tip = [jh, next((a for a in ath[:2] if a != jh), None), TEAM_OF.get(str(((pl.get('team') or {}).get('id')) or ''))]
+        if per > 2 or not ath or not ath[0]:
+            continue
+        slots = (0, 3) if per == 1 else (3,)                                 # 1st quarter counts in both, 2nd quarter in the half only
+        sc, v, ft = bool(pl.get('scoringPlay')), int(pl.get('scoreValue') or 0), 'Free Throw' in typ
+        if sc and v:
+            if fts is None:
+                fts = TEAM_OF.get(str(((pl.get('team') or {}).get('id')) or '')) or team_of_ath.get(ath[0])
+            if fb is None and not ft and v in (2, 3):
+                fb = ath[0]
+            for i in slots:
+                pq.setdefault(ath[0], [0] * 6)[i] += v
+            if not ft and len(ath) > 1 and ath[1] and 'assist' in str(pl.get('text') or ''):
+                for i in slots:
+                    pq.setdefault(ath[1], [0] * 6)[i + 2] += 1
+        elif typ in ('Offensive Rebound', 'Defensive Rebound'):
+            for i in slots:
+                pq.setdefault(ath[0], [0] * 6)[i + 1] += 1
+    return {'tip': tip, 'fb': [fb, name_of.get(fb) or NAMES.get(fb)] if fb else None, 'fts': fts, 'pq': pq, 'ps': part_scores(ls['home'], ls['away'])}
+
+
+for e in BOARD.values():                                                 # quarter scores straight off the scoreboard
+    if e['state'] == 'post' and e['id'] in G:
+        ps = part_scores(e['home'].get('ls') or [], e['away'].get('ls') or [])
+        if ps:
+            r_ = PLOG.setdefault(e['id'], {}); r_['ps'] = ps
+pp_fin = GAMES[(GAMES.state == 'post') & (GAMES.season == SEASON)]
+pp_recent = [g.id for g in pp_fin.itertuples() if g.k > NOW - pd.Timedelta(days=4) and not (PLOG.get(g.id) or {}).get('pq')]
+pp_older = [g.id for g in pp_fin.itertuples() if g.id not in pp_recent and 'tip' not in (PLOG.get(g.id) or {})]
+pp_older = pp_older[max(0, len(pp_older) - int(os.environ.get('SE_TIP_BACKFILL', 60))):]           # this season's tips, a few dozen games a run
+pp_got = dict(zip(pp_recent + pp_older, sl.parallel(parse_parts, pp_recent + pp_older, 6)))
+gm_ = GAMES.set_index('id')
+for gid, x in pp_got.items():
+    if not x:
+        continue
+    r_ = PLOG.setdefault(gid, {})
+    r_.update({'k': gm_.at[gid, 'k'].isoformat(), 'season': int(gm_.at[gid, 'season']), 'h': gm_.at[gid, 'home'], 'a': gm_.at[gid, 'away'], 'tip': x['tip']})
+    if gid in pp_recent:
+        r_['pq'] = x['pq']; r_['fb'] = x['fb']; r_['fts'] = x['fts']
+        if x['ps']:
+            r_['ps'] = x['ps']
+pp_keep = set(GAMES[GAMES.season >= SEASON].id)
+PLOG = {k: v for k, v in PLOG.items() if k in pp_keep}
+sl.log('part results: summaries read', len([v for v in pp_got.values() if v]), 'of', len(pp_got), '| games with quarters', sum(1 for v in PLOG.values() if v.get('ps')),
+       '| with 1st-quarter lines', sum(1 for v in PLOG.values() if v.get('pq')))
+# ---- first basket (DraftKings' rule: the first field goal; free throws don't count). research/nba_nhl/nba_14_first_basket.py
+JUMP = {k: list(v) for k, v in NFB['jumpers'].items()}
+USUAL = {}
+for gid_, e in sorted(((k, v) for k, v in PLOG.items() if v.get('tip')), key=lambda kv: kv[1].get('k', '')):
+    t = e['tip']                                                         # [home jumper, away jumper, winning team]
+    if e.get('season') == SEASON:
+        for aid, tm in ((t[0], e['h']), (t[1], e['a'])):
+            if aid:
+                r_ = JUMP.setdefault(str(aid), [0, 0]); r_[1] += 1; r_[0] += float(t[2] == tm); USUAL[tm] = str(aid)
+tip_rate = lambda aid: (JUMP.get(str(aid), [0, 0])[0] + NFB['tip_prior'][0]) / (JUMP.get(str(aid), [0, 0])[1] + NFB['tip_prior'][1]) if aid else 0.5
+try:                                                                     # first-basket chances for the next games
+    FB = {}
+    for g in PROP_GAMES:
+        items = [x for x in GAME_PROPS.get(g.id, []) if x['min'] >= 6 and not (x.get('inj') and x['inj']['level'] in ('out', 'doubt'))]
+        if not items:
+            continue
+        def jumper(team):
+            u = USUAL.get(team)
+            if u and any(x['id'] == u for x in items):
+                return u
+            c = [x['id'] for x in items if x['team'] == team and str(x['id']) in JUMP]
+            return max(c, key=lambda a: JUMP[str(a)][1]) if c else None
+        jh, ja = jumper(g.home), jumper(g.away)
+        ph_, pa_ = tip_rate(jh), tip_rate(ja)
+        p_tip = ph_ * (1 - pa_) / (ph_ * (1 - pa_) + pa_ * (1 - ph_))
+        mg = (PRED.get(g.id) or {}).get('margin', 0.0)
+        team_p = lambda w: sgm(w[0] + w[1] * lgt(min(max(p_tip, 0.02), 0.98)) + w[2] * mg / 10)
+        p_fg, p_pts = team_p(NFB['team_first_fg']), team_p(NFB['team_first_points'])
+        wp_ = NFB['player']; rows_ = []
+        for team, pt_ in ((g.home, p_fg), (g.away, 1 - p_fg)):
+            tm_items = [x for x in items if x['team'] == team]
+            us = [wp_[0] * math.log(min(max(x.get('start', 0.0), 0.02), 1.0)) + wp_[1] * math.log(max(x['proj']['pts'], 0.5)) for x in tm_items]
+            if not us:
+                continue
+            mx = max(us); den = sum(math.exp(u - mx) for u in us)
+            for x, u in zip(tm_items, us):
+                pp_ = pt_ * math.exp(u - mx) / den
+                rows_.append([x['id'], x['name'], team, round(pp_, 4), ((PBOOK.get(g.id) or {}).get('fb') or {}).get(str(x['id']))])
+        rows_.sort(key=lambda r: -r[3])
+        fbk = PBOOK.get(g.id) or {}
+        FB[g.id] = {'tip': round(p_tip, 4), 'jh': jh, 'ja': ja, 'fg': round(p_fg, 4), 'pts': round(p_pts, 4), 'pl': rows_[:12],
+                    'ft': {t_: o_ for t_, o_ in (fbk.get('first_team') or {}).items()}, 'book': fbk.get('book')}
+        nm_ = lambda a: (NAMES.get(a) or str(a)).split(' ')[-1]
+        for r_ in rows_[:3]:
+            if r_[3] >= 0.07:
+                opp_ = g.away if r_[2] == g.home else g.home
+                LS.append({'type': 'first_basket', 'key': 'first_basket', 't': None, 'id': r_[0], 'name': r_[1], 'team': r_[2], 'opp': opp_, 'game': g.id,
+                           'k': g.k.isoformat(), 'day': g.day, 'p': r_[3], 'fair': sl.odds_of(r_[3]), 'book': r_[4], 'proj': None, 'group': 'fb',
+                           'label': f"{r_[1]} first basket",
+                           'reason': (f"{r_[2]} makes the first field goal {(p_fg if r_[2] == g.home else 1 - p_fg) * 100:.0f}% of the time by the model"
+                                      f"{f' (wins the tip {(p_tip if r_[2] == g.home else 1 - p_tip) * 100:.0f}%' + (f' with {nm_(jh if r_[2] == g.home else ja)} jumping)' if (jh if r_[2] == g.home else ja) else ')')}"
+                                      f", and {r_[1].split(' ')[-1]} takes {r_[3] / max(p_fg if r_[2] == g.home else 1 - p_fg, 1e-6) * 100:.0f}% of its first baskets: a starter with a big share of the shots.")})
+except Exception as e:
+    sl.log('first basket failed:', repr(e)[:160])
+sl.log('first basket:', len(FB), 'games', '| tips from this season', sum(1 for v in PLOG.values() if v.get('tip') and v.get('season') == SEASON))
 # keep the lists readable: two per player at most; the regular list across both days plus each day's own
 HC = sl.day_lists(HC, 40, 2, kinds=('player',))
-LS = sl.day_lists(LS, 60, 2)
+LS = sorted(sl.day_lists([x for x in LS if x.get('group') != 'fb'], 60, 2) + sl.day_lists([x for x in LS if x.get('group') == 'fb'], 15, 1), key=lambda x: -x['p'])  # first baskets get their own 15
 sl.log('props', len(PROPS), 'with book lines', sum(1 for x in PROPS if x['lines']), '| high-chance', len(HC), '| long shots', len(LS),
        '| by day', {d: [sum(1 for x in HC if x['day'] == d), sum(1 for x in LS if x['day'] == d)] for d in sorted({x['day'] for x in HC + LS})})
 
@@ -822,6 +998,20 @@ for g in GAMES[(GAMES.day >= DAYS[1]) & (GAMES.day <= DAYS[-1])].itertuples():
                       'outs': {'h': p['outs_h'], 'a': p['outs_a']} if p else None,
                       'rec': {'h': getattr(g, 'home_rec', None) if isinstance(getattr(g, 'home_rec', None), dict) else None,
                               'a': getattr(g, 'away_rec', None) if isinstance(getattr(g, 'away_rec', None), dict) else None}})
+    if p and g.state != 'post':                                          # quarters and halves, priced from the model's margin and total
+        try:
+            pts_ = PT.nba(p['margin'], p['total'], NPARTS['parts'])
+            bk_ = (PBOOK.get(g.id) or {}).get('parts') or {}
+            for s_, v_ in pts_.items():
+                if bk_.get(s_):
+                    v_['book'] = PT.book_side(bk_[s_], g.home, g.away)
+            games_out[-1]['parts'] = pts_
+        except Exception as e:
+            sl.log('quarter lines for', g.id, 'failed:', repr(e)[:120])
+    if g.id in FB:
+        games_out[-1]['fb'] = FB[g.id]
+    if (PLOG.get(g.id) or {}).get('ps'):
+        games_out[-1]['ps'] = PLOG[g.id]['ps']
 # injuries, with whether each player is in the rotation
 inj_out = {}
 for t, lst in INJ.items():
@@ -851,6 +1041,21 @@ gp = {}
 for r in P[P.played & P.game_id.isin(gg.keys())].itertuples():
     e = gp.setdefault(r.athlete_id, {'n': r.athlete_display_name, 't': r.team_abbreviation, 'p': POS.get(r.athlete_id, ''), 'g': {}})
     e['g'][r.game_id] = [round(float(r.min)), int(r.pts), int(r.reb), int(r.ast), int(r.fg3m), int(r.stl), int(r.blk), int(r.tov)]
+for gid, e in gg.items():                                                 # quarters and halves, the first basket
+    x = PLOG.get(gid) or {}
+    if x.get('ps') and e['hs'] is not None:
+        e['ps'] = x['ps']
+    if e['hs'] is not None and 'fb' in x:
+        e['fb'] = x['fb'][0] if x['fb'] else 0; e['fbn'] = x['fb'][1] if x['fb'] else None
+    if e['hs'] is not None and x.get('fts'):
+        e['fts'] = x['fts']
+    for aid, v in (x.get('pq') or {}).items():                           # [q1 pts, reb, ast, h1 pts, reb, ast]
+        if aid in gp:
+            gp[aid].setdefault('q', {})[gid] = v
+    if e['hs'] is not None and x.get('pq'):
+        for aid in gp:
+            if gid in gp[aid]['g'] and aid not in x['pq']:
+                gp[aid].setdefault('q', {})[gid] = [0] * 6                   # played but did nothing in the 1st half
 GRADE = {'sport': LG, 'asof': NOW.isoformat(timespec='seconds'), 'games': gg, 'players': gp}
 # the client recomputes chances when a line is typed: compact outcome tables
 dist_out = {k: [[round(b['hi'], 3), [round(v, 3) for v in np.array(b['q'])[::5].tolist()]] for b in PR['dist'][k]] for k in ALL}
@@ -865,13 +1070,16 @@ data = {'meta': meta, 'teams': TEAMS_OUT, 'games': games_out, 'injuries': inj_ou
         'trends': {'player': TRENDS_P[:60], 'team': TRENDS_T[:40]},
         'model': {'record': REC, 'log': model_log[-400:], 'backtest': BT_, 'coef': MM['coef'], 'features': MM['features']},
         'research': {'props': PBT, 'situational': S['situational'], 'carry': S['carry'], 'blend': BL},
-        'dist': dist_out}
+        'dist': dist_out,
+        'parts_model': {'curves': {k: v['logit'] for k, v in NPP['model'].items()}, 'seasons': NPARTS['fit_seasons'],
+                        'check': NPARTS['check'], 'fb_check': NFB['check'], 'fb_seasons': NFB['fit_seasons']}}
 sl.write_json(os.path.join(OUT, 'data.json'), data)
 sl.write_json(os.path.join(OUT, 'logs.json'), {'pcols': PCOLS, 'players': PLOGS, 'tcols': TCOLS, 'teams': TLOGS})
 sl.write_json(os.path.join(OUT, 'grade.json'), GRADE)
 # keep the line log to the current and last season
 keep = set(GAMES[GAMES.season >= SEASON - 1].id)
 sl.write_json(os.path.join(OUT, 'odds_log.json'), {k: v for k, v in OLOG.items() if k in keep})
+sl.write_json(os.path.join(OUT, 'parts_log.json'), PLOG)
 # the home page card
 today = [g for g in games_out if g['day'] == SLATE] or [g for g in games_out if g['day'] > SLATE][:15]
 def fav(g):

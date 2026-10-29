@@ -24,6 +24,16 @@ const LS = SE.mkStore('sportsedge.');
    NBA columns: min, pts, reb, ast, fg3m, stl, blk, tov
    NHL columns: goals, assists, points, sog, hits, blocks, toi, saves, goals_against, shots_against */
 const GAME_MK = {spread: {label: 'Spread', cat: 'Game'}, ml: {label: 'Moneyline', cat: 'Game'}, total: {label: 'Game total', cat: 'Game'}, team_total: {label: 'Team total', cat: 'Game'}};
+/* quarters, halves and periods: '<part>_<kind>' markets grade from the part scores each build writes (games[id].ps[part] = [home, away]).
+   Player lines for the 1st quarter / 1st half grade from players[id].q (one array per game or week, columns q:) */
+const PARTL = {q1: '1st quarter', q2: '2nd quarter', q3: '3rd quarter', q4: '4th quarter', h1: '1st half', h2: '2nd half', p1: '1st period', p2: '2nd period', p3: '3rd period'};
+function partMk(parts){
+  const o = {};
+  parts.forEach(p => { const L = PARTL[p], U = L[0].toUpperCase() + L.slice(1);
+    o[p + '_spread'] = {label: `${U} spread`, cat: 'Part', part: p, kind: 'spread'}; o[p + '_total'] = {label: `${U} total`, cat: 'Part', part: p, kind: 'total'};
+    o[p + '_ml'] = {label: `${U} moneyline`, cat: 'Part', part: p, kind: 'ml'}; });
+  return o;
+}
 const MK = {
   nfl: Object.assign({}, GAME_MK, {
     pass_yds: {label: 'Passing yards', cat: 'Player', s: [2]}, pass_td: {label: 'Passing TDs', cat: 'Player', s: [3]}, completions: {label: 'Completions', cat: 'Player', s: [0]},
@@ -31,21 +41,34 @@ const MK = {
     carries: {label: 'Rush attempts', cat: 'Player', s: [5]}, rec_yds: {label: 'Receiving yards', cat: 'Player', s: [10]}, receptions: {label: 'Receptions', cat: 'Player', s: [8]},
     targets: {label: 'Targets', cat: 'Player', s: [9]}, rush_rec: {label: 'Rush + rec yards', cat: 'Player', s: [6, 10]},
     any_td: {label: 'Anytime TD', cat: 'Player', s: [7, 11], y: 1, yes: 'anytime TD'}, first_td: {label: 'First TD scorer', cat: 'Player', first: 1, yes: 'first TD'},
-    td2: {label: '2+ TDs', cat: 'Player', s: [7, 11], y: 2, yes: '2+ TDs'}, other: {label: 'Other', cat: 'Other'}}),
+    td2: {label: '2+ TDs', cat: 'Player', s: [7, 11], y: 2, yes: '2+ TDs'}, other: {label: 'Other', cat: 'Other'}},
+    partMk(['q1', 'q2', 'q3', 'q4', 'h1', 'h2']),
+    {q1_pass_yds: {label: '1st-quarter passing yards', cat: 'Player', q: 0}, q1_rush_yds: {label: '1st-quarter rushing yards', cat: 'Player', q: 1},
+     q1_rec_yds: {label: '1st-quarter receiving yards', cat: 'Player', q: 2}, q1_receptions: {label: '1st-quarter catches', cat: 'Player', q: 3},
+     q1_td: {label: '1st-quarter TD', cat: 'Player', q: 4, y: 1, yes: 'TD in the 1st quarter'},
+     h1_pass_yds: {label: '1st-half passing yards', cat: 'Player', q: 5}, h1_rush_yds: {label: '1st-half rushing yards', cat: 'Player', q: 6},
+     h1_rec_yds: {label: '1st-half receiving yards', cat: 'Player', q: 7}, h1_receptions: {label: '1st-half catches', cat: 'Player', q: 8},
+     h1_td: {label: '1st-half TD', cat: 'Player', q: 9, y: 1, yes: 'TD in the 1st half'}}),
   nba: Object.assign({}, GAME_MK, {
     pts: {label: 'Points', cat: 'Player', s: [1]}, reb: {label: 'Rebounds', cat: 'Player', s: [2]}, ast: {label: 'Assists', cat: 'Player', s: [3]},
     fg3m: {label: '3-pointers made', cat: 'Player', s: [4]}, pra: {label: 'Pts + reb + ast', cat: 'Player', s: [1, 2, 3]}, pr: {label: 'Pts + reb', cat: 'Player', s: [1, 2]},
     pa: {label: 'Pts + ast', cat: 'Player', s: [1, 3]}, ra: {label: 'Reb + ast', cat: 'Player', s: [2, 3]}, stl: {label: 'Steals', cat: 'Player', s: [5]},
     blk: {label: 'Blocks', cat: 'Player', s: [6]}, sb: {label: 'Steals + blocks', cat: 'Player', s: [5, 6]}, tov: {label: 'Turnovers', cat: 'Player', s: [7]},
     dd: {label: 'Double-double', cat: 'Player', dd: [1, 2, 3, 5, 6], y: 2, yes: 'double-double'}, td3: {label: 'Triple-double', cat: 'Player', dd: [1, 2, 3, 5, 6], y: 3, yes: 'triple-double'},
-    other: {label: 'Other', cat: 'Other'}}),
+    other: {label: 'Other', cat: 'Other'}},
+    partMk(['q1', 'q2', 'q3', 'q4', 'h1', 'h2']),
+    {q1_pts: {label: '1st-quarter points', cat: 'Player', q: 0}, q1_reb: {label: '1st-quarter rebounds', cat: 'Player', q: 1}, q1_ast: {label: '1st-quarter assists', cat: 'Player', q: 2},
+     h1_pts: {label: '1st-half points', cat: 'Player', q: 3}, h1_reb: {label: '1st-half rebounds', cat: 'Player', q: 4}, h1_ast: {label: '1st-half assists', cat: 'Player', q: 5},
+     first_basket: {label: 'First basket', cat: 'Player', fb: 1, yes: 'first basket'}, first_team: {label: 'First team to score', cat: 'Part', kind: 'fts'}}),
   nhl: Object.assign({}, GAME_MK, {spread: {label: 'Puck line', cat: 'Game'},
     atg: {label: 'Anytime goal', cat: 'Player', s: [0], y: 1, yes: 'to score'}, g2: {label: '2+ goals', cat: 'Player', s: [0], y: 2, yes: '2+ goals'},
     first_goal: {label: 'First goal scorer', cat: 'Player', first: 1, yes: 'first goal'},
     points: {label: 'Points', cat: 'Player', s: [2]}, goals: {label: 'Goals', cat: 'Player', s: [0]}, assists: {label: 'Assists', cat: 'Player', s: [1]},
     sog: {label: 'Shots on goal', cat: 'Player', s: [3]}, hits: {label: 'Hits', cat: 'Player', s: [4]}, blocks: {label: 'Blocked shots', cat: 'Player', s: [5]},
     saves: {label: 'Goalie saves', cat: 'Player', s: [7]}, ga: {label: 'Goals against', cat: 'Player', s: [8]},
-    other: {label: 'Other', cat: 'Other'}})
+    other: {label: 'Other', cat: 'Other'}},
+    partMk(['p1', 'p2', 'p3']),
+    {f10: {label: 'Goal in the first 10 minutes', cat: 'Part', kind: 'yn', nocustom: 1}})
 };
 const TEASERS = {nfl: {pts: 6, prices: {2: -120, 3: 160, 4: 260, 5: 400, 6: 600}}};
 const VOID_DNP = {nba: true, nhl: true};       // the box score lists everyone who played, so a missing line means he sat (books void those)
@@ -53,8 +76,9 @@ const RWORD = {W: 'Won', L: 'Lost', P: 'Push', V: 'Void', C: 'Check'};
 const TYPE_LABEL = {single: 'Single', parlay: 'Parlay', teaser: 'Teaser'};
 const SL = s => (SPORTS[s] || {}).label || String(s || '').toUpperCase();
 const mkOf = l => (MK[l.sport] || MK.nfl)[l.market] || {};
-const noLine = l => { const m = mkOf(l); return l.market === 'ml' || l.market === 'other' || m.y != null || !!m.first; };
-const isOU = l => l.market === 'total' || l.market === 'team_total' || (mkOf(l).cat === 'Player' && !noLine(l));
+const kindOf = l => mkOf(l).kind || l.market;                                  // 'spread' for '1st quarter spread', and so on
+const noLine = l => { const m = mkOf(l); return l.market === 'ml' || l.market === 'other' || m.y != null || !!m.first || !!m.fb || ['ml', 'yn', 'fts'].includes(m.kind); };
+const isOU = l => kindOf(l) === 'total' || l.market === 'team_total' || (mkOf(l).cat === 'Player' && !noLine(l));
 
 let A = {sport: null, root: '', modelP: () => null};
 const G = {}, GLOAD = {};
@@ -77,6 +101,14 @@ function legLabel(l){
   if (l.market === 'ml') return `${l.team} to win`;
   if (l.market === 'total') return `${l.side === 'U' ? 'Under' : 'Over'} ${l.line}`;
   if (l.market === 'team_total') return `${l.team} team total ${ou} ${l.line}`;
+  if (m.cat === 'Part'){
+    const P = PARTL[m.part] || '';
+    if (m.kind === 'spread') return `${l.team} ${fmtLine(Number(l.line))} ${P}`;
+    if (m.kind === 'total') return `${l.side === 'U' ? 'Under' : 'Over'} ${l.line} ${P}`;
+    if (m.kind === 'ml') return l.side === 'D' || !l.team ? `${P[0].toUpperCase() + P.slice(1)} tied` : `${l.team} wins the ${P}`;
+    if (m.kind === 'yn') return l.side === 'N' ? 'No goal in the first 10 minutes' : 'Goal in the first 10 minutes';
+    if (m.kind === 'fts') return `${l.team} scores first`;
+  }
   if (m.cat === 'Player'){
     if (m.yes) return `${nm} ${m.yes}`;
     return `${nm} ${ou} ${l.line} ${(m.label || '').toLowerCase()}`;
@@ -118,7 +150,35 @@ function gradeLeg(l){
   if (l.market === 'ml') return {r: margin > 0 ? 'W' : margin < 0 ? 'L' : 'P', actual: margin};
   if (l.market === 'total') return ou(g.hs + g.as);
   if (l.market === 'team_total') return ou(l.team === g.h ? g.hs : g.as);
-  const m = mkOf(l); if (m.cat !== 'Player') return {r: l.res || null};
+  const m = mkOf(l);
+  if (m.cat === 'Part'){
+    if (m.kind === 'yn'){ if (g.f10 == null) return {r: null}; const yes = !!g.f10; return {r: (l.side === 'N') !== yes ? 'W' : 'L', actual: yes ? 'a goal in the first 10 minutes' : 'no goal in the first 10 minutes'}; }
+    if (m.kind === 'fts'){ if (!g.fts) return {r: null}; return {r: g.fts === l.team ? 'W' : 'L', actual: `${g.fts} scored first`}; }
+    const ps = g.ps && g.ps[m.part]; if (!ps) return {r: null};
+    const mg = l.team === g.h ? ps[0] - ps[1] : ps[1] - ps[0];
+    if (m.kind === 'spread'){ const v = mg + Number(l.line); return {r: v > 0 ? 'W' : v < 0 ? 'L' : 'P', actual: mg}; }
+    if (m.kind === 'total') return ou(ps[0] + ps[1]);
+    if (m.kind === 'ml'){
+      if (l.side === 'D' || !l.team) return {r: ps[0] === ps[1] ? 'W' : 'L', actual: ps[0] === ps[1] ? 'tied' : `${ps[1]}–${ps[0]}`};
+      return {r: mg > 0 ? 'W' : mg < 0 ? 'L' : (l.sport === 'nhl' ? 'L' : 'P'), actual: mg};     // a tied quarter or half pushes; a tied period loses (3-way)
+    }
+    return {r: null};
+  }
+  if (m.cat !== 'Player') return {r: l.res || null};
+  if (m.fb){
+    if (g.fb === undefined) return {r: null};
+    return {r: g.fb === l.player ? 'W' : 'L', actual: 'first basket by ' + (g.fb === l.player ? (l.player_name || 'him') : (g.fbn || 'another player'))};
+  }
+  if (m.q != null){
+    const pl = S.players && S.players[l.player], arr = pl && pl.q ? (S.pkey === 'wk' ? pl.q[g.wk] : pl.q[l.game]) : null;
+    if (!arr){
+      if (VOID_DNP[l.sport] && g.b && !statLine(S, l, g)) return {r: 'V', actual: "didn't play"};
+      return {r: null};
+    }
+    const val = arr[m.q] || 0;
+    if (m.y != null) return {r: val >= m.y ? 'W' : 'L', actual: val};
+    return ou(val);
+  }
   if (m.first){
     if (g.f === undefined) return {r: null};
     if (!g.f) return {r: 'L', actual: 'no scorer'};
@@ -190,6 +250,8 @@ function loadSlip(){
   if (moved || s == null) saveSlip();
 }
 function legP(l){ return l.sport === A.sport && A.modelP ? A.modelP(l) : (l.p ?? null); }
+/* a leg still on the fair price (no book odds typed) follows the model when its side or line changes */
+function refair(l){ if (!l.oddsFair || l.p == null || l.p <= 0 || l.p >= 1) return false; l.odds = oddsNum(l.p); return true; }
 function addLeg(l, opts){
   opts = opts || {};
   l = Object.assign({}, l); l.sport = l.sport || A.sport; l.key = slipKey(l); l.id = l.id || uid('leg');
@@ -264,7 +326,8 @@ function slipLegHtml(l0){
   const ou = isOU(l), hasLine = !noLine(l);
   const started = legStarted(l);
   const sideSeg = ou && !ro ? `<div class="seg" role="group" aria-label="Over or under"><button type="button" data-slside="O" data-lid="${l0.id}" aria-pressed="${l0.side !== 'U'}">Over</button><button type="button" data-slside="U" data-lid="${l0.id}" aria-pressed="${l0.side === 'U'}">Under</button></div>` : '';
-  const lineIn = hasLine && !ro ? `<div class="f"><span class="clb-l">${l.market === 'spread' ? (l.sport === 'nhl' ? 'Puck line' : 'Spread') : 'Line'}${l.tease ? ' (teased)' : ''}</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-slline="${l0.id}" value="${esc(l0.line ?? '')}" placeholder="${l.market === 'spread' ? '-2.5' : '0.5'}" aria-label="Line">`, l.market === 'spread' ? 'spread' : 'line')}</div>` : '';
+  const spr = kindOf(l) === 'spread';
+  const lineIn = hasLine && !ro ? `<div class="f"><span class="clb-l">${spr ? (l.sport === 'nhl' && l.market === 'spread' ? 'Puck line' : 'Spread') : 'Line'}${l.tease ? ' (teased)' : ''}</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-slline="${l0.id}" value="${esc(l0.line ?? '')}" placeholder="${spr ? '-2.5' : '0.5'}" aria-label="Line">`, spr ? 'spread' : 'line')}</div>` : '';
   const oddsIn = SLIP.mode === 'teaser' ? '' : `<div class="f"><span class="clb-l">Odds</span>${stepWrap(`<input type="text" inputmode="numeric" autocomplete="off" data-slodds="${l0.id}" value="${esc(l0.odds == null || l0.odds === '' ? '' : fmtOdds(Number(l0.odds)).replace('−', '-'))}" placeholder="-110" aria-label="Odds">`, 'odds')}</div>`;
   const stakeIn = SLIP.mode === 'single' ? `<div class="f"><span class="clb-l">Stake</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-slstake="${l0.id}" value="${esc(l0.stake ?? SLIP.stake ?? 1)}" aria-label="Stake in units">`, 'units')}</div>` : '';
   const O = parseOdds(l0.odds), single = SLIP.mode === 'single' && O != null ? `<span class="small">to win <b>${unitsTxt((Number(l0.stake ?? SLIP.stake) || 1) * (dec(O) - 1))}</b></span>` : '';
@@ -537,9 +600,11 @@ function renderSheet(){
   const pers = []; gs.forEach(x => { if (!pers.some(p => String(p[0]) === String(x.per))) pers.push([x.per, x.perLabel]); });
   const perOpts = pers.map(([k, lb]) => `<option value="${esc(k)}" ${String(k) === String(d.per) ? 'selected' : ''}>${esc(lb)}</option>`).join('');
   const gameOpts = gamesIn(d.per).map(x => `<option value="${esc(x.id)}" ${x.id === d.game ? 'selected' : ''}>${esc(x.a)} @ ${esc(x.h)}${x.final ? ' (final)' : ''}</option>`).join('');
-  const typeOpts = ['Game', 'Player', 'Other'].map(c => `<optgroup label="${c}">${Object.keys(M_).filter(k => M_[k].cat === c).map(k => `<option value="${k}" ${k === d.type ? 'selected' : ''}>${M_[k].label}</option>`).join('')}</optgroup>`).join('');
+  const partWord = A.sport === 'nhl' ? 'Periods' : 'Quarters and halves';
+  const typeOpts = ['Game', 'Part', 'Player', 'Other'].map(c => { const ks = Object.keys(M_).filter(k => M_[k].cat === c && !M_[k].nocustom);
+    return ks.length ? `<optgroup label="${c === 'Part' ? partWord : c}">${ks.map(k => `<option value="${k}" ${k === d.type ? 'selected' : ''}>${M_[k].label}</option>`).join('')}</optgroup>` : ''; }).join('');
   const tmp = {sport: A.sport, market: d.type};
-  const needsTeam = ['spread', 'ml', 'team_total'].includes(d.type);
+  const needsTeam = ['spread', 'ml', 'team_total'].includes(d.type) || ['spread', 'ml', 'fts'].includes(def.kind);
   const needsSide = isOU(tmp);
   const needsLine = !noLine(tmp);
   const pl = def.cat === 'Player' ? (A.players ? A.players(d.game) : []) : [];
@@ -579,8 +644,8 @@ function saveCustomLeg(){
   if (d.type === 'other' && !String(d.note || '').trim()) return err.textContent = 'Say what the bet is.';
   const g = A.customGames().find(x => x.id === d.game) || {};
   const pl = def.cat === 'Player' ? ((A.players ? A.players(d.game) : []).find(p => p.id === d.player) || {}) : {};
-  const leg = {sport: A.sport, market: d.type, game: d.game, team: ['spread', 'ml', 'team_total'].includes(d.type) ? d.team : (def.cat === 'Player' ? pl.t || null : null),
-    side: isOU(tmp) ? d.side : (def.y != null || def.first ? 'Y' : undefined), line: d.line === '' || noLine(tmp) ? null : Number(d.line), odds: Number(d.odds),
+  const leg = {sport: A.sport, market: d.type, game: d.game, team: ['spread', 'ml', 'team_total'].includes(d.type) || ['spread', 'ml', 'fts'].includes(def.kind) ? d.team : (def.cat === 'Player' ? pl.t || null : null),
+    side: isOU(tmp) ? d.side : (def.y != null || def.first || def.fb ? 'Y' : undefined), line: d.line === '' || noLine(tmp) ? null : Number(d.line), odds: Number(d.odds),
     player: def.cat === 'Player' ? d.player : null, player_name: def.cat === 'Player' ? (pl.n || plName({sport: A.sport, player: d.player}) || null) : null,
     label: d.type === 'other' ? d.note.trim() : null, mu: g.a ? g.a + ' @ ' + g.h : ''};
   if (leg.side === undefined) delete leg.side;
@@ -604,7 +669,7 @@ function wire(){
     if (d.slipplace != null){ placeSlip(); return; }
     if (d.slipcustom != null || d.addpick != null){ closeSlip(); openCustom(); return; }
     if (d.slmode){ SLIP.mode = d.slmode; SLIP.modeSet = true; SLIP.book = ''; saveSlip(); refreshSlipUI(); return; }
-    if (d.slside){ const l = SLIP.legs.find(x => x.id === d.lid); if (l){ l.side = d.slside; l.p = legP(l); l.desc = legLabel(l); saveSlip(); refreshSlipUI(); } return; }
+    if (d.slside){ const l = SLIP.legs.find(x => x.id === d.lid); if (l){ l.side = d.slside; l.p = legP(l); refair(l); l.desc = legLabel(l); saveSlip(); refreshSlipUI(); } return; }
     if (d.sldel){ removeLeg(d.sldel); return; }
     if (d.pfsport){ PF.sport = d.pfsport; LS.set('pf', PF); renderBets(); return; }
     if (d.pkbackup != null){ backupBets(); return; }
@@ -619,7 +684,9 @@ function wire(){
   }, true);
   document.addEventListener('input', e => {
     const el = e.target; if (!el.dataset) return;
-    const upd = (id, fn) => { const l = SLIP.legs.find(x => x.id === id); if (!l) return; fn(l); l.p = legP(l); l.desc = legLabel(l); saveSlip(); slipLiveUpdate(id); };
+    const upd = (id, fn) => { const l = SLIP.legs.find(x => x.id === id); if (!l) return; fn(l); l.p = legP(l);
+      if (el.dataset.slline && refair(l)){ const oi = $(`[data-slodds="${CSS.escape(id)}"]`); if (oi) oi.value = fmtOdds(Number(l.odds)).replace('−', '-'); }
+      l.desc = legLabel(l); saveSlip(); slipLiveUpdate(id); };
     if (el.dataset.slline) upd(el.dataset.slline, l => { const n = numOf(el.value); l.line = el.value.trim() === '' ? '' : (n == null ? l.line : n); });
     else if (el.dataset.slodds) upd(el.dataset.slodds, l => { l.odds = el.value.trim(); delete l.oddsFair; });
     else if (el.dataset.slstake) upd(el.dataset.slstake, l => { const n = numOf(el.value); l.stake = n == null || n <= 0 ? 1 : n; });
@@ -675,6 +742,6 @@ function init(adapter){
 function setGrade(sport, grade){ G[sport] = grade; regrade(); }
 
 window.SB = {init, addLeg, removeLeg, oddsBtn, openSlip, closeSlip, openCustom, closeCustom, refresh: refreshSlipUI, renderBets, setGrade,
-             legLabel, marketLabel, clv: clvLeg, gradeLeg, bets: () => BETS, slip: () => SLIP, slipKey, inSlip, MK, TEASERS,
+             legLabel, marketLabel, clv: clvLeg, gradeLeg, bets: () => BETS, slip: () => SLIP, slipKey, inSlip, MK, TEASERS, PARTL, kindOf,
              summary: () => { gradeAll(); return summarizeBets(BETS); }, needGrade, sportTag};
 })();

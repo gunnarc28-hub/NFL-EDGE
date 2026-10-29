@@ -37,7 +37,7 @@ const CFG = NHL ? {
   short: {pts: 'points', reb: 'rebounds', ast: 'assists', fg3m: '3-pointers', pra: 'pts+reb+ast', pr: 'pts+reb', pa: 'pts+ast', ra: 'reb+ast', stl: 'steals', blk: 'blocks', tov: 'turnovers'},
   propTabs: [['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['pr', 'P+R'], ['pa', 'P+A'], ['ra', 'R+A'], ['stl', 'Steals'], ['blk', 'Blocks'], ['tov', 'Turnovers']],
   hcCut: [40, 2], lsCut: [60, 2],
-  lsGroups: [['all', 'All'], ['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['dd', 'Double-double'], ['td3', 'Triple-double']],
+  lsGroups: [['all', 'All'], ['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['dd', 'Double-double'], ['td3', 'Triple-double'], ['fb', 'First basket']],
   chartStats: [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['fg3m', '3PM'], ['pra', 'PRA'], ['stl', 'STL'], ['blk', 'BLK'], ['tov', 'TOV'], ['min', 'MIN']]
 };
 
@@ -291,17 +291,19 @@ function gameCard(g){
       ${keyTape(g)}
       <div class="g-chips">${gameChips(g)}</div>
     </div>
-    <button class="g-more" data-more="${g.id}" aria-expanded="false"><span>Injuries, team stats, props, trends and why</span><span>＋</span></button>
+    <button class="g-more" data-more="${g.id}" aria-expanded="false"><span>Injuries, ${NHL ? 'periods' : 'quarters, first basket'}, team stats, props and more</span><span>＋</span></button>
     <div class="g-detail" id="d-${g.id}" hidden></div>
   </article>`;
 }
-const DETAIL_TABS = [['inj', 'Injuries'], ['stats', 'Team stats'], ['props', 'Props'], ['trends', 'Trends'], ['why', 'Why']];
+const DETAIL_TABS = [['inj', 'Injuries'], ['parts', NHL ? 'Periods' : 'Quarters']].concat(NHL ? [] : [['fb', 'First basket']]).concat([['stats', 'Team stats'], ['props', 'Props'], ['trends', 'Trends'], ['why', 'Why']]);
 function detailHtml(g, which){
   which = which || 'inj';
   const tabs = `<div class="seg dtabs" role="group" aria-label="Details">${DETAIL_TABS.map(([k, l]) => `<button type="button" data-dtab="${k}" data-g="${g.id}" aria-pressed="${k === which}">${l}</button>`).join('')}</div>`;
   let body = '';
   if (which === 'inj') body = `<div class="twocol">${[g.away, g.home].map(t => injCol(t)).join('')}</div><div class="note">From ESPN's injury list, refreshed every few minutes while this page is open. Bold names are rotation regulars.</div>`;
   if (which === 'props') body = gamePropsHtml(g);
+  if (which === 'parts') body = SE.parts.tabHtml(g, {sport: SP, chip});
+  if (which === 'fb') body = SE.parts.firstBasketHtml(g, {chip});
   if (which === 'stats') body = (tStat(g.away, 'gp') || tStat(g.home, 'gp') ? statTape(g, TSG.flatMap(([, l, rows]) => ['#' + l, ...rows.map(r => r[0])])) : `<div class="small">${hasTeamStats() ? 'Team stats start once both teams have played this season.' : 'Team stats fill in with the next data update (every 30 minutes).'}</div>`)
     + `<p class="small" style="margin:6px 0 0">Ranks are out of ${NTEAMS} (green = top 8, red = bottom 8); the better side of each row is in bold. ${NHL ? 'Power play, penalty kill and faceoffs come from the NHL\'s own stats; the rest from the box scores.' : 'Ratings are points per 100 possessions; pace is possessions per game.'} Tap a team's name on the Teams tab for its game-by-game chart.</p>`;
   if (which === 'trends') body = `<div class="twocol">${[g.away, g.home].map(t => teamTrendBox(t)).join('')}</div>`;
@@ -381,7 +383,10 @@ RENDER.games = renderGames;
 /* ======================================================================
    PROPS: projections against the book's lines
    ====================================================================== */
-let PPF = Object.assign({key: CFG.propTabs[0][0], game: 'all', q: '', sort: 'value'}, store.get('ppf', {}));
+let PPF = Object.assign({key: CFG.propTabs[0][0], game: 'all', q: '', sort: 'value', part: ''}, store.get('ppf', {}));
+if (NHL) PPF.part = '';
+const PART_TABS = [['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists']];
+const PART_MIN = {pts: 1, reb: 0.5, ast: 0.4};
 if (!CFG.propTabs.some(([k]) => k === PPF.key)) PPF.key = CFG.propTabs[0][0];
 let PL = store.get('pl', {});
 let PPSHOW = 30;
@@ -463,8 +468,42 @@ function ppList(){
   else rows.sort((a, b) => propVal(b, k) - propVal(a, k));
   return rows;
 }
+/* 1st-quarter and 1st-half props: a ladder of "t or more" bets per player, the book's milestones first */
+function partLadder(p, part, k){
+  const mean = ((p.pq || {})[part] || {})[k]; if (mean == null) return [];
+  const curves = ((D.parts_model || {}).curves || {})[`${part}_${k}`];
+  const book = (((p.pl || {})[`${part}_${k}`]) || {}).yes || {};
+  let ts = Object.keys(book).map(Number).filter(t => t > 0);
+  if (!ts.length){                                      // no book milestones: the model's own 80%, 50% and 25% numbers
+    const want = [0.8, 0.5, 0.25]; ts = [];
+    for (let t = 1; t <= 25; t++){ const pr = SE.parts.atLeastNBA(curves, mean, t); if (pr == null) break; if (want.length && pr <= want[0] + 0.12){ ts.push(t); want.shift(); } if (!want.length) break; }
+  }
+  return ts.sort((a, b) => a - b).map(t => ({t, p: SE.parts.atLeastNBA(curves, mean, t), book: book[t] ?? null}));
+}
+const ladderEv = rows => Math.max(-9, ...rows.filter(r => r.book != null && r.p != null).map(r => r.p * dec(r.book) - 1));
+function partRow(p, part, k){
+  const g = gameOf(p.game) || {}, mean = ((p.pq || {})[part] || {})[k], rows = partLadder(p, part, k);
+  const word = {pts: 'points', reb: 'rebounds', ast: 'assists'}[k], pw = part === 'q1' ? '1st-quarter' : '1st-half';
+  const chips = rows.map(r => SE.parts.btn(`${r.t}+ ${word}`, {p: r.p, push: 0}, r.book,
+    {game: p.game, market: `${part}_${k}`, player: p.id, player_name: p.name, team: p.team, side: 'O', line: r.t - 0.5})).join('');
+  return `<article class="pp pq"><div class="pq-h"><span>${chip(p.team, 1)} <b>${esc(p.name)}</b> <span class="small">${p.team === g.home ? 'vs' : '@'} ${esc(p.opp)} · ${esc(whenDay(g.k || ''))}</span></span>
+      <span class="small">projected <b class="num">${fmtN(mean, 1)}</b> ${pw} ${word} of ${fmtN(p.proj[k], 1)}${p.start != null ? ` · ${p.start >= 0.5 ? 'starts' : 'off the bench'}` : ''}</span></div>
+    <div class="pq-l">${chips || '<span class="small">No line</span>'}</div></article>`;
+}
 function renderPPList(){
   const box = $('#pp-list'); if (!box) return;
+  if (PPF.part){
+    const part = PPF.part, k = PPF.key, q = PPF.q.trim().toLowerCase();
+    let rows = (D.props || []).filter(p => (PPF.game === 'all' || p.game === PPF.game) && (!q || p.name.toLowerCase().includes(q) || p.team.toLowerCase() === q))
+      .filter(p => (((p.pq || {})[part] || {})[k] ?? 0) >= PART_MIN[k] || (((p.pl || {})[`${part}_${k}`]) || {}).yes);
+    const lad = {}; rows.forEach(p => lad[p.game + ':' + p.id] = partLadder(p, part, k));
+    if (PPF.sort === 'value') rows.sort((a, b) => ladderEv(lad[b.game + ':' + b.id]) - ladderEv(lad[a.game + ':' + a.id]) || ((b.pq[part] || {})[k] - (a.pq[part] || {})[k]));
+    else rows.sort((a, b) => (b.pq[part] || {})[k] - (a.pq[part] || {})[k]);
+    box.innerHTML = rows.length ? rows.slice(0, PPSHOW).map(p => partRow(p, part, k)).join('') + (rows.length > PPSHOW ? `<button class="btn more" data-ppmore="">Show more (${rows.length - PPSHOW} left)</button>` : '')
+      : `<div class="empty"><div class="h3">No players match</div><p class="lede" style="margin:0">${(D.props || []).length ? 'Try another game or clear the search.' : 'Projections show once the next games are on the schedule.'}</p></div>`;
+    $('#pp-count').textContent = `${rows.length} player${rows.length === 1 ? '' : 's'} · ${rows.filter(p => (((p.pl || {})[`${part}_${k}`]) || {}).yes).length} with book milestones`;
+    SB.refresh(); return;
+  }
   const rows = ppList(), k = PPF.key;
   const html = rows.slice(0, PPSHOW).map(p => NHL && k === 'saves' ? goalieRow(p) : NHL && k === 'goals' ? goalsRow(p) : ppRow(p, k)).join('');
   box.innerHTML = rows.length ? html + (rows.length > PPSHOW ? `<button class="btn more" data-ppmore="">Show more (${rows.length - PPSHOW} left)</button>` : '') :
@@ -478,9 +517,12 @@ function renderProps(){
   if (PPF.game !== 'all' && !games.some(g => g.id === PPF.game)) PPF.game = 'all';
   const R = (D.research || {}).props || {}, bm = R.by_market || {};
   const rk = NHL ? ({sog: 'shots_on_goal', points: 'points', assists: 'assists', blocks: 'blocked_shots'}[PPF.key]) : PPF.key;
-  const bt = bm[rk];
+  const bt = PPF.part ? null : bm[rk];
+  if (PPF.part && !PART_TABS.some(([k]) => k === PPF.key)) PPF.key = 'pts';
   v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Player props</h1><p class="lede">Every projection next to the sportsbook's line${(D.props || []).some(p => Object.keys(p.lines || {}).length) ? ' (DraftKings through ESPN)' : ''}. The chance blends the model with the book's own price, weighted by how much the model added in past seasons; the book is usually right. ${NHL ? 'When a regular is out, skaters at his position get part of his ice time (shots and points barely moved in past games, so those stay put).' : 'When a rotation player is out, teammates at his position get part of his minutes, mostly the bench players.'}</p></div></div>
-    <div class="seg pp-types" role="group" aria-label="Market">${CFG.propTabs.map(([k, l]) => `<button type="button" data-ppk="${k}" aria-pressed="${PPF.key === k}">${l}</button>`).join('')}</div>
+    ${NHL ? '' : `<div class="seg pp-part" role="group" aria-label="Part of the game">${[['', 'Full game'], ['h1', '1st half'], ['q1', '1st quarter']].map(([k, l]) => `<button type="button" data-pppart="${k}" aria-pressed="${PPF.part === k}">${l}</button>`).join('')}</div>`}
+    <div class="seg pp-types" role="group" aria-label="Market">${(PPF.part ? PART_TABS : CFG.propTabs).map(([k, l]) => `<button type="button" data-ppk="${k}" aria-pressed="${PPF.key === k}">${l}</button>`).join('')}</div>
+    ${PPF.part ? `<div class="tnote">${PPF.part === 'q1' ? '1st-quarter' : '1st-half'} lines are the full-game projection times the share of the game a player usually plays in that part, which depends mostly on whether he starts. Each "or more" chance is fit to how often players with that projection got there in 2020-21 to 2023-24, and checked on 2024-25 and 2025-26 (within a couple of points at every level). Book milestones are DraftKings' through ESPN.</div>` : ''}
     <div class="toolbar"><div class="filters">
       <select id="pp-game" aria-label="Game"><option value="all">All games</option>${games.map(g => `<option value="${g.id}" ${PPF.game === g.id ? 'selected' : ''}>${g.away} @ ${g.home} · ${esc(whenDay(g.k))}</option>`).join('')}</select>
       <input type="text" id="pp-q" placeholder="Search a player or team" value="${esc(PPF.q)}" aria-label="Search players">
@@ -515,6 +557,7 @@ function refreshPPRow(row){
 document.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.ppk){ PPF.key = b.dataset.ppk; store.set('ppf', PPF); PPSHOW = 30; renderProps(); return; }
+  if (b.dataset.pppart != null){ PPF.part = b.dataset.pppart; if (!PPF.part && !CFG.propTabs.some(([k]) => k === PPF.key)) PPF.key = CFG.propTabs[0][0]; store.set('ppf', PPF); PPSHOW = 30; renderProps(); return; }
   if (b.hasAttribute('data-ppmore')){ PPSHOW += 30; renderPPList(); return; }
   const row = b.closest('.pp'); if (!row) return;
   const k = row.dataset.key, key = `${row.dataset.pid}:${k}`;
@@ -595,14 +638,15 @@ function pickCut(L, [n, per], playersOnly){
 function pickView(all, cut, playersOnly){
   const days = [...new Set(all.map(pickDay))].sort();
   if (PDAY !== 'all' && !days.includes(PDAY)) PDAY = 'all';
-  const list = pickCut(PDAY === 'all' ? all : all.filter(x => pickDay(x) === PDAY), cut, playersOnly);
+  const pool = PDAY === 'all' ? all : all.filter(x => pickDay(x) === PDAY);
+  const list = typeof cut === 'function' ? cut(pool) : pickCut(pool, cut, playersOnly);
   const seg = days.length ? `<div class="seg days" role="group" aria-label="Day">${[['all', 'All days']].concat(days.map(d => [d, dayLabel(d)])).map(([k, l]) => `<button type="button" data-pday="${k}" aria-pressed="${PDAY === k}">${esc(l)}</button>`).join('')}</div>` : '';
   const when = PDAY === 'all' ? (days.length > 1 ? `${days.length} days, likeliest first` : 'likeliest first') : `${dayLabel(PDAY)}, likeliest first`;
   return {days, list, seg, when};
 }
 function cardChartBtn(x){
   if (x.kind === 'ml') return `<button class="hc-chart" data-chart="t|${x.team}|margin|-0.5"><span class="hc-cw"><b>${esc(x.team)} game by game</b><span class="small">Wins, losses and margins</span></span><span></span><span class="go">Chart →</span></button>`;
-  const stat = x.kind === 'goalie' ? 'saves' : NHL ? ({sog: 'sog', blocks: 'blocks', atg: 'goals', g2: 'goals', first_goal: 'goals', pts2: 'points', pts3: 'points', sog5: 'sog'}[x.key] || 'points') : ({dd: 'pts', td3: 'pra'}[x.key] || x.key);
+  const stat = x.kind === 'goalie' ? 'saves' : NHL ? ({sog: 'sog', blocks: 'blocks', atg: 'goals', g2: 'goals', first_goal: 'goals', pts2: 'points', pts3: 'points', sog5: 'sog'}[x.key] || 'points') : ({dd: 'pts', td3: 'pra', first_basket: 'pts'}[x.key] || x.key);
   const t = x.t != null ? x.t : ({atg: 1, g2: 2, first_goal: 1, pts2: 2, pts3: 3, sog5: 5}[x.key] ?? null);
   const hits = x.hits ? `${x.hits[0]} of ${x.hits[1]}` : '';
   return `<button class="hc-chart" data-chart="${x.kind === 'goalie' ? 'g' : 'p'}|${esc(x.id)}|${stat}${t != null ? '|' + (t - 0.5) : ''}"><span class="hc-cw"><b>${hits ? `Hit in ${hits} recent games` : 'Game-by-game chart'}</b><span class="small">${t != null ? `${t}+ ${esc(CFG.short[stat] || stat)}` : esc(x.label)}${x.proj != null ? ` · projected ${fmtN(x.proj, NHL ? 2 : 1)}` : ''}</span></span><span>${x.avg != null ? `<span class="small">avg</span> <b class="num">${fmtN(x.avg, 1)}</b>` : ''}</span><span class="go">Chart →</span></button>`;
@@ -666,7 +710,7 @@ function lsCard(x, i){
 }
 function renderLS(){
   const v = $('#v-ls'), all = (D.long_shots || []).filter(x => (gameOf(x.game) || {}).state !== 'post');
-  const {list: day, seg, when} = pickView(all, CFG.lsCut, false);
+  const {list: day, seg, when} = pickView(all, L => pickCut(L.filter(x => x.group !== 'fb'), CFG.lsCut, false).concat(pickCut(L.filter(x => x.group === 'fb'), [15, 1], false)).sort((a, b) => b.p - a.p));   // first baskets get their own 15
   const groups = CFG.lsGroups.filter(([k]) => k === 'all' || day.some(x => x.group === k));
   if (!groups.some(([k]) => k === LS_F)) LS_F = 'all';
   const L = day.filter(x => LS_F === 'all' || x.group === LS_F);
@@ -684,7 +728,7 @@ function lsMarket(x){
     const m = {atg: ['atg', 'Y', null], g2: ['g2', 'Y', null], first_goal: ['first_goal', 'Y', null], pts2: ['points', 'O', 1.5], pts3: ['points', 'O', 2.5], sog5: ['sog', 'O', 4.5]}[x.key] || ['other', 'Y', null];
     return {market: m[0], side: m[1], line: m[2]};
   }
-  if (x.key === 'dd' || x.key === 'td3') return {market: x.key, side: 'Y', line: null};
+  if (x.key === 'dd' || x.key === 'td3' || x.key === 'first_basket') return {market: x.key, side: 'Y', line: null};
   return {market: x.key, side: 'O', line: x.t - 0.5};
 }
 document.addEventListener('input', e => {
@@ -1087,6 +1131,22 @@ function skellam(lh, la){ const m = []; for (let i = 0; i < 13; i++){ m[i] = [];
 function modelP(l){
   const g = gameOf(l.game); if (!g || g.state !== 'pre') return null;
   const m = g.model, home = l.team === g.home, L = l.line == null || l.line === '' ? null : Number(l.line);
+  const gp_ = /^([qhp][1-4])_(spread|total|ml)$/.exec(l.market || '');
+  if (gp_){
+    const pm_ = (g.parts || {})[gp_[1]]; if (!pm_ || (gp_[2] !== 'ml' && L == null)) return null;
+    const side = gp_[2] === 'total' ? l.side : (l.side === 'D' || !l.team ? 'draw' : home ? 'h' : 'a');
+    return SE.parts.effP(SE.parts.prob(pm_, gp_[2], side, L));
+  }
+  if (l.market === 'f10') return g.f10 == null ? null : (l.side === 'N' ? 1 - g.f10 : g.f10);
+  if (l.market === 'first_team') return g.fb ? (home ? g.fb.pts : 1 - g.fb.pts) : null;
+  if (l.market === 'first_basket'){ const r = ((g.fb || {}).pl || []).find(x => x[0] === String(l.player)); return r ? r[3] : null; }
+  const pq_ = /^(q1|h1)_(pts|reb|ast)$/.exec(l.market || '');
+  if (pq_){
+    const x = PIDX[g.id + ':' + String(l.player)], mean = x && x.pq && x.pq[pq_[1]] ? x.pq[pq_[1]][pq_[2]] : null;
+    if (mean == null || L == null) return null;
+    const pr = SE.parts.atLeastNBA(((D.parts_model || {}).curves || {})[l.market], mean, Math.floor(L) + 1);
+    return pr == null ? null : (l.side === 'U' ? 1 - pr : pr);
+  }
   if (m && l.market === 'ml') return home ? m.wp_home : 1 - m.wp_home;
   if (m && (l.market === 'spread' || l.market === 'total' || l.market === 'team_total')){
     if (L == null) return null;
@@ -1141,11 +1201,12 @@ function propLegFrom(row, side){
   const O = parseOdds(st.odds) ?? (ln && L === ln.line ? (side === 'under' ? ln.u : ln.o) : -110);
   return {market: k, game: p.game, player: p.id, player_name: p.name, team: p.team, side: side === 'under' ? 'U' : 'O', line: L, odds: O};
 }
-const SLIP_SEL2 = '[data-pppick],[data-ppyes],[data-mpick],[data-hcpick],[data-lspick],[data-trleg],[data-cladd]';
+const SLIP_SEL2 = '[data-pppick],[data-ppyes],[data-mpick],[data-hcpick],[data-lspick],[data-trleg],[data-cladd],[data-pleg]';
 document.addEventListener('click', e => {
   const t = e.target.closest(SLIP_SEL2); if (!t) return;
   e.stopPropagation();
   const d = t.dataset;
+  if (d.pleg){ try { addLeg(JSON.parse(d.pleg)); } catch(err){} return; }
   if (d.pppick != null){ const row = t.closest('.pp'); const l = row && propLegFrom(row); if (l) addLeg(l); return; }
   if (d.ppyes){ const row = t.closest('.pp'), p = row && PIDX[row.dataset.g + ':' + row.dataset.pid]; if (!p) return;
     const pr = d.ppyes === 'atg' ? p.p_goal : d.ppyes === 'g2' ? pAtLeastNHL('goals', p.proj.goals, 2) : p.p_first;

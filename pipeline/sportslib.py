@@ -1,11 +1,11 @@
 """Shared pieces of the NBA and NHL builds: downloads, ESPN feeds (scoreboard, odds, player-prop lines, injuries),
 time helpers and JSON output. The NFL build (build.py) predates this and keeps its own copies."""
-import os, json, math, time, gzip, datetime as dt, urllib.request, urllib.error, concurrent.futures as cf
+import os, re, json, math, time, gzip, datetime as dt, urllib.request, urllib.error, concurrent.futures as cf
 import numpy as np, pandas as pd
 
 UA = {'User-Agent': 'Mozilla/5.0 (sports-edge refresh; +https://github.com/gunnarc28-hub/NFL-EDGE)'}
-ESPN_SITE = {'nba': 'basketball/nba', 'nhl': 'hockey/nhl'}
-ESPN_CORE = {'nba': 'basketball/leagues/nba', 'nhl': 'hockey/leagues/nhl'}
+ESPN_SITE = {'nba': 'basketball/nba', 'nhl': 'hockey/nhl', 'nfl': 'football/nfl'}
+ESPN_CORE = {'nba': 'basketball/leagues/nba', 'nhl': 'hockey/leagues/nhl', 'nfl': 'football/leagues/nfl'}
 SDV = 'https://github.com/sportsdataverse/sportsdataverse-data/releases/download'
 ET = 'America/New_York'
 
@@ -188,7 +188,8 @@ def scoreboard(lg, day):
                             'status': ((p.get('status') or {}).get('name')) or ''}
                 return {'abbr': tm.get('abbreviation'), 'name': tm.get('displayName'), 'short': tm.get('shortDisplayName') or tm.get('name'),
                         'color': tm.get('color'), 'alt': tm.get('alternateColor'), 'espn_id': str(tm.get('id') or ''),
-                        'score': num(x.get('score')), 'rec': rec, 'probable': prob}
+                        'score': num(x.get('score')), 'rec': rec, 'probable': prob,
+                        'ls': [num(v.get('value')) for v in x.get('linescores') or []]}      # points by quarter / period, overtime last
             out.append({'id': str(ev['id']), 'date': ev.get('date'), 'state': st.get('state'), 'completed': bool(st.get('completed')),
                         'detail': st.get('shortDetail') or st.get('detail') or '', 'neutral': bool(c.get('neutralSite')),
                         'season_type': (ev.get('season') or {}).get('type'), 'venue': ((c.get('venue') or {}).get('fullName')) or '',
@@ -248,15 +249,54 @@ PROP_TYPES = {
             'Assists Milestones': 'assists+', 'Goals Milestones': 'goals+', 'Goalkeeper Saves Milestones': 'saves+', 'Blocked Shots Milestones': 'blocks+'}}
 
 
+_PB = {}
+
+
+def prop_items(lg, ev):
+    """Every prop-bet item ESPN lists for one event (all pages), from DraftKings or else ESPN BET: (items, book name)."""
+    if (lg, str(ev)) in _PB:
+        return _PB[(lg, str(ev))]
+    res = ([], None)
+    for pid, book in (('100', 'DraftKings'), ('58', 'ESPN BET')):
+        items, page = [], 1
+        while page <= 8:
+            j = get_json(f'https://sports.core.api.espn.com/v2/sports/{ESPN_CORE[lg]}/events/{ev}/competitions/{ev}/odds/{pid}/propBets?limit=1000'
+                         + (f'&page={page}' if page > 1 else ''), quiet=True)
+            items += (j or {}).get('items') or []
+            if not j or page >= (j.get('pageCount') or 1):
+                break
+            page += 1
+        if items:
+            res = (items, book)
+            break
+    _PB[(lg, str(ev))] = res
+    return res
+
+
+def live_log(live, out_dir, name, now):
+    """A log the builds keep between runs on the live site (the repo doesn't track it), or the local copy, or {}."""
+    j = get_json(live + name + '?t=' + str(int(pd.Timestamp(now).timestamp())), quiet=True)
+    if j is None and os.path.exists(os.path.join(out_dir, name)):
+        try:
+            j = json.load(open(os.path.join(out_dir, name)))
+        except Exception:
+            j = None
+    return j or {}
+
+
+def ref_id(o, kind):
+    """The id in an ESPN $ref link: ref_id(item.get('team'), 'teams') -> '9'."""
+    a = (((o or {}).get('$ref')) or '').split(f'/{kind}/')
+    return a[1].split('?')[0].split('/')[0] if len(a) > 1 else ''
+
+
 def prop_lines(lg, ev):
     """Player-prop lines for one event: [{athlete (ESPN id), key, side ('over'/'under'/'yes'), line, odds, odds_open, line_open, book}].
     Each over/under line is listed twice. DraftKings lists the over first; ESPN BET marks the side."""
     types = PROP_TYPES[lg]
-    for pid in ('100', '58'):
-        j = get_json(f'https://sports.core.api.espn.com/v2/sports/{ESPN_CORE[lg]}/events/{ev}/competitions/{ev}/odds/{pid}/propBets?limit=1000', quiet=True)
-        items = (j or {}).get('items') or []
-        if not items:
-            continue
+    items, book = prop_items(lg, ev)
+    if items:
+        pid = '100' if book == 'DraftKings' else '58'
         out, seen = [], {}
         for it in items:
             k = types.get((it.get('type') or {}).get('name'))
@@ -280,9 +320,77 @@ def prop_lines(lg, ev):
                 continue
             out.append({'athlete': aid, 'key': k, 'side': side, 'line': line, 'odds': amer(o.get('value')), 'odds_open': amer(o.get('open')),
                         'line_open': num((opn.get('target') or {}).get('value')), 'book': 'DraftKings' if pid == '100' else 'ESPN BET'})
-        if out:
-            return out
+        return out
     return []
+
+
+PART_WORDS = {'1st Quarter': 'q1', '2nd Quarter': 'q2', '3rd Quarter': 'q3', '4th Quarter': 'q4', '1st Half': 'h1', '2nd Half': 'h2',
+              '1st Period': 'p1', '2nd Period': 'p2', '3rd Period': 'p3'}
+PART_PLAYER = {   # book's market name -> (part, key, kind); kind 'ou' = over/under pair, 'yes' = a milestone or a scorer
+    'Points Milestones - 1st Quarter': ('q1', 'pts', 'yes'), 'Assists Milestones - 1st Quarter': ('q1', 'ast', 'yes'),
+    'Rebounds Milestones - 1st Quarter': ('q1', 'reb', 'yes'), 'Points Milestones - 1st Half': ('h1', 'pts', 'yes'),
+    'Receiving Yards Milestones - 1st Half': ('h1', 'rec_yds', 'yes'), 'Receiving Yards Milestones - 1st Quarter': ('q1', 'rec_yds', 'yes'),
+    'Rushing Yards Milestones - 1st Half': ('h1', 'rush_yds', 'yes'), 'Rushing Yards Milestones - 1st Quarter': ('q1', 'rush_yds', 'yes'),
+    'Passing Yards Milestones - 1st Half': ('h1', 'pass_yds', 'yes'), 'Passing Yards Milestones - 1st Quarter': ('q1', 'pass_yds', 'yes'),
+    '1st Half Total Receiving Yards': ('h1', 'rec_yds', 'ou'), '1st Quarter Total Receiving Yards': ('q1', 'rec_yds', 'ou'),
+    '1st Half Total Rushing Yards': ('h1', 'rush_yds', 'ou'), '1st Quarter Total Rushing Yards': ('q1', 'rush_yds', 'ou'),
+    '1st Half Total Passing Yards': ('h1', 'pass_yds', 'ou'), '1st Quarter Total Passing Yards': ('q1', 'pass_yds', 'ou'),
+    '1st Half Touchdown Scorer': ('h1', 'td', 'yes'), '1st Quarter Touchdown Scorer': ('q1', 'td', 'yes')}
+
+
+def part_lines(lg, ev, team_of):
+    """The book's quarter, half and period lines for one event, plus first-basket and first-to-score prices and player
+    props for the 1st quarter and 1st half. team_of maps ESPN team ids to the site's abbreviations.
+    {'parts': {part: {'spread': {team: [line, odds]}, 'total': [line, over odds, under odds], 'ml': {team or 'draw': odds}}},
+     'fb': {athlete: odds}, 'team_fg': {athlete: odds}, 'first_team': {team: odds},
+     'players': {athlete: {'q1_pts': {'yes': {t: odds}} or {'ou': [line, over, under]}}}, 'book': name}"""
+    items, book = prop_items(lg, ev)
+    out = {'parts': {}, 'fb': {}, 'team_fg': {}, 'first_team': {}, 'players': {}, 'book': book}
+    seen = {}
+    for it in items:
+        nm = ((it.get('type') or {}).get('name')) or ''
+        o = amer(((it.get('odds') or {}).get('american') or {}).get('value'))
+        line = num((((it.get('current') or {}).get('target')) or {}).get('value'))
+        tm = team_of.get(ref_id(it.get('team'), 'teams'))
+        aid = ref_id(it.get('athlete'), 'athletes')
+        m = re.match(r'^(1st|2nd|3rd|4th) (Quarter|Half|Period) (Spread|Total Goals|Total|Moneyline)$', nm)
+        if m:
+            part = PART_WORDS.get(f'{m.group(1)} {m.group(2)}'); kind = {'Total Goals': 'total'}.get(m.group(3), m.group(3).lower())
+            P = out['parts'].setdefault(part, {})
+            if kind == 'spread' and tm and line is not None:
+                P.setdefault('spread', {})[tm] = [line, o]
+            elif kind == 'moneyline':
+                P.setdefault('ml', {})[tm or 'draw'] = o
+            elif kind == 'total' and line is not None:
+                n_ = seen.get((part, 'total'), 0); seen[(part, 'total')] = n_ + 1
+                t_ = P.setdefault('total', [line, None, None])
+                if n_ < 2 and t_[0] == line:
+                    t_[1 + n_] = o                                                   # DraftKings lists the over first
+            continue
+        if nm == 'First Basket' and aid:
+            out['fb'][aid] = o
+        elif nm == '1st Team FG Scorer' and aid:
+            out['team_fg'][aid] = o
+        elif nm == 'First Team to Score' and tm:
+            out['first_team'][tm] = o
+        elif nm in PART_PLAYER and aid:
+            part, key, kind = PART_PLAYER[nm]
+            e = out['players'].setdefault(aid, {}).setdefault(f'{part}_{key}', {})
+            if kind == 'yes':
+                if o is None:                                                    # a milestone with no price is no use
+                    continue
+                t = line if line is not None else 1.0
+                e.setdefault('yes', {})[int(t)] = o
+            elif line is not None:
+                n_ = seen.get((aid, part, key, line), 0); seen[(aid, part, key, line)] = n_ + 1
+                if n_ == 0:
+                    e['ou'] = [line, o, None]
+                elif n_ == 1 and e.get('ou') and e['ou'][0] == line:
+                    e['ou'][2] = o
+    out['parts'] = {k: v for k, v in out['parts'].items() if k and v}
+    out['players'] = {a: {k: v for k, v in d.items() if v} for a, d in out['players'].items()}
+    out['players'] = {a: d for a, d in out['players'].items() if d}
+    return out
 
 
 def injuries(lg):

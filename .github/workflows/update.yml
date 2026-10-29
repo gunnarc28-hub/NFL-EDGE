@@ -41,7 +41,7 @@ jobs:
           base="https://gunnarc28-hub.github.io/NFL-EDGE"
           for s in nfl nba nhl; do
             mkdir -p "site/$s/data"
-            for f in data.json logs.json grade.json summary.json odds_log.json; do
+            for f in data.json logs.json grade.json summary.json odds_log.json parts_log.json; do
               if curl -fsSL --retry 2 --max-time 60 "$base/$s/data/$f?t=$(date +%s)" -o "site/$s/data/$f.live"; then
                 mv "site/$s/data/$f.live" "site/$s/data/$f"
               else
@@ -126,7 +126,7 @@ jobs:
           base="https://gunnarc28-hub.github.io/NFL-EDGE"
           sleep 30
           bad=0; out=""
-          for p in "" nfl/ nba/ nhl/ assets/app.js assets/bets.js assets/core.js assets/home.js assets/app.css; do
+          for p in "" nfl/ nba/ nhl/ assets/app.js assets/bets.js assets/core.js assets/home.js assets/parts.js assets/app.css; do
             code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$base/$p?t=$(date +%s)")
             [ "$code" = "200" ] || { bad=1; echo "::warning title=Live page missing::$base/$p returned $code"; }
           done
