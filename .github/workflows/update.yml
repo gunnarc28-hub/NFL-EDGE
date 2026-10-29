@@ -118,7 +118,7 @@ jobs:
   # A quick look at the live site after each deploy: every page and each sport's numbers load and are fresh.
   check:
     needs: deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04            # Playwright's browser installer knows this image; ubuntu-latest is moving to 26.04
     timeout-minutes: 15
     steps:
       - name: Check the live pages
@@ -147,6 +147,9 @@ jobs:
         if: github.event_name != 'schedule'
         continue-on-error: true
         run: |
-          pip install -q playwright==1.56.0
-          python -m playwright install --with-deps chromium > /dev/null
-          python pipeline/check_site.py "https://gunnarc28-hub.github.io/NFL-EDGE/"
+          # any failure lands in the run's summary with the last lines of its output
+          note() { tail -n "$2" "$1" 2>/dev/null | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
+          { pip install -q playwright==1.56.0 && python -m playwright install --with-deps chromium; } > setup.log 2>&1 \
+            || { echo "::warning title=Site check could not install its browser::$(note setup.log 25)"; exit 1; }
+          python pipeline/check_site.py "https://gunnarc28-hub.github.io/NFL-EDGE/" 2> check.err \
+            || { echo "::warning title=Site check stopped::$(note check.err 25)"; exit 1; }
