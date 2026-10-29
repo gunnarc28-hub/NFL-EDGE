@@ -63,8 +63,13 @@ for lg, (sp, l) in LG.items():
             pv = (it.get('provider') or {})
             note(f'{lg} odds provider', f"{ev} {pv.get('id')} {pv.get('name')} keys {sorted(it.keys())}")
         for pid in ('100', '58', '40', '1002', '200', '1004'):
-            pj = get(f'{core}/events/{ev}/competitions/{ev}/odds/{pid}/propBets?limit=2000')
-            items = (pj or {}).get('items') or []
+            items, page = [], 1
+            while page <= 8:
+                pj = get(f'{core}/events/{ev}/competitions/{ev}/odds/{pid}/propBets?limit=1000&page={page}')
+                items += (pj or {}).get('items') or []
+                if not pj or page >= (pj.get('pageCount') or 1):
+                    break
+                page += 1
             if not items:
                 continue
             types = Counter(((it.get('type') or {}).get('name')) for it in items)
