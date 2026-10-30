@@ -38,7 +38,7 @@ const CFG = NHL ? {
   propTabs: [['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['pr', 'P+R'], ['pa', 'P+A'], ['ra', 'R+A'], ['stl', 'Steals'], ['blk', 'Blocks'], ['tov', 'Turnovers']],
   hcCut: [40, 2], lsCut: [60, 2],
   lsGroups: [['all', 'All'], ['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['fg3m', '3-pointers'], ['pra', 'PRA'], ['dd', 'Double-double'], ['td3', 'Triple-double'], ['fb', 'First basket']],
-  chartStats: [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['fg3m', '3PM'], ['pra', 'PRA'], ['stl', 'STL'], ['blk', 'BLK'], ['tov', 'TOV'], ['min', 'MIN']]
+  chartStats: [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['fg3m', '3PM'], ['pra', 'PRA'], ['pr', 'P+R'], ['pa', 'P+A'], ['ra', 'R+A'], ['stl', 'STL'], ['blk', 'BLK'], ['sb', 'STL+BLK'], ['tov', 'TOV'], ['min', 'MIN']]
 };
 
 /* ---------------- formatting ---------------- */
@@ -956,9 +956,11 @@ function chartRows(){
   if (CH.kind === 'g'){ const P = (LOGS.goalies || {})[CH.id]; return P ? P.rows.map(r => rowObj(LOGS.gcols, r)).filter(r => r.start || r.shots > 10) : []; }
   return ((LOGS.teams || {})[CH.id] || []).map(r => rowObj(LOGS.tcols, r));
 }
+/* combined stats: the chart, its table and the line all add the parts up game by game */
+const COMBO = {pra: ['pts', 'reb', 'ast'], pr: ['pts', 'reb'], pa: ['pts', 'ast'], ra: ['reb', 'ast'], sb: ['stl', 'blk']};
 function statOf(r, k){
   if (CH.kind === 't'){ if (k === 'margin') return (r.pf ?? r.gf) - (r.pa ?? r.ga); if (k === 'total') return (r.pf ?? r.gf) + (r.pa ?? r.ga); return null; }
-  if (k === 'pra') return r.pts + r.reb + r.ast; if (k === 'pr') return r.pts + r.reb; if (k === 'pa') return r.pts + r.ast; if (k === 'ra') return r.reb + r.ast;
+  const combo = COMBO[k]; if (combo) return combo.some(c => r[c] == null) ? null : combo.reduce((a, c) => a + r[c], 0);
   return r[k];
 }
 function nextFor(){
@@ -994,7 +996,8 @@ function defaultLine(){
   }
   const n = nextFor(); if (!n) return null;
   const ln = ((n.item.lines || {})[CH.stat] || {}).line; if (ln != null) return ln;
-  const pj = CH.stat === 'goals' ? null : CH.kind === 'g' ? n.item.saves : (n.item.proj || {})[CH.stat];
+  const pr_ = n.item.proj || {}, sum = c => c.some(x => pr_[x] == null) ? null : c.reduce((a, x) => a + pr_[x], 0);
+  const pj = CH.stat === 'goals' ? null : CH.kind === 'g' ? n.item.saves : pr_[CH.stat] ?? (COMBO[CH.stat] ? sum(COMBO[CH.stat]) : null);
   return pj != null ? Math.floor(pj) + 0.5 : (CH.stat === 'goals' ? 0.5 : null);
 }
 /* did game value v beat the line? true, false, or null for a push */
@@ -1101,7 +1104,10 @@ function renderChart(first){
   const tbl = `<div class="cs-tbl"><table class="grid"><thead><tr><th>Date</th><th>Opp</th>${CH.kind === 't' ? `<th class="r">Result</th><th class="r">${NHL ? 'Moneyline' : 'Spread'}</th><th class="r">Total</th>` : stats.map(([k, l]) => `<th class="r${k === CH.stat ? ' sel' : ''}">${l}</th>`).join('')}</tr></thead>
     <tbody>${body}</tbody></table></div>`;
   const ref = L == null ? null : spread ? -L : L;
+  const keepX = (($('#csheet .cs-pick .seg') || {}).scrollLeft) || 0;
   sh.innerHTML = head + `<div class="cs-chart">${vals.length ? barSvg(vals, labels, ref, toWin ? 'win' : spread ? `${CH.id} ${fmtLine(L)}` : String(L), hitArr, sep) : '<div class="small">No games yet.</div>'}</div>` + box + tbl;
+  const seg = $('#csheet .cs-pick .seg'), on = seg && seg.querySelector('[aria-pressed="true"]');       // keep the chosen stat in view
+  if (seg) seg.scrollLeft = first && on ? Math.max(0, on.offsetLeft - seg.offsetLeft - (seg.clientWidth - on.offsetWidth) / 2) : keepX;
 }
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-chart]'); if (c && !e.target.closest('button:not([data-chart]), a, input, select, label')){ openChart(c.dataset.chart); return; }
