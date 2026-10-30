@@ -99,6 +99,14 @@ jobs:
             git commit -m "Data refresh heartbeat $today" && git push || echo "heartbeat skipped"
           fi
 
+      # each code change gets new script and style addresses, so a phone never runs an old script on new numbers
+      # (GitHub Pages lets browsers keep a file for 10 minutes); data refreshes keep the same ones, so caching still works
+      - name: Stamp the pages' script and style links with this build
+        run: |
+          v=${GITHUB_SHA::8}
+          sed -i -E "s#(assets/[a-z]+\.(js|css))\"#\1?v=$v\"#g" site/index.html site/nfl/index.html site/nba/index.html site/nhl/index.html
+          grep -c "?v=$v" site/index.html site/nfl/index.html site/nba/index.html site/nhl/index.html
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

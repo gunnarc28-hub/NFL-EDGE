@@ -174,6 +174,7 @@ function gradeLeg(l){
   }
   if (m.cat !== 'Player') return {r: l.res || null};
   if (m.fb){
+    if (VOID_DNP[l.sport] && g.b && !statLine(S, l, g)) return DNP;
     if (g.fb === undefined) return {r: null};
     return {r: g.fb === l.player ? 'W' : 'L', actual: 'first basket by ' + (g.fb === l.player ? (l.player_name || 'him') : (g.fbn || 'another player'))};
   }
@@ -242,10 +243,11 @@ function priceLeft(b, keep){
   const ds = legDecs(b), all = ds.reduce((a, x) => a * x, 1), left = ds.reduce((a, x, i) => keep[i] ? a * x : a, 1);
   return 1 + (left - 1) * (all > 1 ? (D - 1) / (all - 1) : 1);
 }
-/* the new price when legs of a parlay or teaser are void or pushed: {odds, dec, voids, pushes, approx}, else null */
+/* the new price when legs of a parlay or teaser are void or pushed: {odds, dec, voids, pushes, approx}, else null.
+   A bet marked won by hand keeps dropping its void legs (the book recalculates it all the same). */
 function adjOdds(b, gr){
   gr = gr || b._g;
-  if (!gr || b.type === 'single' || b.manual || parseOdds(b.odds) == null) return null;
+  if (!gr || b.type === 'single' || parseOdds(b.odds) == null) return null;
   const rs = gr.legs.map(x => x.r), out = r => r === 'V' || r === 'P';
   if (!rs.some(out) || rs.every(out)) return null;
   const d = priceLeft(b, rs.map(r => !out(r)));
@@ -258,9 +260,9 @@ function betProfit(b, gr){
   const st = Number(b.stake) || 1, r = gr.r;
   if (r === 'L') return -st;
   if (r !== 'W') return 0;
-  const rs = gr.legs.map(x => x.r);
-  if (b.manual || b.type === 'single' || rs.every(x => x === 'W')) return st * (dec(b.odds) - 1);
-  return st * (priceLeft(b, rs.map(x => x === 'W')) - 1);
+  const rs = gr.legs.map(x => x.r), out = x => x === 'V' || x === 'P';
+  if (b.type === 'single' || !rs.some(out) || rs.every(out)) return st * (dec(b.odds) - 1);
+  return st * (priceLeft(b, rs.map(x => !out(x))) - 1);                   // legs that didn't drop out count as won here
 }
 const toWin = (b, gr) => { const a = adjOdds(b, gr); return (Number(b.stake) || 1) * ((a ? a.dec : dec(b.odds)) - 1); };
 /* closing line value: your number against the last line before the game started */
