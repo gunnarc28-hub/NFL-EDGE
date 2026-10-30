@@ -225,23 +225,44 @@ function gradeBet(b){
   if (b.type === 'teaser' && won < 2) return {r: 'P', legs};
   return {r: 'W', legs};
 }
+/* a parlay's price once void or pushed legs drop out, the way the books recalculate it: the legs left multiplied, with the
+   book's own difference from the full set (a profit boost, a same-game discount) carried over to the winnings, so a bet
+   that wins never pays less than the stake back. Legs saved without their own price share what's left of the parlay's
+   price equally (then the new price is approximate). A teaser drops to the price for the legs left. */
+function legDecs(b){
+  const D = dec(b.odds), od = l => parseOdds(l.odds), known = b.legs.filter(l => od(l) != null);
+  const nUnk = b.legs.length - known.length, kp = known.reduce((a, l) => a * dec(od(l)), 1);
+  const unk = nUnk ? Math.pow(Math.max(D / kp, 1.01), 1 / nUnk) : 1;
+  return b.legs.map(l => od(l) != null ? dec(od(l)) : unk);
+}
+function priceLeft(b, keep){
+  const n = keep.filter(Boolean).length, D = dec(b.odds);
+  if (!n) return 1;
+  if (b.type === 'teaser'){ const T = TEASERS[(b.legs[0] || {}).sport] || TEASERS.nfl; return n < 2 ? 1 : dec(T.prices[n] || b.odds); }
+  const ds = legDecs(b), all = ds.reduce((a, x) => a * x, 1), left = ds.reduce((a, x, i) => keep[i] ? a * x : a, 1);
+  return 1 + (left - 1) * (all > 1 ? (D - 1) / (all - 1) : 1);
+}
+/* the new price when legs of a parlay or teaser are void or pushed: {odds, dec, voids, pushes, approx}, else null */
+function adjOdds(b, gr){
+  gr = gr || b._g;
+  if (!gr || b.type === 'single' || b.manual || parseOdds(b.odds) == null) return null;
+  const rs = gr.legs.map(x => x.r), out = r => r === 'V' || r === 'P';
+  if (!rs.some(out) || rs.every(out)) return null;
+  const d = priceLeft(b, rs.map(r => !out(r)));
+  if (!(d > 1)) return null;
+  return {odds: amOf(d), dec: d, voids: rs.filter(r => r === 'V').length, pushes: rs.filter(r => r === 'P').length,
+          approx: b.type !== 'teaser' && b.legs.some(l => parseOdds(l.odds) == null)};
+}
+function adjTxt(a){ const n = a.voids + a.pushes; return `${a.voids && a.pushes ? `${a.voids} void and ${a.pushes} pushed` : a.voids ? `${a.voids} void` : `${a.pushes} pushed`} leg${n === 1 ? '' : 's'} dropped`; }
 function betProfit(b, gr){
   const st = Number(b.stake) || 1, r = gr.r;
   if (r === 'L') return -st;
   if (r !== 'W') return 0;
   const rs = gr.legs.map(x => x.r);
   if (b.manual || b.type === 'single' || rs.every(x => x === 'W')) return st * (dec(b.odds) - 1);
-  const won = b.legs.filter((l, i) => rs[i] === 'W');
-  if (b.type === 'teaser'){ const T = TEASERS[(b.legs[0] || {}).sport] || TEASERS.nfl; return won.length < 2 ? 0 : st * (dec(T.prices[won.length] || b.odds) - 1); }
-  // pushed and voided legs drop out. Legs without their own price share what's left of the book's price equally; the book's
-  // price over the legs multiplied (a boost, or a same-game discount) scales the winnings, so a bet that wins never loses money
-  const D = dec(b.odds), od = l => parseOdds(l.odds), known = b.legs.filter(l => od(l) != null);
-  const nUnk = b.legs.length - known.length, kp = known.reduce((a, l) => a * dec(od(l)), 1);
-  const unk = nUnk ? Math.pow(Math.max(D / kp, 1.01), 1 / nUnk) : 1, legDec = l => od(l) != null ? dec(od(l)) : unk;
-  const all = b.legs.reduce((a, l) => a * legDec(l), 1), w = won.reduce((a, l) => a * legDec(l), 1);
-  return st * (w - 1) * (all > 1 ? (D - 1) / (all - 1) : 1);
+  return st * (priceLeft(b, rs.map(x => x === 'W')) - 1);
 }
-const toWin = b => (Number(b.stake) || 1) * (dec(b.odds) - 1);
+const toWin = (b, gr) => { const a = adjOdds(b, gr); return (Number(b.stake) || 1) * ((a ? a.dec : dec(b.odds)) - 1); };
 /* closing line value: your number against the last line before the game started */
 function clvLeg(l){
   const g = gameG(l); if (!g) return null;
@@ -653,14 +674,15 @@ function ticketHtml(b){
   const head = b.type === 'single' ? marketLabel(b.legs[0]) : b.legacy ? `${TYPE_LABEL[b.type]} · logged as a note` : `${n}-leg ${b.type === 'teaser' ? `${b.pts || 6}-point teaser` : 'parlay'}`;
   const status = r ? (gr.voided ? 'Void' : RWORD[r]) : (gr.check ? 'Check a leg' : 'Open');
   const prof = r ? betProfit(b, gr) : null;
-  const money = r ? `<span class="tk-amt ${prof > 0 ? 'pos' : prof < 0 ? 'neg' : ''}">${sign(prof, 2)}u</span>` : `<span class="tk-amt">${unitsTxt(Number(b.stake) || 1)} <span class="small">to win</span> ${unitsTxt(toWin(b))}</span>`;
+  const money = r ? `<span class="tk-amt ${prof > 0 ? 'pos' : prof < 0 ? 'neg' : ''}">${sign(prof, 2)}u</span>` : `<span class="tk-amt">${unitsTxt(Number(b.stake) || 1)} <span class="small">to win</span> ${unitsTxt(toWin(b, gr))}</span>`;
   const fairTxt = b.fair && b.fair.p != null ? (() => { const ev = evOf(b.fair.p, Number(b.odds)); return `Model ${pct(b.fair.p, b.fair.p < 0.1 ? 1 : 0)} · fair ${fmtOdds(b.fair.odds)} · you got ${fmtOdds(Number(b.odds))} (<span style="color:${ev >= 0.05 ? 'var(--win)' : ev >= 0 ? 'var(--warn)' : 'var(--loss)'}">${ev >= 0 ? '+' : '−'}${Math.abs(Math.round(ev * 100))}¢ per $1</span>)${b.fair.same ? ' · same-game legs' : ''}`; })() : (b.legacy ? 'Logged with the old pick form' : '');
   const fixable = r && !b.manual && !gr.legs.some(x => x.leg.market === 'other');
   const manualBtns = (b.manual || gr.check || gr.legs.some(x => x.leg.market === 'other' && !x.leg.manual) || b._fix) ? ['W', 'L', 'P'].map(k => `<button class="btn tiny" data-betres="${esc(b.id)}|${k}" aria-pressed="${b.manual === k}">${k}</button>`).join('') : '';
   const when = (b.week && sp.length === 1 && sp[0] === 'nfl' ? `Week ${b.week} · ` : '') + `placed ${esc(new Date(b.created).toLocaleDateString([], {month: 'short', day: 'numeric'}))}`;
   return `<article class="tk ${r || 'open'}">
     <div class="tk-h"><div><div class="tk-t">${sp.map(sportTag).join('')}${esc(head)}<span class="tk-st ${r || 'open'}">${status}</span></div>
-      <div class="small">${when} · ${fmtOdds(Number(b.odds))}</div></div>${money}</div>
+      <div class="small">${when} · ${(() => { const a = adjOdds(b, gr);
+        return a ? `<s>${fmtOdds(Number(b.odds))}</s> <b class="tk-new">${a.approx ? '≈' : ''}${fmtOdds(a.odds)}</b> · ${adjTxt(a)}` : fmtOdds(Number(b.odds)); })()}</div></div>${money}</div>
     <div class="tk-legs">${gr.legs.map(x => ticketLegHtml(b, x, sp.length > 1)).join('')}</div>
     <div class="tk-f"><span class="small">${fairTxt}</span><span class="acts">${manualBtns}${fixable ? `<button class="btn tiny" data-betfix="${esc(b.id)}">Fix result</button>` : ''}<button class="btn tiny" data-delbet="${esc(b.id)}" aria-label="Delete bet">Delete</button></span></div>
   </article>`;
@@ -840,6 +862,6 @@ function init(adapter){
 function setGrade(sport, grade){ G[sport] = grade; regrade(); }
 
 window.SB = {init, addLeg, removeLeg, oddsBtn, openSlip, closeSlip, openCustom, closeCustom, refresh: refreshSlipUI, renderBets, setGrade,
-             legLabel, marketLabel, clv: clvLeg, gradeLeg, bets: () => BETS, slip: () => SLIP, slipKey, inSlip, MK, TEASERS, PARTL, kindOf,
+             legLabel, marketLabel, clv: clvLeg, gradeLeg, adjOdds, toWin, bets: () => BETS, slip: () => SLIP, slipKey, inSlip, MK, TEASERS, PARTL, kindOf,
              summary: () => { gradeAll(); return summarizeBets(BETS); }, needGrade, sportTag};
 })();

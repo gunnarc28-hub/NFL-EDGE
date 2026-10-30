@@ -52,7 +52,8 @@ function homeBets(){
     const t = b.type === 'single' ? SB.legLabel(b.legs[0]) : `${b.legs.length}-leg ${b.type}`;
     const sub = b.type === 'single' ? (b.legs[0].sub || '') : b.legs.map(l => SB.legLabel(l)).join(' · ');
     const done = b._g.legs.filter(x => x.r === 'W').length;
-    return `<div class="pk"><span>${sp.map(SB.sportTag).join('')}</span><div style="min-width:0"><div class="d">${esc(t)} <span class="small num">${fmtOdds(Number(b.odds))}</span></div><div class="m">${esc(sub)}${b.type !== 'single' && done ? ` · ${done} of ${b.legs.length} legs won` : ''}</div></div><div class="small num">${unitsTxt(Number(b.stake) || 1)} to win ${unitsTxt((Number(b.stake) || 1) * (SE.dec(b.odds) - 1))}</div></div>`;
+    const adj = SB.adjOdds(b), price = adj ? `<s>${fmtOdds(Number(b.odds))}</s> ${adj.approx ? '≈' : ''}${fmtOdds(adj.odds)}` : fmtOdds(Number(b.odds));
+    return `<div class="pk"><span>${sp.map(SB.sportTag).join('')}</span><div style="min-width:0"><div class="d">${esc(t)} <span class="small num">${price}</span></div><div class="m">${esc(sub)}${b.type !== 'single' && done ? ` · ${done} of ${b.legs.length} legs won` : ''}${adj ? ` · ${adj.voids + adj.pushes} leg${adj.voids + adj.pushes === 1 ? '' : 's'} dropped` : ''}</div></div><div class="small num">${unitsTxt(Number(b.stake) || 1)} to win ${unitsTxt(SB.toWin(b))}</div></div>`;
   }).join('');
   box.innerHTML = `<div class="sec-head"><div><h2 class="h2">Your bets</h2><p class="lede">Every sport in one place. Each leg grades itself when its game ends.</p></div>
       <div class="filters"><button class="btn" data-hgo="picks">See all bets</button>${SB.slip().legs.length ? `<button class="btn stripe" data-slipopen="">Bet slip (${SB.slip().legs.length})</button>` : ''}</div></div>

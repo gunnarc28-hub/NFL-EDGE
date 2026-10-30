@@ -420,6 +420,7 @@ ul.plain li{margin:3px 0}
 .tk-st.W{background:var(--win-bg);color:var(--win)} .tk-st.L{background:var(--loss-bg);color:var(--loss)} .tk-st.P{background:var(--muted-bg);color:var(--push)} .tk-st.open{background:var(--stripe-bg);color:var(--stripe-ink)}
 .tk-amt{font-family:var(--f-display);font-weight:900;font-size:22px;line-height:1;white-space:nowrap;text-align:right}
 .tk-amt.pos{color:var(--win)} .tk-amt.neg{color:var(--loss)}
+.tk-h s{color:var(--ink-3)} .tk-new{color:var(--ink);font-weight:700}
 .tk-legs{display:flex;flex-direction:column}
 .tk-leg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 14px;border-top:1px solid var(--rule)}
 .tk-leg .dot{width:12px;height:12px;border-radius:50%;margin-top:4px;background:var(--rule-2);box-shadow:inset 0 0 0 2px var(--panel)}
