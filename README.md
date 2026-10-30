@@ -17,7 +17,11 @@ loads every page; after a code change it also clicks through every tab in a phon
 - `site/nfl/`, `site/nba/`, `site/nhl/`: one page per sport, each reading its own `data/` folder. The NBA and NHL pages
   share `site/assets/app.js`; every page shares `assets/app.css`, `assets/core.js` and the bet slip and tracker in
   `assets/bets.js`. Bets are saved in each visitor's browser, with Download backup / Restore backup to move them
-  between devices, and grade themselves from each sport's `data/grade.json`.
+  between devices, and grade themselves from each sport's `data/grade.json`. A link with `?addbets=` (or the same link
+  pasted under My bets → Add from a link) adds bets, merged by id. Grading follows the books' rules: a prop on a player
+  who doesn't play is void (NFL: snap counts), and DraftKings' Early Exit voids a full-game NFL over or yes prop on a
+  player who left hurt in the 1st half and never returned (`pipeline/early_exit.py`, from the play-by-play's injury
+  notes). A parlay drops void legs and pays on the rest.
 - `pipeline/build.py`: the NFL build. Sources: nflverse (play-by-play, player stats, schedules and lines, snap counts,
   Next Gen Stats), the official NFL injury report from NFL.com (nflverse's copy as a backup) and ESPN (injury status,
   expected return dates, live scores).

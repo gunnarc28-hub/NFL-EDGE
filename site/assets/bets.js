@@ -140,6 +140,14 @@ function decorate(l){
 /* ---------- grading ---------- */
 function boxIn(S, g){ return Object.values(S.players).some(x => (x.t === g.h || x.t === g.a) && x.w && x.w[g.wk]); }
 function statLine(S, l, g){ const p = S.players && S.players[l.player]; if (!p) return null; return S.pkey === 'wk' ? (p.w || {})[g.wk] : (p.g || {})[l.game]; }
+/* NFL: did he play? From snap counts (players[id].sn[week], games[id].sn once that game's counts are in): true, false,
+   or null while they aren't. A player who sits voids his props; one who played without touching the ball grades as zero. */
+function playedNFL(S, l, g){ if (l.sport !== 'nfl' || !g.sn) return null; const p = S.players && S.players[l.player]; return !!(p && p.sn && p.sn[g.wk] > 0); }
+/* DraftKings' Early Exit: a full-game prop on a player who left hurt in the 1st half and never came back is void, unless
+   it had already won by then (overs and yes bets that missed); unders stand. games[id].ee = {player: seconds into the game} */
+const EE_TXT = "left hurt in the 1st half and didn't return (Early Exit)";
+const earlyExit = (g, l) => g.ee && l.player != null && g.ee[l.player] != null && l.side !== 'U' ? g.ee[l.player] : null;
+const DNP = {r: 'V', actual: "didn't play"};
 function gradeLeg(l){
   if (l.manual) return {r: l.manual};
   const S = G[l.sport], g = S && S.games ? S.games[l.game] : null;
@@ -170,10 +178,13 @@ function gradeLeg(l){
     return {r: g.fb === l.player ? 'W' : 'L', actual: 'first basket by ' + (g.fb === l.player ? (l.player_name || 'him') : (g.fbn || 'another player'))};
   }
   if (m.q != null){
-    const pl = S.players && S.players[l.player], arr = pl && pl.q ? (S.pkey === 'wk' ? pl.q[g.wk] : pl.q[l.game]) : null;
+    const pl = S.players && S.players[l.player]; let arr = pl && pl.q ? (S.pkey === 'wk' ? pl.q[g.wk] : pl.q[l.game]) : null;
     if (!arr){
-      if (VOID_DNP[l.sport] && g.b && !statLine(S, l, g)) return {r: 'V', actual: "didn't play"};
-      return {r: null};
+      if (VOID_DNP[l.sport] && g.b && !statLine(S, l, g)) return DNP;
+      const pd = playedNFL(S, l, g);
+      if (pd === false) return DNP;
+      if (pd && g.ps) arr = [];                                   // played, nothing early: zeros
+      else return {r: null};
     }
     const val = arr[m.q] || 0;
     if (m.y != null) return {r: val >= m.y ? 'W' : 'L', actual: val};
@@ -181,19 +192,26 @@ function gradeLeg(l){
   }
   if (m.first){
     if (g.f === undefined) return {r: null};
+    if (g.f !== l.player && playedNFL(S, l, g) === false) return DNP;
+    const ex = earlyExit(g, l);
+    if (g.f !== l.player && ex != null && (g.ftt == null || ex < g.ftt)) return {r: 'V', actual: EE_TXT + ' before the first TD'};
     if (!g.f) return {r: 'L', actual: 'no scorer'};
     return {r: g.f === l.player ? 'W' : 'L', actual: 'first by ' + (g.f === l.player ? (l.player_name || 'him') : (g.fn || 'another player'))};
   }
-  const w = statLine(S, l, g);
+  let w = statLine(S, l, g);
   if (!w){
-    if (VOID_DNP[l.sport]) return g.b ? {r: 'V', actual: "didn't play"} : {r: null};
-    return {r: S.pkey === 'wk' && boxIn(S, g) ? 'C' : null};
+    if (VOID_DNP[l.sport]) return g.b ? DNP : {r: null};
+    const pd = playedNFL(S, l, g);
+    if (pd === false) return DNP;
+    if (pd) w = [];                                               // played without a catch or a carry: zeros
+    else return {r: S.pkey === 'wk' && boxIn(S, g) ? (Date.now() - Date.parse(g.k) > 3 * 864e5 ? 'C' : null) : null};   // snap counts usually land within a day
   }
   let val;
   if (m.dd) val = m.dd.filter(i => (w[i] || 0) >= 10).length;
   else val = (m.s || []).reduce((a, i) => a + (w[i] || 0), 0);
-  if (m.y != null) return {r: val >= m.y ? 'W' : 'L', actual: m.dd ? `${val} categories in double figures` : val};
-  return ou(val);
+  const res = m.y != null ? {r: val >= m.y ? 'W' : 'L', actual: m.dd ? `${val} categories in double figures` : val} : ou(val);
+  if (res.r === 'L' && earlyExit(g, l) != null) return {r: 'V', actual: EE_TXT + (typeof val === 'number' ? ` (had ${val})` : '')};
+  return res;
 }
 const settled = r => r === 'W' || r === 'L' || r === 'P' || r === 'V';
 function gradeBet(b){
@@ -215,8 +233,13 @@ function betProfit(b, gr){
   if (b.manual || b.type === 'single' || rs.every(x => x === 'W')) return st * (dec(b.odds) - 1);
   const won = b.legs.filter((l, i) => rs[i] === 'W');
   if (b.type === 'teaser'){ const T = TEASERS[(b.legs[0] || {}).sport] || TEASERS.nfl; return won.length < 2 ? 0 : st * (dec(T.prices[won.length] || b.odds) - 1); }
-  const all = b.legs.reduce((a, l) => a * dec(l.odds || -110), 1), w = won.reduce((a, l) => a * dec(l.odds || -110), 1);
-  return st * (w * (dec(b.odds) / all) - 1);                 // pushed and voided legs drop out; the book's price scales the rest
+  // pushed and voided legs drop out. Legs without their own price share what's left of the book's price equally; the book's
+  // price over the legs multiplied (a boost, or a same-game discount) scales the winnings, so a bet that wins never loses money
+  const D = dec(b.odds), od = l => parseOdds(l.odds), known = b.legs.filter(l => od(l) != null);
+  const nUnk = b.legs.length - known.length, kp = known.reduce((a, l) => a * dec(od(l)), 1);
+  const unk = nUnk ? Math.pow(Math.max(D / kp, 1.01), 1 / nUnk) : 1, legDec = l => od(l) != null ? dec(od(l)) : unk;
+  const all = b.legs.reduce((a, l) => a * legDec(l), 1), w = won.reduce((a, l) => a * legDec(l), 1);
+  return st * (w - 1) * (all > 1 ? (D - 1) / (all - 1) : 1);
 }
 const toWin = b => (Number(b.stake) || 1) * (dec(b.odds) - 1);
 /* closing line value: your number against the last line before the game started */
@@ -496,7 +519,7 @@ function renderBets(){
     : `Open a sport, tap any line on a game card or <b>+ Slip</b> next to a prop or pick, then place it from the slip.`;
   v.innerHTML = `
     <div class="sec-head"><div><h1 class="h2">My bets</h1><p class="lede">Singles, parlays and teasers from every sport. Each leg grades itself from the final score or box score; a parlay is lost the moment a leg loses and won when every leg is in.</p></div>
-      <div class="filters"><button class="btn" data-pkbackup="">Download backup</button><label class="btn" for="pk-restore" style="cursor:pointer">Restore backup</label>
+      <div class="filters"><button class="btn" data-impask="">Add from a link</button><button class="btn" data-pkbackup="">Download backup</button><label class="btn" for="pk-restore" style="cursor:pointer">Restore backup</label>
       <input type="file" id="pk-restore" accept="application/json,.json" hidden><button class="btn stripe" data-slipopen="">Bet slip${SLIP.legs.length ? ` (${SLIP.legs.length})` : ''}</button></div></div>
     ${sportSeg}
     <div class="tiles">
@@ -538,6 +561,75 @@ async function restoreBets(e){
     BETS = [...byId.values()]; saveBets(); renderBets(); toast('Restored ' + list.length + ' bets');
   } catch(err){ toast("That file isn't a Sports Edge or NFL Edge backup."); }
 }
+/* ---------- bets from a link: ?addbets=<code> on any page (or the link pasted under My bets) offers to add them,
+   merged by id like a restore, so opening the same link twice changes nothing. The code is base64url JSON {bets: [...]}
+   in the same shape as a backup; only known fields are kept. */
+let IMPORT = null;
+const sv = (v, n) => typeof v === 'string' ? v.slice(0, n || 120) : undefined;
+const nv = v => typeof v === 'number' && isFinite(v) ? v : undefined;
+function cleanLeg(l, i, bid){
+  if (!l || typeof l !== 'object' || !SPORTS[l.sport] || typeof l.market !== 'string') return null;
+  const o = {id: sv(l.id, 80) || `${bid}_${i + 1}`, sport: l.sport, market: sv(l.market, 40), game: sv(l.game, 40) || ''};
+  ['team', 'player', 'player_name', 'label', 'per'].forEach(k => { const v = sv(l[k]); if (v != null) o[k] = v; });
+  ['week', 'line', 'odds', 'tease', 'from'].forEach(k => { const v = nv(l[k]); if (v != null) o[k] = v; });
+  if (['O', 'U', 'Y', 'N', 'D'].includes(l.side)) o.side = l.side;
+  if (['W', 'L', 'P', 'V'].includes(l.manual)) o.manual = l.manual;
+  return o;
+}
+function cleanBet(b){
+  if (!b || typeof b !== 'object' || !Array.isArray(b.legs) || !b.legs.length) return null;
+  const id = sv(b.id, 80); if (!id) return null;
+  const legs = b.legs.slice(0, 25).map((l, i) => cleanLeg(l, i, id)); if (legs.some(l => !l)) return null;
+  const o = {kind: 'bet', id, created: sv(b.created, 40) || new Date().toISOString(), type: ['single', 'parlay', 'teaser'].includes(b.type) ? b.type : (legs.length > 1 ? 'parlay' : 'single'),
+             stake: nv(b.stake) > 0 ? b.stake : 1, odds: nv(b.odds) ?? null, legs};
+  if (nv(b.week) != null) o.week = b.week;
+  if (sv(b.note, 200)) o.note = sv(b.note, 200);
+  if (['W', 'L', 'P', 'V'].includes(b.manual)) o.manual = b.manual;
+  return o;
+}
+function decodeBets(text){
+  let s = String(text || '').trim(); const m = s.match(/[?&#]addbets=([A-Za-z0-9_\-]+)/); if (m) s = m[1];
+  if (!/^[A-Za-z0-9_\-]{8,}$/.test(s)) return null;
+  try {
+    const b64 = s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4);
+    const j = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))));
+    const list = Array.isArray(j) ? j : j && j.bets;
+    return Array.isArray(list) ? list.slice(0, 50).map(cleanBet).filter(Boolean) : null;
+  } catch(e){ return null; }
+}
+function showSheet(html){ const sh = $('#sheet'); if (!sh) return false; sh.innerHTML = html; $('#scrim').hidden = false; sh.hidden = false; return true; }
+function askImport(){
+  IMPORT = [];
+  showSheet(`<div class="sec-head"><h2 class="h3" id="sheet-title">Add bets from a link</h2><button class="btn tiny" data-impx="">Close</button></div>
+    <div class="form"><div class="f full"><label for="imp-txt">Paste the Sports Edge link you were sent</label><textarea id="imp-txt" rows="4" autocomplete="off" spellcheck="false" placeholder="https://…/?addbets=…"></textarea></div></div>
+    <div class="sheet-actions"><span class="note" id="imp-err" role="alert"></span><button class="btn primary" data-imppaste="">Continue</button></div>`);
+  setTimeout(() => { const t = $('#imp-txt'); if (t) t.focus(); }, 0);
+}
+function offerImport(list){
+  if (!list || !list.length){ dropImportParam(); return toast("That link doesn't hold any bets I can read."); }
+  IMPORT = list;
+  list.forEach(b => b.legs.forEach(l => { needGrade(l.sport); decorate(l); }));
+  const have = new Set(BETS.map(b => b.id)), dup = list.filter(b => have.has(b.id)).length;
+  const head = b => b.type === 'single' ? 'Single' : `${b.legs.length}-leg ${b.type}`;
+  showSheet(`<div class="sec-head"><h2 class="h3" id="sheet-title">Add ${list.length} bet${list.length === 1 ? '' : 's'} to My bets</h2><button class="btn tiny" data-impx="">Not now</button></div>
+    <div class="imp-list">${list.map(b => `<div class="imp-b"><div class="imp-h"><b>${esc(head(b))}</b>${b.odds != null ? ` <span class="num">${esc(fmtOdds(b.odds))}</span>` : ''} <span class="small">· ${esc(unitsTxt(b.stake))} stake · placed ${esc(new Date(b.created).toLocaleDateString([], {month: 'short', day: 'numeric'}))}</span>${b.note ? `<div class="small">${esc(b.note)}</div>` : ''}</div>
+      <ul>${b.legs.map(l => `<li>${mixedTag(l)}${esc(legLabel(l))}${l.mu ? ` <span class="small">· ${esc(l.mu)}</span>` : ''}</li>`).join('')}</ul></div>`).join('')}</div>
+    <p class="small" style="margin:8px 0 0">${dup ? (dup === list.length ? 'These are already in My bets; adding them again just refreshes them. ' : `${dup} of these ${dup === 1 ? 'is' : 'are'} already in My bets and will be refreshed. `) : ''}Nothing else in My bets changes. They grade themselves like any other bet.</p>
+    <div class="sheet-actions"><span class="note"></span><button class="btn primary" data-impgo="">Add to My bets</button></div>`);
+  setTimeout(() => { const b = $('[data-impgo]'); if (b) b.focus(); }, 0);
+}
+const mixedTag = l => l.sport !== A.sport ? sportTag(l.sport) + ' ' : '';
+function closeImport(){ IMPORT = null; const sh = $('#sheet'); if (sh && !draft){ sh.hidden = true; $('#scrim').hidden = true; } dropImportParam(); }
+function doImport(){
+  const list = IMPORT; if (!list || !list.length) return;
+  const byId = new Map(BETS.map(p => [p.id, p])); list.forEach(p => byId.set(p.id, Object.assign({}, p, {legs: p.legs.map(l => Object.assign({}, l))})));
+  BETS = [...byId.values()]; saveBets(); closeImport(); renderBets();
+  toast(`Added ${list.length} bet${list.length === 1 ? '' : 's'} to My bets`);
+  if (A.onImport) A.onImport();
+}
+function dropImportParam(){
+  try { const u = new URL(location.href); if (!u.searchParams.has('addbets')) return; u.searchParams.delete('addbets'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch(e){}
+}
 function actualTxt(l, x){
   if (x.actual == null) return '';
   if (l.market === 'spread' || l.market === 'ml') return x.actual > 0 ? `${l.team} won by ${x.actual}` : x.actual < 0 ? `${l.team} lost by ${Math.abs(x.actual)}` : 'tied';
@@ -548,12 +640,12 @@ function ticketLegHtml(b, x, multi){
   const c = clvLeg(l);
   const clv = c ? `<span class="small">${c.closed ? 'closing' : 'line now'} ${c.txt} · <b style="color:${c.v > 0 ? 'var(--win)' : c.v < 0 ? 'var(--loss)' : 'inherit'}">${c.v > 0 ? 'beat it by ' : c.v < 0 ? 'behind by ' : 'same as yours'}${c.v ? Math.abs(c.v).toFixed(1) + (c.unit === 'pts' ? ' pts' : '% win chance') : ''}</b></span>` : '';
   const act = actualTxt(l, x);
-  const manual = l.market === 'other' || r === 'C' || l.manual || (b._fix && r) ? `<span class="tk-man">${['W', 'L', 'P'].map(k => `<button class="btn tiny" data-legres="${esc(b.id)}|${esc(l.id)}|${k}" aria-pressed="${l.manual === k}">${k}</button>`).join('')}</span>` : '';
+  const manual = l.market === 'other' || r === 'C' || l.manual || (b._fix && r) ? `<span class="tk-man">${['W', 'L', 'P', 'V'].map(k => `<button class="btn tiny" data-legres="${esc(b.id)}|${esc(l.id)}|${k}" aria-pressed="${l.manual === k}" title="${RWORD[k]}">${k}</button>`).join('')}</span>` : '';
   const fair = l.p != null ? `<span class="small">model ${pct(l.p)}${parseOdds(l.odds) != null && b.type === 'single' ? '' : ' · fair ' + fmtOdds(oddsNum(l.p))}</span>` : '';
   const wait = !r && !G[l.sport] && l.sport !== A.sport ? ' · <span class="small">loading the result…</span>' : '';
   return `<div class="tk-leg"><span class="dot ${r || 'open'}" title="${RWORD[r] || 'Open'}"></span>
     <div style="min-width:0"><div class="tk-ln">${multi ? sportTag(l.sport) + ' ' : ''}${esc(legLabel(l))}${l.tease ? ` <span class="pill ghost">${fmtLine(l.from)} → ${fmtLine(l.line)}</span>` : ''}${b.type !== 'teaser' && l.odds != null && l.odds !== '' ? ` <span class="tk-o num">${fmtOdds(Number(l.odds))}</span>` : ''}</div>
-      <div class="tk-ls">${esc(marketLabel(l))} · ${esc(legSub(l))}${act ? ' · ' + esc(act) : ''}${fair ? ' · ' + fair : ''}${clv ? ' · ' + clv : ''}${r === 'V' ? ' · <span class="small">most books void a prop when the player sits</span>' : ''}${r === 'C' ? ' · <span class="small" style="color:var(--warn)">no box-score line found, set it yourself</span>' : ''}${wait}</div></div>
+      <div class="tk-ls">${esc(marketLabel(l))} · ${esc(legSub(l))}${act ? ' · ' + esc(act) : ''}${fair ? ' · ' + fair : ''}${clv ? ' · ' + clv : ''}${r === 'V' && x.actual === "didn't play" ? ' · <span class="small">books void a prop when the player sits; a parlay drops the leg</span>' : ''}${r === 'C' ? ' · <span class="small" style="color:var(--warn)">no box-score line found, set it yourself</span>' : ''}${wait}</div></div>
     ${manual}</div>`;
 }
 function ticketHtml(b){
@@ -654,7 +746,7 @@ function saveCustomLeg(){
 }
 
 /* ---------- events ---------- */
-const SLIP_SEL = '[data-ob],[data-slipopen],[data-slipclose],[data-slipclear],[data-slipplace],[data-slipcustom],[data-slmode],[data-slside],[data-sldel],[data-addpick],[data-delbet],[data-betres],[data-legres],[data-betfix],[data-pfsport],[data-pkbackup]';
+const SLIP_SEL = '[data-ob],[data-slipopen],[data-slipclose],[data-slipclear],[data-slipplace],[data-slipcustom],[data-slmode],[data-slside],[data-sldel],[data-addpick],[data-delbet],[data-betres],[data-legres],[data-betfix],[data-pfsport],[data-pkbackup],[data-impask],[data-impgo],[data-impx],[data-imppaste]';
 let wired = false;
 function wire(){
   if (wired) return; wired = true;
@@ -673,6 +765,10 @@ function wire(){
     if (d.sldel){ removeLeg(d.sldel); return; }
     if (d.pfsport){ PF.sport = d.pfsport; LS.set('pf', PF); renderBets(); return; }
     if (d.pkbackup != null){ backupBets(); return; }
+    if (d.impask != null){ askImport(); return; }
+    if (d.impgo != null){ doImport(); return; }
+    if (d.impx != null){ closeImport(); return; }
+    if (d.imppaste != null){ const t = $('#imp-txt'), list = decodeBets(t ? t.value : ''); if (!list || !list.length){ const er = $('#imp-err'); if (er) er.textContent = "That isn't a Sports Edge bets link."; return; } offerImport(list); return; }
     if (d.delbet){
       if (d.confirm === '1'){ deleteBet(d.delbet); toast('Bet deleted'); }
       else { t.dataset.confirm = '1'; t.textContent = 'Tap again to delete'; setTimeout(() => { if (t.isConnected){ t.dataset.confirm = ''; t.textContent = 'Delete'; } }, 3000); }
@@ -696,11 +792,12 @@ function wire(){
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if ($('#sheet') && !$('#sheet').hidden && draft) closeCustom();
+    else if ($('#sheet') && !$('#sheet').hidden && IMPORT) closeImport();
     else if ($('#slipsheet') && !$('#slipsheet').hidden) closeSlip();
   });
   const fab = $('#slip-fab'); if (fab) fab.addEventListener('click', openSlip);
   const ss = $('#slipscrim'); if (ss) ss.addEventListener('click', closeSlip);
-  const sc = $('#scrim'); if (sc) sc.addEventListener('click', () => { if (draft) closeCustom(); });
+  const sc = $('#scrim'); if (sc) sc.addEventListener('click', () => { if (draft) closeCustom(); else if (IMPORT) closeImport(); });
   /* another tab (another sport's page) changed the slip or the bets */
   window.addEventListener('storage', e => {
     if (e.key === 'sportsedge.slip'){ loadSlip(); refreshSlipUI(); }
@@ -734,8 +831,9 @@ function init(adapter){
   wire();
   SLIP.legs.forEach(l => { if (l.sport === A.sport){ const p = legP(l); if (p != null) l.p = p; decorate(l); } });
   renderBets(); refreshSlipUI();
-  const h = location.hash;
-  if (h === '#slip') setTimeout(openSlip, 50);
+  const h = location.hash, ab = (location.search.match(/[?&]addbets=([^&#]+)/) || [])[1];
+  if (ab) setTimeout(() => offerImport(decodeBets(ab)), 120);
+  else if (h === '#slip') setTimeout(openSlip, 50);
   else if (h === '#custom' && A.sport) setTimeout(() => openCustom(), 50);
 }
 /* the page's own sport just got fresher scores (live scoreboard): regrade with them */

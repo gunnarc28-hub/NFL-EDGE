@@ -20,6 +20,7 @@ from teams import TEAMS, INTERNATIONAL          # noqa: E402
 import pbp_agg, metrics, players as pa, espn    # noqa: E402
 import injuries as injm                         # noqa: E402
 import parts as PT, sportslib as sl             # noqa: E402
+import early_exit as eex                        # noqa: E402
 
 OUT = os.path.join(ROOT, 'site', 'nfl', 'data', 'data.json')
 BASE = 'https://github.com/nflverse/nflverse-data/releases/download'
@@ -1590,6 +1591,34 @@ for pid_, e_ in grade_players.items():                     # played but had noth
         if (wk_, e_['t']) in gid_by_wt and wk_ not in e_.get('q', {}):
             e_.setdefault('q', {})[wk_] = [0] * 10
 print('part results:', sum(1 for v in results.values() if v.get('ps')), 'games with quarters |', len(PART_PLAYERS), 'player lines')
+
+# who played (snap counts) and who left hurt in the 1st half and never came back (DraftKings' Early Exit), so a prop on a
+# player who sat grades as void, a player who played without a catch grades as zero, and Early Exit legs void
+try:
+    _pfr2g = {r.pfr_id: r.gsis_id for r in _rost.dropna(subset=['pfr_id', 'gsis_id']).itertuples()}
+    _sk = snaps[snaps.game_id.isin(results.keys())] if len(snaps) and 'game_id' in snaps.columns else pd.DataFrame(columns=['game_id', 'pfr_player_id', 'offense_snaps', 'st_snaps', 'week', 'position', 'player', 'team'])
+    for r_ in _sk.itertuples():
+        pid_ = _pfr2g.get(r_.pfr_player_id)
+        n_ = int(sum(x_ for x_ in (r_.offense_snaps, r_.st_snaps) if pd.notna(x_)))
+        if not pid_ or not n_:
+            continue
+        if pid_ not in grade_players:
+            if r_.position not in ('QB', 'RB', 'WR', 'TE', 'FB'):
+                continue
+            grade_players[pid_] = {'n': r_.player, 'p': r_.position, 't': r_.team, 'w': {}}
+        grade_players[pid_].setdefault('sn', {})[int(r_.week)] = n_
+    for gid_ in set(_sk.game_id):
+        results[gid_]['sn'] = 1
+    _fin = [g_ for g_, r_ in results.items() if r_['hs'] is not None and r_.get('sn')]
+    if have_pbp.get(SEASON) and _fin:
+        for gid_, d_ in eex.first_half_exits(f'{RAW}/pbp_{SEASON}.csv.gz', _rost, _sk, games=_fin).items():
+            results[gid_]['ee'] = d_
+        for gid_, t_ in eex.first_td_times(f'{RAW}/pbp_{SEASON}.csv.gz', games=_fin).items():
+            results[gid_]['ftt'] = t_
+    print('who played:', sum(1 for r_ in results.values() if r_.get('sn')), 'games with snap counts | 1st-half exits',
+          sum(len(r_.get('ee', {})) for r_ in results.values()), 'players in', sum(1 for r_ in results.values() if r_.get('ee')), 'games')
+except Exception as e:                                    # grading falls back to "check it yourself"
+    print('snap counts / early exits unavailable:', repr(e)[:160])
 last_stats_date = (str(S[S.game_id.isin(p26.game_id)].gameday.max()) if len(p26) else None)
 
 # ------------------------------------------------------------------ matchups: what each defense has allowed to each position this season
