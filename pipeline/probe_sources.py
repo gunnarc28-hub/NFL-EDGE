@@ -1,51 +1,44 @@
-"""Research probe (GitHub Actions only): a DraftKings share page fetched as Safari would, its scripts, and every address
-in them that looks like the social API, to find where a shared bet's legs come from. Writes probe_out/raw/."""
+"""Research probe (GitHub Actions only): how DraftKings' social pages ask for a shared bet. Saves the code around the post
+addresses in the social scripts, then tries the likely requests for two shared posts. Writes probe_out/raw/."""
 import os, re, json, urllib.request, urllib.error
 OUT = 'probe_out/raw'; os.makedirs(OUT, exist_ok=True)
-POST_ID = '6ad98993-fa8f-4113-a07b-5cdc3afb0c47'
-PAGE = f'https://sportsbook.draftkings.com/social/post/{POST_ID}?slipAdd'
+POSTS = ['6ad98993-fa8f-4113-a07b-5cdc3afb0c47', 'a1f8cfd8-b786-47dc-b0f6-cf4e1c97e584']
 UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'
-H = {'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9'}
 log = []
 
 
-def get(url, accept=None):
-    h = dict(H)
-    if accept:
-        h['Accept'] = accept
+def get(url, accept='*/*', extra=None):
+    h = {'User-Agent': UA, 'Accept': accept, 'Accept-Language': 'en-US,en;q=0.9', 'Referer': 'https://sportsbook.draftkings.com/social'}
+    h.update(extra or {})
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=30) as r:
-            return r.status, r.headers.get('content-type', ''), r.read()
+            return r.status, r.headers.get('content-type', ''), r.read(), dict(r.headers)
     except urllib.error.HTTPError as e:
-        return e.code, '', b''
+        return e.code, '', e.read()[:2000] if hasattr(e, 'read') else b'', {}
     except Exception as e:
-        return 0, repr(e)[:120], b''
+        return 0, repr(e)[:120], b'', {}
 
 
-st, ct, body = get(PAGE)
-log.append(f'page {st} {ct} {len(body)}')
-html = body.decode('utf8', 'replace')
-open(f'{OUT}/page.html', 'w').write(html)
-srcs = re.findall(r'<script[^>]+src="([^"]+)"', html)
-log.append('scripts: ' + json.dumps(srcs))
-found = set()
-for s in srcs[:40]:
-    u = s if s.startswith('http') else 'https://sportsbook.draftkings.com' + (s if s.startswith('/') else '/' + s)
-    st, ct, b = get(u, accept='*/*')
+ctx = []
+for s in ('https://sportsbook.draftkings.com/assets/social.f87f492b85014e986915.js', 'https://sportsbook.draftkings.com/social-assets/app.js'):
+    st, ct, b, _ = get(s)
     js = b.decode('utf8', 'replace')
-    log.append(f'script {st} {len(b)} {u[:140]}')
-    for m in re.finditer(r'["\'`]((?:https?:)?//[a-z0-9.\-]*draftkings[a-z0-9.\-]*\.com[^"\'`\s]{0,160}|/[a-z0-9\-_/{}.$]*(?:social|post|bet|slip|share)[a-z0-9\-_/{}.$]*)["\'`]', js, re.I):
-        v = m.group(1)
-        if any(k in v.lower() for k in ('social', 'post', 'share', 'slip')):
-            found.add(v)
-open(f'{OUT}/endpoints.txt', 'w').write('\n'.join(sorted(found)))
-# try the obvious shapes of a post API
-for u in [f'https://sportsbook.draftkings.com/social/api/posts/{POST_ID}', f'https://sportsbook.draftkings.com/api/social/v1/posts/{POST_ID}',
-          f'https://social.draftkings.com/api/v1/posts/{POST_ID}', f'https://api.draftkings.com/social/v1/posts/{POST_ID}',
-          f'https://sportsbook-nash.draftkings.com/api/social/v1/posts/{POST_ID}']:
-    st, ct, b = get(u, accept='application/json')
-    log.append(f'try {st} {ct} {len(b)} {u}')
-    if st == 200 and b:
-        open(f'{OUT}/post_{len(log)}.json', 'wb').write(b)
+    log.append(f'script {st} {len(b)} {s}')
+    for key in ('details.json', 'public.json', 'lookup-bet', 'socialweb', 'social/v1', 'post.json', 'apiUrl', 'socialApiUrl', 'SOCIAL_API', 'baseURL', 'baseUrl'):
+        for m in list(re.finditer(re.escape(key), js))[:4]:
+            ctx.append(f'== {s.split("/")[-1]} :: {key}\n' + js[max(0, m.start() - 600): m.start() + 400])
+open(f'{OUT}/contexts.txt', 'w').write('\n\n'.join(ctx))
+for pid in POSTS:
+    for u in [f'https://sportsbook.draftkings.com/socialweb/v1/feed/post/details.json?postId={pid}',
+              f'https://sportsbook.draftkings.com/socialweb/feed/post/details.json?postId={pid}',
+              f'https://api.draftkings.com/social/v1/feed/post/details.json?postId={pid}',
+              f'https://api.draftkings.com/social/v1/post/public.json?postId={pid}',
+              f'https://api.draftkings.com/social/v1/post.json?postId={pid}',
+              f'https://sportsbook.draftkings.com/social/v1/post/public.json?postId={pid}',
+              f'https://sportsbook.draftkings.com/social/v1/feed/post/details.json?postId={pid}']:
+        st, ct, b, h = get(u, accept='application/json')
+        log.append(f'try {st} {ct} {len(b)} acao={h.get("Access-Control-Allow-Origin") or h.get("access-control-allow-origin")} {u}')
+        if st == 200 and b and 'json' in ct:
+            open(f'{OUT}/{pid[:8]}_{len(log)}.json', 'wb').write(b)
 open(f'{OUT}/log.txt', 'w').write('\n'.join(log))
-print('\n'.join(log)); print(len(found), 'candidate endpoints')
+print('\n'.join(log))
