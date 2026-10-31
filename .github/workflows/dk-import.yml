@@ -1,0 +1,69 @@
+name: Read a DraftKings link
+run-name: DraftKings link ${{ inputs.nonce }}
+
+# Started by the site's "Add from a link" (My bets) when it gets a DraftKings share link. Reads the bet, encrypts it with
+# the key the page sent (only that phone can open it), and leaves it on the dk-inbox branch for the page to pick up.
+on:
+  workflow_dispatch:
+    inputs:
+      post:
+        description: DraftKings share link
+        required: true
+      key:
+        description: The page's public key
+        required: true
+      nonce:
+        description: The page's request id
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dk-import-${{ github.event.inputs.nonce }}
+  cancel-in-progress: false
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the bet
+        env:
+          POST: ${{ github.event.inputs.post }}
+          KEY: ${{ github.event.inputs.key }}
+          NONCE: ${{ github.event.inputs.nonce }}
+        run: |
+          pip install --quiet cryptography
+          python pipeline/dk_import.py
+      - name: Leave the answer for the page
+        env:
+          NONCE: ${{ github.event.inputs.nonce }}
+          URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          mv "out/$NONCE.json" "$RUNNER_TEMP/answer.json"
+          now=$(date +%s)
+          for i in 1 2 3 4 5; do
+            cd "$RUNNER_TEMP"; rm -rf inbox
+            if git clone -q --depth 1 --branch dk-inbox --single-branch "$URL" inbox 2>/dev/null; then
+              cd inbox
+            else
+              git init -q inbox; cd inbox; git remote add origin "$URL"; git checkout -q -b dk-inbox
+              printf "Answers for the site's DraftKings link reader. Each is encrypted for the phone that asked, and removed after a day.\n" > README.md
+            fi
+            git config user.name "sports-edge-bot"; git config user.email "sports-edge-bot@users.noreply.github.com"
+            mkdir -p dk
+            # a request id starts with the page's clock (ms, hex): answers older than a day are no longer needed
+            for f in dk/*.json; do
+              [ -e "$f" ] || continue
+              n=$(basename "$f" .json)
+              if [[ "$n" =~ ^[0-9a-f]{11} ]] && [ $(( now - 16#${n:0:11} / 1000 )) -gt 86400 ]; then git rm -q "$f"; fi
+            done
+            cp "$RUNNER_TEMP/answer.json" "dk/$NONCE.json"
+            git add -A
+            git commit -qm "DraftKings link answer"
+            if git push -q origin HEAD:refs/heads/dk-inbox; then exit 0; fi
+            sleep $((i * 3))
+          done
+          exit 1

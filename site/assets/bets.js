@@ -624,11 +624,12 @@ function showSheet(html){ const sh = $('#sheet'); if (!sh) return false; sh.inne
 function askImport(){
   IMPORT = [];
   showSheet(`<div class="sec-head"><h2 class="h3" id="sheet-title">Add bets from a link</h2><button class="btn tiny" data-impx="">Close</button></div>
-    <div class="form"><div class="f full"><label for="imp-txt">Paste the Sports Edge link you were sent</label><textarea id="imp-txt" rows="4" autocomplete="off" spellcheck="false" placeholder="https://…/?addbets=…"></textarea></div></div>
+    <div class="form"><div class="f full"><label for="imp-txt">Paste a DraftKings share link, or a Sports Edge bets link</label><textarea id="imp-txt" rows="4" autocomplete="off" spellcheck="false" placeholder="https://sportsbook.draftkings.com/social/post/…"></textarea></div></div>
+    <p class="small" style="margin:6px 0 0">In DraftKings, open the bet, tap Share and copy the link.${ghTok() ? ` <button class="linkbtn" data-ghforget="">Remove the GitHub key</button>` : ''}</p>
     <div class="sheet-actions"><span class="note" id="imp-err" role="alert"></span><button class="btn primary" data-imppaste="">Continue</button></div>`);
   setTimeout(() => { const t = $('#imp-txt'); if (t) t.focus(); }, 0);
 }
-function offerImport(list){
+function offerImport(list, notes){
   if (!list || !list.length){ dropImportParam(); return toast("That link doesn't hold any bets I can read."); }
   IMPORT = list;
   list.forEach(b => b.legs.forEach(l => { needGrade(l.sport); decorate(l); }));
@@ -638,11 +639,12 @@ function offerImport(list){
     <div class="imp-list">${list.map(b => `<div class="imp-b"><div class="imp-h"><b>${esc(head(b))}</b>${b.odds != null ? ` <span class="num">${esc(fmtOdds(b.odds))}</span>` : ''} <span class="small">· ${esc(unitsTxt(b.stake))} stake · placed ${esc(new Date(b.created).toLocaleDateString([], {month: 'short', day: 'numeric'}))}</span>${b.note ? `<div class="small">${esc(b.note)}</div>` : ''}</div>
       <ul>${b.legs.map(l => `<li>${mixedTag(l)}${esc(legLabel(l))}${l.mu ? ` <span class="small">· ${esc(l.mu)}</span>` : ''}</li>`).join('')}</ul></div>`).join('')}</div>
     <p class="small" style="margin:8px 0 0">${dup ? (dup === list.length ? 'These are already in My bets; adding them again just refreshes them. ' : `${dup} of these ${dup === 1 ? 'is' : 'are'} already in My bets and will be refreshed. `) : ''}Nothing else in My bets changes. They grade themselves like any other bet.</p>
+    ${notes && notes.length ? `<div class="small imp-notes"><b>Couldn't match ${notes.length === 1 ? 'one leg' : notes.length + ' legs'}</b>, so ${notes.length === 1 ? 'it keeps' : 'they keep'} DraftKings' result (or set ${notes.length === 1 ? 'it' : 'them'} yourself): <ul>${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
     <div class="sheet-actions"><span class="note"></span><button class="btn primary" data-impgo="">Add to My bets</button></div>`);
   setTimeout(() => { const b = $('[data-impgo]'); if (b) b.focus(); }, 0);
 }
 const mixedTag = l => l.sport !== A.sport ? sportTag(l.sport) + ' ' : '';
-function closeImport(){ IMPORT = null; const sh = $('#sheet'); if (sh && !draft){ sh.hidden = true; $('#scrim').hidden = true; } dropImportParam(); }
+function closeImport(){ IMPORT = null; DK.run = 0; const sh = $('#sheet'); if (sh && !draft){ sh.hidden = true; $('#scrim').hidden = true; } dropImportParam(); }
 function doImport(){
   const list = IMPORT; if (!list || !list.length) return;
   const byId = new Map(BETS.map(p => [p.id, p])); list.forEach(p => byId.set(p.id, Object.assign({}, p, {legs: p.legs.map(l => Object.assign({}, l))})));
@@ -652,6 +654,96 @@ function doImport(){
 }
 function dropImportParam(){
   try { const u = new URL(location.href); if (!u.searchParams.has('addbets')) return; u.searchParams.delete('addbets'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch(e){}
+}
+/* ---------- DraftKings share links ----------
+   DraftKings only hands a shared bet to its own pages, so the page asks the site's GitHub Action (dk-import.yml) to read
+   it. That needs a GitHub key (a fine-grained token: this repository, Actions read/write, Contents read), saved on this
+   device only. The page makes a fresh key pair for each link; the Action encrypts the bet with the public half and leaves
+   it on the dk-inbox branch, so the answer in the public repository can only be opened here. */
+const DK = {run: 0, link: ''};
+const GH_KEY = 'sportsedge.ghkey';
+const isDK = t => /draftkings|dkng|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(t) && !/[?&#]addbets=/.test(t);
+function ghTok(){ try { return localStorage.getItem(GH_KEY) || ''; } catch(e){ return ''; } }
+function ghRepo(){
+  const m = location.hostname.match(/^([a-z0-9-]+)\.github\.io$/i), p = location.pathname.split('/').filter(Boolean)[0];
+  return m && p ? `${m[1]}/${p}` : 'gunnarc28-hub/NFL-EDGE';
+}
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+function gh(path, opt){
+  opt = opt || {};
+  return fetch('https://api.github.com/repos/' + ghRepo() + path, Object.assign({cache: 'no-store'}, opt,
+    {headers: Object.assign({Authorization: 'Bearer ' + ghTok(), Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}, opt.headers || {})}));
+}
+function dkSetup(link, msg){
+  DK.link = link; IMPORT = [];
+  const repo = ghRepo();
+  showSheet(`<div class="sec-head"><h2 class="h3" id="sheet-title">Read DraftKings links</h2><button class="btn tiny" data-impx="">Close</button></div>
+    ${msg ? `<p class="note" role="alert" style="color:var(--loss)">${esc(msg)}</p>` : ''}
+    <p class="small" style="margin:0 0 8px">DraftKings only shows a shared bet on its own pages, so your GitHub project reads it for you. That takes a GitHub key, set up once and saved on this device only.</p>
+    <ol class="small gh-steps">
+      <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub's new token page</a> (signed in as ${esc(repo.split('/')[0])}).</li>
+      <li>Name it <b>Sports Edge</b> and pick the longest expiration.</li>
+      <li>Repository access: <b>Only select repositories</b> → <b>${esc(repo.split('/')[1])}</b>.</li>
+      <li>Permissions → Repository permissions: <b>Actions: Read and write</b> and <b>Contents: Read-only</b>. Nothing else.</li>
+      <li>Tap <b>Generate token</b>, copy it and paste it here.</li>
+    </ol>
+    <div class="form"><div class="f full"><label for="gh-tok">GitHub key</label><input id="gh-tok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div></div>
+    <div class="sheet-actions"><span class="note" id="imp-err" role="alert"></span><button class="btn primary" data-ghsave="">Save and read the bet</button></div>`);
+  setTimeout(() => { const t = $('#gh-tok'); if (t) t.focus(); }, 0);
+}
+function dkStatus(t, err){
+  const e = $('#dk-st'); if (e){ e.textContent = t; e.style.color = err ? 'var(--loss)' : ''; }
+  const sp = $('#dk-spin'); if (sp && err) sp.hidden = true;
+}
+async function dkRead(link){
+  if (!ghTok()) return dkSetup(link);
+  if (!(window.crypto && crypto.subtle)) return toast("This browser can't open the encrypted answer.");
+  const run = DK.run = Date.now(); DK.link = link; IMPORT = [];
+  showSheet(`<div class="sec-head"><h2 class="h3" id="sheet-title">Reading the bet</h2><button class="btn tiny" data-impx="">Cancel</button></div>
+    <p class="dk-wait"><span class="spin" id="dk-spin" aria-hidden="true"></span><span id="dk-st" role="status">Asking GitHub…</span></p>
+    <p class="small">This usually takes about a minute. You can leave this open.</p>
+    <div class="sheet-actions"><span class="note"></span><button class="btn" data-ghforget="">Use a different GitHub key</button></div>`);
+  const stale = () => DK.run !== run;
+  try {
+    const keys = await crypto.subtle.generateKey({name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256'}, false, ['encrypt', 'decrypt']);
+    const pub = b64(await crypto.subtle.exportKey('spki', keys.publicKey));
+    const nonce = Date.now().toString(16).padStart(11, '0') + Array.from(crypto.getRandomValues(new Uint8Array(8)), x => x.toString(16).padStart(2, '0')).join('');
+    const r = await gh('/actions/workflows/dk-import.yml/dispatches', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ref: 'main', inputs: {post: link.trim().slice(0, 500), key: pub, nonce}})});
+    if (stale()) return;
+    if (r.status === 401) return dkSetup(link, 'GitHub turned that key down (it may have expired). Make a new one below.');
+    if (r.status === 403 || r.status === 404) return dkSetup(link, "That key can't start the reader. Check it's for " + ghRepo().split('/')[1] + ' with Actions: Read and write.');
+    if (!r.ok) return dkStatus(`GitHub said no (${r.status}). Try again in a minute.`, true);
+    dkStatus('Waiting for GitHub to start…');
+    const t0 = Date.now(); let n = 0, runId = null;
+    while (!stale() && Date.now() - t0 < 240e3){
+      await new Promise(res => setTimeout(res, n++ < 3 ? 6000 : 4000));
+      if (stale()) return;
+      const a = await gh(`/contents/dk/${nonce}.json?ref=dk-inbox&t=${Date.now()}`, {headers: {Accept: 'application/vnd.github.raw+json'}}).catch(() => null);
+      if (a && a.ok){
+        const box = await a.json();
+        const k = await crypto.subtle.decrypt({name: 'RSA-OAEP'}, keys.privateKey, unb64(box.k));
+        const aes = await crypto.subtle.importKey('raw', k, 'AES-GCM', false, ['decrypt']);
+        const res = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(box.iv)}, aes, unb64(box.ct))));
+        if (stale()) return;
+        if (res.error) return dkStatus(res.error, true);
+        const list = (res.bets || []).map(cleanBet).filter(Boolean);
+        DK.run = 0;
+        return offerImport(list, res.notes);
+      }
+      if (n % 2 === 0){                                   // is the run still going?
+        const q = await gh('/actions/workflows/dk-import.yml/runs?event=workflow_dispatch&per_page=10').then(x => x.ok ? x.json() : null).catch(() => null);
+        const w = q && (q.workflow_runs || []).find(x => runId ? x.id === runId : String(x.display_title || '').includes(nonce));
+        if (w){
+          runId = w.id;
+          if (w.status === 'completed' && w.conclusion !== 'success') return dkStatus("GitHub couldn't read that bet (the run stopped). Try again in a minute.", true);
+          dkStatus(w.status === 'completed' ? 'Picking up the answer…' : 'Reading the bet…');
+        }
+      }
+    }
+    if (!stale()) dkStatus("No answer from GitHub yet. Try again in a minute; Actions can be slow to start.", true);
+  } catch(e){ if (!stale()) dkStatus("Couldn't reach GitHub. Check your connection and try again.", true); }
 }
 function actualTxt(l, x){
   if (x.actual == null) return '';
@@ -770,7 +862,7 @@ function saveCustomLeg(){
 }
 
 /* ---------- events ---------- */
-const SLIP_SEL = '[data-ob],[data-slipopen],[data-slipclose],[data-slipclear],[data-slipplace],[data-slipcustom],[data-slmode],[data-slside],[data-sldel],[data-addpick],[data-delbet],[data-betres],[data-legres],[data-betfix],[data-pfsport],[data-pkbackup],[data-impask],[data-impgo],[data-impx],[data-imppaste]';
+const SLIP_SEL = '[data-ob],[data-slipopen],[data-slipclose],[data-slipclear],[data-slipplace],[data-slipcustom],[data-slmode],[data-slside],[data-sldel],[data-addpick],[data-delbet],[data-betres],[data-legres],[data-betfix],[data-pfsport],[data-pkbackup],[data-impask],[data-impgo],[data-impx],[data-imppaste],[data-ghsave],[data-ghforget]';
 let wired = false;
 function wire(){
   if (wired) return; wired = true;
@@ -792,7 +884,17 @@ function wire(){
     if (d.impask != null){ askImport(); return; }
     if (d.impgo != null){ doImport(); return; }
     if (d.impx != null){ closeImport(); return; }
-    if (d.imppaste != null){ const t = $('#imp-txt'), list = decodeBets(t ? t.value : ''); if (!list || !list.length){ const er = $('#imp-err'); if (er) er.textContent = "That isn't a Sports Edge bets link."; return; } offerImport(list); return; }
+    if (d.imppaste != null){
+      const t = $('#imp-txt'), v = t ? t.value : '';
+      if (isDK(v)){ dkRead(v); return; }
+      const list = decodeBets(v); if (!list || !list.length){ const er = $('#imp-err'); if (er) er.textContent = "That isn't a DraftKings share link or a Sports Edge bets link."; return; } offerImport(list); return; }
+    if (d.ghsave != null){
+      const t = $('#gh-tok'), v = (t ? t.value : '').trim();
+      if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)){ const er = $('#imp-err'); if (er) er.textContent = "That doesn't look like a GitHub key (they start with github_pat_)."; return; }
+      try { localStorage.setItem(GH_KEY, v); } catch(e){ toast("Couldn't save the key on this device."); return; }
+      if (DK.link) dkRead(DK.link); else { closeImport(); toast('GitHub key saved'); }
+      return; }
+    if (d.ghforget != null){ try { localStorage.removeItem(GH_KEY); } catch(e){} DK.run = 0; const l = DK.link; if (l && $('#dk-st')) dkSetup(l); else { closeImport(); toast('GitHub key removed from this device'); } return; }
     if (d.delbet){
       if (d.confirm === '1'){ deleteBet(d.delbet); toast('Bet deleted'); }
       else { t.dataset.confirm = '1'; t.textContent = 'Tap again to delete'; setTimeout(() => { if (t.isConnected){ t.dataset.confirm = ''; t.textContent = 'Delete'; } }, 3000); }

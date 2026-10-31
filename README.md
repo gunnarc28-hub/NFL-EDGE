@@ -22,6 +22,12 @@ loads every page; after a code change it also clicks through every tab in a phon
   who doesn't play is void (NFL: snap counts), and DraftKings' Early Exit voids a full-game NFL over or yes prop on a
   player who left hurt in the 1st half and never returned (`pipeline/early_exit.py`, from the play-by-play's injury
   notes). A parlay drops void legs and pays on the rest.
+  A DraftKings share link pasted in Add from a link is read by `.github/workflows/dk-import.yml`
+  (`pipeline/dk_import.py`): DraftKings only answers its own pages, so the page starts that workflow with a GitHub key
+  saved on the device (fine-grained: this repository, Actions read/write, Contents read). The page sends a fresh public
+  key; the workflow matches each leg to the site's games and players, encrypts the bet for that page and leaves it on the
+  `dk-inbox` branch (answers older than a day are removed). Legs it can't match come back as "other" legs with
+  DraftKings' result.
 - `pipeline/build.py`: the NFL build. Sources: nflverse (play-by-play, player stats, schedules and lines, snap counts,
   Next Gen Stats), the official NFL injury report from NFL.com (nflverse's copy as a backup) and ESPN (injury status,
   expected return dates, live scores).
