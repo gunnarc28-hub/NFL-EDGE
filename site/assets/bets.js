@@ -673,7 +673,7 @@ const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 function gh(path, opt){
   opt = opt || {};
   return fetch('https://api.github.com/repos/' + ghRepo() + path, Object.assign({cache: 'no-store'}, opt,
-    {headers: Object.assign({Authorization: 'Bearer ' + ghTok(), Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}, opt.headers || {})}));
+    {headers: Object.assign({Authorization: 'Bearer ' + ghTok(), Accept: 'application/vnd.github+json'}, opt.headers || {})}));
 }
 function dkSetup(link, msg){
   DK.link = link; IMPORT = [];
