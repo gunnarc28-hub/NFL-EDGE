@@ -60,6 +60,7 @@ jobs:
               n=$(basename "$f" .json)
               if [[ "$n" =~ ^[0-9a-f]{11} ]] && [ $(( now - 16#${n:0:11} / 1000 )) -gt 86400 ]; then git rm -q "$f"; fi
             done
+            mkdir -p dk                                       # removing the last old answer removes the folder too
             cp "$RUNNER_TEMP/answer.json" "dk/$NONCE.json"
             git add -A
             git commit -qm "DraftKings link answer"
