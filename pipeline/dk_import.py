@@ -140,6 +140,9 @@ def team_of(sp, label):
 
 def leg_of(ids, s, sp, gid, away, home):
     off, out = (s.get('offerLabel') or '').strip(), (s.get('outcomeLabel') or '').strip()
+    off = re.sub(r'^Live\s+', '', off)                  # live bets grade on the same final result
+    off = re.sub(r'^Spread Alternate$|^Alternate Spread$', 'Spread', off)
+    off = re.sub(r'^(Total Points?|Total) Alternate$|^Alternate Total( Points)?$', 'Total', off)
     base = {'sport': sp, 'game': gid or '', 'odds': amer(s.get('playedOddsAmerican'))}
     other = dict(base, market='other', label=f'{off}: {out}' if off else out)
     if s.get('status') in RES:
