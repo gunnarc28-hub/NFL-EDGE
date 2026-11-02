@@ -1,0 +1,6 @@
+nba data.json 504298
+nba summary.json 1289
+nhl data.json 286340
+nhl summary.json 1411
+nfl data.json 890330
+nfl summary.json 2625
