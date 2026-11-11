@@ -10,8 +10,8 @@ def get(u, name):
         open(f'{OUT}/{name}', 'wb').write(b); log.append(f'{name} {len(b)}'); return b
     except Exception as e:
         log.append(f'{name} {e}')
-for f in ('data.json', 'logs.json', 'odds_log.json'):
-    get(f'{LIVE}nba/data/{f}?t={t}', f'nba_{f}')
+for sp in ('nba', 'nhl'):
+    get(f'{LIVE}{sp}/data/data.json?t={t}', f'{sp}_data.json')
 try:
     d = json.load(open(f'{OUT}/nba_data.json'))
     for p in d['props']:
