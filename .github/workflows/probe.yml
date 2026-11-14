@@ -1,0 +1,38 @@
+name: Probe sources
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r pipeline/requirements.txt
+      - run: |
+          base="https://gunnarc28-hub.github.io/NFL-EDGE"
+          for s in nfl nba nhl; do mkdir -p "site/$s/data"; for f in data.json logs.json grade.json summary.json odds_log.json parts_log.json; do
+            curl -fsSL --retry 2 --max-time 60 "$base/$s/data/$f?t=$(date +%s)" -o "site/$s/data/$f" || rm -f "site/$s/data/$f"; done; done
+          mkdir -p probe_out/logs
+          python pipeline/nba.py > probe_out/logs/nba.log 2>&1 || echo "::error title=nba::failed"
+          python pipeline/nhl.py > probe_out/logs/nhl.log 2>&1 || echo "::error title=nhl::failed"
+          python pipeline/build.py > probe_out/logs/nfl.log 2>&1 || echo "::error title=nfl::failed"
+          for s in nfl nba nhl; do mkdir -p probe_out/$s; cp site/$s/data/data.json site/$s/data/grade.json site/$s/data/summary.json probe_out/$s/ 2>/dev/null; done
+          tail -n 5 probe_out/logs/*.log
+      - name: Save raw copies to the probe-data branch
+        run: |
+          date -u +%FT%TZ > probe_out/when.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan probe-data
+          git rm -rfq --cached .
+          git add -f probe_out
+          git commit -qm "Raw source snapshot"
+          git push -qf origin probe-data
