@@ -19,6 +19,7 @@ CACHE = os.path.join(HERE, '.cache', 'nba')
 LIVE = 'https://gunnarc28-hub.github.io/NFL-EDGE/nba/data/'
 NOW = pd.Timestamp(os.environ['SE_NOW']).tz_convert('UTC') if os.environ.get('SE_NOW') else pd.Timestamp.now(tz='UTC')     # SE_NOW pins the clock for tests
 S = json.load(open(os.path.join(HERE, 'static', 'nba_model.json')))
+V2 = json.load(open(os.path.join(HERE, 'static', 'nba_props_v2.json')))      # research_work/nba_fit_export.py: fair chances anchored to the book
 SEASON = NOW.year + 1 if NOW.month >= 8 else NOW.year            # hoopR labels a season by the year it ends
 SLATE = sl.slate_day(NOW)
 TEAMS = stt.table('nba')
@@ -398,18 +399,22 @@ lg_rate = {}
 cur = pl[pl.t > NOW - pd.Timedelta(days=400)]
 for pos1, x in cur.groupby('pos1'):
     lg_rate[pos1] = {k: float(x[k].sum() / max(x['min'].sum(), 1)) for k in STATS}
+HLR, PRIOR = V2['half_life_rate'], V2['prior_minutes']                  # faster form, lighter prior: tested on 2025-26 and this season
 for pid, x in grp:
     if x.t.iloc[-1] < NOW - pd.Timedelta(days=200):
         continue
-    n = len(x); m_ewr = ew_last(x['min'], PR['half_life_rate'])
+    n = len(x); m_ewr = ew_last(x['min'], HLR)
+    st_ = x.starter.astype(str).str.lower().isin(['true', '1']).astype(float)
     f = {'n': n, 'min_ew': ew_last(x['min'], PR['half_life_min']), 'min_l10': float(x['min'].tail(10).mean()), 'min_ewr': m_ewr,
-         'started': float(x.starter.astype(str).str.lower().isin(['true', '1']).astype(float).ewm(halflife=3, min_periods=1).mean().iloc[-1]),
+         'min_ew18': ew_last(x['min'], 18), 'min_last': float(x['min'].iloc[-1]), 'started_last': float(st_.iloc[-1]),
+         'n_season': int((x.season == SEASON).sum()),
+         'started': float(st_.ewm(halflife=3, min_periods=1).mean().iloc[-1]),
          'team': x.team_abbreviation.iloc[-1], 'last': x.t.iloc[-1], 'last_day': pd.Timestamp(sl.et_day(x.t.iloc[-1])), 'pos1': x.pos1.iloc[-1]}
     lr = lg_rate.get(f['pos1']) or lg_rate.get('F')
     w = m_ewr * min(n, 30)
     for k in STATS:
-        r = ew_last(x[k], PR['half_life_rate']) / max(m_ewr, 1)
-        f[k + '_rate'] = (r * w + lr[k] * PR['prior_minutes']) / (w + PR['prior_minutes'])
+        r = ew_last(x[k], HLR) / max(m_ewr, 1)
+        f[k + '_rate'] = (r * w + lr[k] * PRIOR) / (w + PRIOR)
     FORM[pid] = f
 # opponents: what each defense allows per 48, and pace
 tg = pl.groupby(['game_id', 'team_abbreviation', 'opponent_team_abbreviation', 't'])[STATS + ['min']].sum().reset_index().sort_values('t')
@@ -433,8 +438,9 @@ def project(pid, g, team, opp, line_abs, minutes_scale=1.0):
         return None
     prev_day = (pd.Timestamp(g.day) - pd.Timedelta(days=1)).date().isoformat()
     b2b = int((pd.Timestamp(g.day) - f['last_day']).days <= 1 or (team, prev_day) in PENDING)     # he played (or plays) yesterday, Eastern
-    c = PR['min_coef']
-    mp = c[0] + c[1] * f['min_ew'] + c[2] * f['min_l10'] + c[3] * f['started'] + c[4] * f['min_ew'] * line_abs / 10 + c[5] * b2b
+    c = V2['min_coef_v2']           # minutes: recent average, last game, starting, back-to-back, first game of the season
+    mp = (c[0] + c[1] * f['min_ew'] + c[2] * f['min_l10'] + c[3] * f['started'] + c[4] * b2b + c[5] * f['min_last'] + c[6] * f['started_last']
+          + c[7] * (f['n_season'] == 0) + c[8] * f['min_ew18'])
     mp = float(np.clip(mp * minutes_scale, 0, 44))
     pace_f = ((PACE.get(team, PACE_LG) + PACE.get(opp, PACE_LG)) / 2) / PACE_LG
     out = {'min': round(mp, 1)}
@@ -512,6 +518,42 @@ def blend(k, p_model, p_book):
 
 def dec(o):
     return 1 + (o / 100 if o > 0 else 100 / abs(o))
+
+
+def sane_book(bo, p, tol=0.2):
+    """A milestone (X+) price from ESPN's feed, or None when it can't be the real price of that rung: in four seasons of ESPN's
+    records, rungs well below the main line were often listed near even money and hit 94-98% of the time (a 7+ rebounds
+    rung for a 13-rebound player at +710). A real price sits within about 20 points of a calibrated chance."""
+    if not bo or bo.get('odds') is None or p is None:
+        return None
+    return bo['odds'] if abs(sl.implied(bo['odds']) - p) <= tol else None
+
+
+def fair_p(k, p_model, p_book):
+    """The fair chance of the over: the book's no-vig chance, corrected for the lean every market has toward the under
+    (overs at these lines hit 1-3 points less often than the book's price says), plus the model's small, tested say.
+    Fit on 287,000 main lines, 2023-24 to now (research_work/nba_fit_export.py)."""
+    if p_book is None:
+        return p_model
+    a, b, c = V2['fair'].get(k, [0.0, 1.0, 0.0])
+    pm = min(max(p_model, 0.02), 0.98); pb = min(max(p_book, 0.02), 0.98)
+    return sgm(a + b * lgt(pb) + c * (lgt(pm) - lgt(pb)))
+
+
+def mu_for(k, line, p):
+    """the projection at which the model's spread of outcomes gives chance p of beating this line"""
+    lo, hi = 0.05, 120.0
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if p_over(k, mid, line) < p: lo = mid
+        else: hi = mid
+    return (lo + hi) / 2
+
+
+def mean_at(k, mu):
+    """the average outcome when the projection is mu (the outcome spread around a projection isn't symmetric)"""
+    q = next((q for hi, q in DIST[k] if mu <= hi), DIST[k][-1][1])
+    return float(np.trapezoid(q, QS) * mu)
 
 
 def book_lines(gid):
@@ -593,15 +635,20 @@ for g in SHOW.itertuples():
                 continue
             lns = lines.get(pid, {})
             item = {'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'home': side == 'h', 'pos': POS.get(pid, ''),
-                    'min': pr['min'], 'proj': {k: round(pr[k], 2) for k in ALL},
+                    'min': pr['min'], 'proj': {k: round(pr[k], 2) for k in ALL}, 'proj_model': {k: round(pr[k], 2) for k in ALL},
                     'avg': {k: round(float(np.mean(v)), 1) for k in ('pts', 'reb', 'ast', 'fg3m', 'pra') for v in [last_n(pid, k)] if v},
                     'inj': {'level': e['level'], 'status': e['status'], 'detail': e['injury']} if e else None, 'lines': {}, 'bump': pr.get('bump')}
             for k, ln in lns.items():
                 if k not in ALL or not isinstance(ln, dict):
                     continue
-                pm = p_over(k, pr[k], ln['line']); pb = ln['p_book']; p = blend(k, pm, pb)
+                pm = p_over(k, pr[k], ln['line']); pb = ln['p_book']; p = fair_p(k, pm, pb)
+                mu = mu_for(k, ln['line'], p)            # the projection the fair chance implies: typed lines are priced from it
                 item['lines'][k] = {'line': ln['line'], 'o': ln['o'], 'u': ln['u'], 'open': ln['open'], 'p_book': round(pb, 4), 'p_model': round(pm, 4), 'p': round(p, 4),
-                                    'ev_o': round(p * dec(ln['o']) - 1, 4), 'ev_u': round((1 - p) * dec(ln['u']) - 1, 4), 'book': ln['book']}
+                                    'mu': round(mu, 3), 'ev_o': round(p * dec(ln['o']) - 1, 4), 'ev_u': round((1 - p) * dec(ln['u']) - 1, 4), 'book': ln['book']}
+                # the shown projection leans on the line, which predicted results better than box scores alone in every market
+                # but steals and blocks (2025-26 and this season)
+                w_ = V2['mix_line'].get(k, 0.0)
+                item['proj'][k] = round(w_ * mean_at(k, mu) + (1 - w_) * pr[k], 2)
             # 1st quarter and 1st half: his share of the game depends on whether he starts (research/nba_nhl/nba_13_player_periods.py)
             S_ = min(max(float((FORM.get(pid) or {}).get('started', 0.0)), 0.0), 1.0); M_ = pr['min'] / 36
             item['pq'] = {pt_: {k: round(min(1.0, max(0.02, b[0] + b[1] * S_ + b[2] * M_ + b[3] * S_ * M_)) * pr[k], 2)
@@ -633,7 +680,7 @@ for g in SHOW.itertuples():
                 bo = yes.get((k + '+', float(t)))
                 HC.append({'kind': 'player', 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day, 'key': k, 't': t,
                            'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(pr[k], 1), 'min': pr['min'], 'avg': round(float(np.mean(ln)), 1) if ln else None,
-                           'hits': [hits, len(ln)], 'book': bo['odds'] if bo else None, 'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}",
+                           'hits': [hits, len(ln)], 'book': sane_book(bo, pt), 'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}",
                            'reason': f"{NAMES.get(pid).split(' ')[-1]} has reached {t}+ {SHORT[k]} in {hits} of his last {len(ln)} games, averaging {np.mean(ln):.1f}. "
                                      f"Projected for {pr[k]:.1f} in about {pr['min']:.0f} minutes against {opp}."})
             # ---- long shots: big games with a real chance
@@ -644,7 +691,7 @@ for g in SHOW.itertuples():
                         ln = last_n(pid, k, 20); hits = sum(1 for v in ln if v >= t)
                         bo = yes.get((k + '+', float(t)))
                         LS.append({'type': k + '+', 'key': k, 't': t, 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day,
-                                   'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': bo['odds'] if bo else None, 'proj': round(pr[k], 1), 'hits': [hits, len(ln)],
+                                   'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': sane_book(bo, pt), 'proj': round(pr[k], 1), 'hits': [hits, len(ln)],
                                    'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}", 'group': k,
                                    'reason': f"Projected {pr[k]:.1f} {SHORT[k]}; reached {t}+ in {hits} of his last {len(ln)} games."})
                         break
@@ -655,7 +702,7 @@ for g in SHOW.itertuples():
                     cnt = ((x[['pts', 'reb', 'ast', 'stl', 'blk']] >= 10).sum(axis=1) >= need).sum()
                     bo = yes.get((key, None)) or next((v for (kk, _), v in yes.items() if kk == key), None)
                     LS.append({'type': key, 'key': key, 't': None, 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day,
-                               'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': bo['odds'] if bo else None, 'proj': None, 'hits': [int(cnt), len(x)],
+                               'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': sane_book(bo, pt, 0.25), 'proj': None, 'hits': [int(cnt), len(x)],
                                'label': f"{NAMES.get(pid)} {nm}", 'group': key,
                                'reason': f"{int(cnt)} {nm}s in his last {len(x)} games. Projected {pr['pts']:.0f} pts, {pr['reb']:.0f} reb, {pr['ast']:.0f} ast."})
 # team-level high-chance: the model's strongest moneyline favorites
@@ -1069,7 +1116,8 @@ meta = {'sport': LG, 'season': season_label, 'season_prev': f'{SEASON - 2}-{str(
 data = {'meta': meta, 'teams': TEAMS_OUT, 'games': games_out, 'injuries': inj_out, 'props': PROPS, 'high_chance': HC, 'long_shots': LS,
         'trends': {'player': TRENDS_P[:60], 'team': TRENDS_T[:40]},
         'model': {'record': REC, 'log': model_log[-400:], 'backtest': BT_, 'coef': MM['coef'], 'features': MM['features']},
-        'research': {'props': PBT, 'situational': S['situational'], 'carry': S['carry'], 'blend': BL},
+        'research': {'props': PBT, 'situational': S['situational'], 'carry': S['carry'], 'blend': BL,
+                     'fair': {'check': V2['fair_check'], 'lines': V2['lines'], 'seasons': V2['seasons'], 'mix_line': V2['mix_line']}},
         'dist': dist_out,
         'parts_model': {'curves': {k: v['logit'] for k, v in NPP['model'].items()}, 'seasons': NPARTS['fit_seasons'],
                         'check': NPARTS['check'], 'fb_check': NFB['check'], 'fb_seasons': NFB['fit_seasons']}}

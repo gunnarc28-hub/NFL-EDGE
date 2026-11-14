@@ -324,6 +324,10 @@ def prop_lines(lg, ev):
     return []
 
 
+FULL_NFL = {   # full-game player lines (ESPN carries DraftKings' NFL lines; their prices often come through empty)
+    'Total Passing Yards (incl. overtime)': 'pass_yds', 'Total Rushing Yards (incl. overtime)': 'rush_yds', 'Total Receiving Yards (incl. overtime)': 'rec_yds',
+    'Total Receptions (incl. overtime)': 'receptions', 'Total Passing Yards': 'pass_yds', 'Total Rushing Yards': 'rush_yds', 'Total Receiving Yards': 'rec_yds',
+    'Total Receptions': 'receptions'}
 PART_WORDS = {'1st Quarter': 'q1', '2nd Quarter': 'q2', '3rd Quarter': 'q3', '4th Quarter': 'q4', '1st Half': 'h1', '2nd Half': 'h2',
               '1st Period': 'p1', '2nd Period': 'p2', '3rd Period': 'p3'}
 PART_PLAYER = {   # book's market name -> (part, key, kind); kind 'ou' = over/under pair, 'yes' = a milestone or a scorer
@@ -345,7 +349,7 @@ def part_lines(lg, ev, team_of):
      'fb': {athlete: odds}, 'team_fg': {athlete: odds}, 'first_team': {team: odds},
      'players': {athlete: {'q1_pts': {'yes': {t: odds}} or {'ou': [line, over, under]}}}, 'book': name}"""
     items, book = prop_items(lg, ev)
-    out = {'parts': {}, 'fb': {}, 'team_fg': {}, 'first_team': {}, 'players': {}, 'book': book}
+    out = {'parts': {}, 'fb': {}, 'team_fg': {}, 'first_team': {}, 'players': {}, 'full': {}, 'book': book}
     seen = {}
     for it in items:
         nm = ((it.get('type') or {}).get('name')) or ''
@@ -373,6 +377,14 @@ def part_lines(lg, ev, team_of):
             out['team_fg'][aid] = o
         elif nm == 'First Team to Score' and tm:
             out['first_team'][tm] = o
+        elif lg == 'nfl' and nm in FULL_NFL and aid and line is not None:
+            cur = it.get('current') or {}
+            n_ = seen.get(('fg', aid, nm, line), 0); seen[('fg', aid, nm, line)] = n_ + 1
+            side = 'over' if 'over' in cur else 'under' if 'under' in cur else ('over' if n_ == 0 else 'under' if n_ == 1 else None)
+            if side:
+                pr_ = out['full'].setdefault(aid, {}).setdefault(FULL_NFL[nm], {}).setdefault(line, {})
+                pr_[side] = o
+                pr_['marked'] = pr_.get('marked') or ('over' in cur or 'under' in cur)
         elif nm in PART_PLAYER and aid:
             part, key, kind = PART_PLAYER[nm]
             e = out['players'].setdefault(aid, {}).setdefault(f'{part}_{key}', {})
@@ -387,6 +399,16 @@ def part_lines(lg, ev, team_of):
                     e['ou'] = [line, o, None]
                 elif n_ == 1 and e.get('ou') and e['ou'][0] == line:
                     e['ou'][2] = o
+    # full-game lines: the line listed with both an over and an under (ESPN BET lists alternate lines unmarked beside it)
+    full = {}
+    for a, mk in out['full'].items():
+        for k, lines in mk.items():
+            both = [(L, v) for L, v in lines.items() if 'over' in v and 'under' in v]
+            if not both:
+                continue
+            L, v = sorted(both, key=lambda z: (not z[1].get('marked'), abs(implied(z[1]['over']) - 0.5) if z[1]['over'] is not None else 0))[0]
+            full.setdefault(a, {})[k] = [L, v['over'], v['under']]
+    out['full'] = full
     out['parts'] = {k: v for k, v in out['parts'].items() if k and v}
     out['players'] = {a: {k: v for k, v in d.items() if v} for a, d in out['players'].items()}
     out['players'] = {a: d for a, d in out['players'].items() if d}

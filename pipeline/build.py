@@ -797,7 +797,7 @@ try:
     GSIS2ESPN = {r.gsis_id: str(int(float(r.espn_id))) for r in _ro.itertuples() if str(r.espn_id).replace('.0', '').isdigit()}
 except Exception as e:
     print('rosters for ESPN ids unavailable:', repr(e)[:120])
-n_book = 0
+n_book = n_full = 0
 for gm in games:
     if gm['final'] or gm['model'] is None:
         continue
@@ -829,9 +829,13 @@ for gm in games:
             e_id = GSIS2ESPN.get(pr_['id'])
             if bk_ and e_id and (bk_['players'] or {}).get(e_id):
                 pr_['pl'] = bk_['players'][e_id]
+            if bk_ and e_id and (bk_.get('full') or {}).get(e_id):          # the book's full-game lines (prices when ESPN has them)
+                pr_['lines'] = {k_: {'line': v_[0], 'o': v_[1], 'u': v_[2], 'book': bk_['book']} for k_, v_ in bk_['full'][e_id].items()}
+                n_full += 1
     except Exception as e:                                # never worth losing the whole build over
         print('quarters for', gm['id'], 'failed:', repr(e)[:160])
-print('quarters and halves:', sum(1 for gm in games if gm.get('parts')), 'games', '| with book lines', n_book, '| ESPN ids for', len(GSIS2ESPN), 'players')
+print('quarters and halves:', sum(1 for gm in games if gm.get('parts')), 'games', '| with book lines', n_book, '| ESPN ids for', len(GSIS2ESPN), 'players',
+      '| players with full-game book lines', n_full)
 
 # ------------------------------------------------------------------ trends (must last 2+ weeks)
 CARRY = {r['trend']: r for r in TR['team'] + TR['player']}
@@ -1680,7 +1684,8 @@ for r in m_all[m_all.season.isin([SEASON - 1, SEASON])].sort_values(['season', '
                                              f3(r.o_success), f3(r.d_success), f3(r.o_pass_epa), f3(r.o_rush_epa), f3(r.o_ypg), f3(r.d_ypg), sp_, tl_])
 print('chart logs:', len(player_logs), 'players,', len(team_logs), 'teams')
 
-research = {'team': R['research'], 'market_r': R['market_r'], 'market_su_acc': R['market_su_acc'], 'n_games': R['n_games'],
+LINE_REC = json.load(open(os.path.join(HERE, 'static', 'nfl_line_record.json')))
+research = {'line_record': LINE_REC, 'team': R['research'], 'market_r': R['market_r'], 'market_su_acc': R['market_su_acc'], 'n_games': R['n_games'],
             'margin_coef': R['margin_coef'], 'ats_backtest': R['ats_backtest'], 'ou_backtest': R['ou_backtest'], 'ml_backtest': R['ml_backtest'],
             'player': {k: {'predictors': v['predictors'], 'mae_model': v['mae_model'], 'mae_season_avg': v['mae_season_avg'],
                            'r_model': v['r_model'], 'r_season_avg': v['r_season_avg'], 'n_test': v['n_test']} for k, v in PR['props'].items()},

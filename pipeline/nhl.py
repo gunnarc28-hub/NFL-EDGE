@@ -484,11 +484,42 @@ BLEND = {'points': PP['blend'].get('points', 0), 'assists': PP['blend'].get('ass
          'blocks': PP['blend'].get('blocked_shots', 0), 'saves': 0.3}
 
 
+V2 = json.load(open(os.path.join(HERE, 'static', 'nhl_props_v2.json')))    # research_work/nhl_eval.py: 2023-24 to now
+
+
 def blend(k, pm, pb):
+    """The fair chance of the over: the book's no-vig chance with its lean toward the over taken out (overs at the main lines hit
+    1-4 points less often than the book's price says, in every market), plus the model's tested share."""
     if pb is None:
         return pm
     w = BLEND.get(k, 0.0); pm = min(max(pm, 0.02), 0.98); pb = min(max(pb, 0.02), 0.98)
-    return sgm((1 - w) * lgt(pb) + w * lgt(pm))
+    a, b = V2['fair'].get(k, [0.0, 1.0])
+    return sgm(a + b * lgt(pb) + w * (lgt(pm) - lgt(pb)))
+
+
+def sane_book(odds, p, tol=0.2):
+    """a milestone price from ESPN's feed only when it can be the real price of that rung (see nba.py's sane_book)"""
+    return odds if odds is not None and p is not None and abs(sl.implied(odds) - p) <= tol else None
+
+
+def goal_fair(p_model, odds):
+    """Anytime goal. With a price, the book's chance with its margin taken out (prices imply 17.5% on average; players score
+    15.3%), because the model's own chance ran hot against the price (betting it where it beat the price lost 8%). Without one,
+    the model's chance, eased by the same amount it ran high (16.2% vs 15.0%)."""
+    if odds is not None:
+        a, b = V2['fair']['atg']
+        return sgm(a + b * lgt(min(max(sl.implied(odds), 0.01), 0.95)))
+    return sgm(lgt(min(max(p_model, 0.005), 0.95)) - 0.085) if p_model is not None else None
+
+
+def lam_for(k, line, p):
+    """the expected count at which this market's chance of beating the line is p (for pricing other lines the same way)"""
+    lo, hi = 0.001, 40.0
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if p_over(k, mid, line) < p: lo = mid
+        else: hi = mid
+    return (lo + hi) / 2
 
 
 # ================================================================== the slate: lines, props, high-chance picks and long shots
@@ -594,10 +625,13 @@ for g in SHOW.itertuples():
                     continue
                 pm = p_over(k, pr[k], ln['line']); pb = ln['p_book']; pp_ = blend(k, pm, pb)
                 item['lines'][k] = {'line': ln['line'], 'o': ln['o'], 'u': ln['u'], 'open': ln['open'], 'p_book': round(pb, 4), 'p_model': round(pm, 4), 'p': round(pp_, 4),
+                                    'mu': round(lam_for(k, ln['line'], pp_), 4),
                                     'ev_o': round(pp_ * dec(ln['o']) - 1, 4), 'ev_u': round((1 - pp_) * dec(ln['u']) - 1, 4), 'book': ln['book']}
             for (yk, yl), x in lns.get('yes', {}).items():
                 if yk in ('atg', 'first_goal', 'g2') and x['odds']:
                     item['yes'][yk] = x['odds']
+            item['p_goal_model'] = item['p_goal']
+            item['p_goal'] = round(goal_fair(item['p_goal'], item['yes'].get('atg')), 4)
             if g.state == 'pre':
                 PROPS.append(item)
             if g.state != 'pre':
@@ -616,11 +650,11 @@ for g in SHOW.itertuples():
                     word = 'shots on goal' if k == 'sog' else 'blocked shots'
                     HC.append({'kind': 'player', 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'key': k, 't': t,
                                'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(pr[k], 2), 'avg': round(float(np.mean(r)), 2) if r else None, 'hits': [hits, len(r)],
-                               'book': (lns.get('yes', {}).get((k + '+', float(t))) or {}).get('odds'), 'label': f"{nm} {t}+ {word}",
+                               'book': sane_book((lns.get('yes', {}).get((k + '+', float(t))) or {}).get('odds'), pt), 'label': f"{nm} {t}+ {word}",
                                'reason': f"{short} has {t}+ {word} in {hits} of his last {len(r)} games and is projected for {pr[k]:.1f} in about {pr['toi']:.0f} minutes."})
             # ---- long shots: goals, multi-point games, the first goal, big shot nights
             yes = lns.get('yes', {})
-            for key, pt, label, book_key in (('atg', p_atleast('goals', pr['goals'], 1), 'to score', ('atg', None)),
+            for key, pt, label, book_key in (('atg', item['p_goal'], 'to score', ('atg', None)),
                                              ('g2', p_atleast('goals', pr['goals'], 2), '2+ goals', ('g2', None)),
                                              ('pts2', p_atleast('points', pr['points'], 2), '2+ points', ('points+', 2.0)),
                                              ('pts3', p_atleast('points', pr['points'], 3), '3+ points', ('points+', 3.0)),
@@ -635,7 +669,7 @@ for g in SHOW.itertuples():
                 need = {'atg': 1, 'g2': 2, 'pts2': 2, 'pts3': 3, 'sog5': 5, 'first_goal': 1}[key]
                 r = recent(pid, col, 20); hits = sum(1 for v in r if v >= need)
                 LS.append({'type': key, 'key': key, 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'p': round(pt, 4),
-                           'fair': sl.odds_of(pt), 'book': bo['odds'] if bo else None, 'hits': [hits, len(r)], 'label': f"{nm} {label}", 'group': key,
+                           'fair': sl.odds_of(pt), 'book': sane_book(bo['odds'] if bo else None, pt, 0.25), 'hits': [hits, len(r)], 'label': f"{nm} {label}", 'group': key,
                            'proj': round(pr['goals'] if col == 'goals' else pr['points'] if col == 'points' else pr['sog'], 2),
                            'reason': (f"{short} has {'scored' if col == 'goals' else 'had ' + str(need) + '+ ' + ('points' if col == 'points' else 'shots')} in {hits} of his last {len(r)} games. "
                                       f"Expected goals tonight {pr['goals']:.2f}, shots {pr['sog']:.1f}." if key != 'first_goal' else
@@ -935,7 +969,7 @@ meta = {'sport': LG, 'season': season_label, 'season_prev': f'{SEASON - 2}-{str(
 data = {'meta': meta, 'teams': TEAMS_OUT, 'games': games_out, 'injuries': inj_out, 'props': PROPS, 'goalies': GOALIES, 'high_chance': HC, 'long_shots': LS,
         'trends': {'player': TRENDS_P[:60], 'team': TRENDS_T[:40]},
         'model': {'record': REC, 'log': model_log[-400:], 'backtest': S['backtest']},
-        'research': {'props': S['prop_backtest'], 'situational': S['situational'], 'carry': S['carry'], 'blend': BLEND},
+        'research': {'props': S['prop_backtest'], 'situational': S['situational'], 'carry': S['carry'], 'blend': BLEND, 'fair': V2},
         'cal': CAL, 'sv_sd': PP['sv_sd'],
         'parts_model': {'seasons': NPER['fit_seasons'], 'check_seasons': NPER['check_seasons'], 'check': NPER['check'], 'first10': NPER['check_first10']}}
 sl.write_json(os.path.join(OUT, 'data.json'), data)

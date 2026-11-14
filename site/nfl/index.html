@@ -815,13 +815,18 @@ function ppRowsFor(key){
 }
 function ppOutHtml(g, p, key){
   const T_ = PP_TYPES[key], st = PL[`${WEEK}:${p.id}:${T_.stat}`] || {}, side = key === 'any_td' ? 'over' : (st.side || 'over');
-  const L = key === 'any_td' ? 0.5 : numOf(st.line), O = parseOdds(st.odds), proj = p.proj[key];
+  const bl = (p.lines || {})[key], typed = numOf(st.line);
+  const L = key === 'any_td' ? 0.5 : (typed ?? (bl ? bl.line : null)), O = parseOdds(st.odds), proj = p.proj[key];
   const vals = (p.log || []).map(l => ppVal(l, key)).filter(v => v != null);
   if (key !== 'any_td' && L == null) return `<span class="note">Type your book's line to see the model's chance and how often he cleared it.</span>`;
   const c = propChance(p, key, L), ps = c ? (side === 'over' ? c.over : c.under) : null;
   const ov = vals.filter(v => v > L).length, un = vals.filter(v => v < L).length;
   let h = '';
-  if (ps != null) h += `<span class="pp-pc"><b class="num">${pct(ps)}</b> ${key === 'any_td' ? 'to score' : `${side} ${L}`} · fair <b>${fmtOdds(oddsNum(ps))}</b>${key !== 'any_td' ? ` · projection ${sign(proj - L, 1)} vs line` : ''}</span>`;
+  if (bl && key !== 'any_td'){                                 // DraftKings' line, and how overs at its lines have done
+    const rec = (((D.research || {}).line_record || {}).over_rate || {})[key];
+    h += `<span class="pp-h"><b>${esc(bl.book || 'DraftKings')}</b> line <b>${bl.line}</b>${bl.o != null && bl.u != null ? ` · Over <b>${fmtOdds(bl.o)}</b> · Under <b>${fmtOdds(bl.u)}</b>` : ''}${rec ? ` · overs cleared its ${esc(T_.short)} lines <b>${pct(rec[0])}</b> of the time in 2025–26` : ''}</span>`;
+  }
+  if (ps != null) h += `<span class="pp-pc"><b class="num">${pct(ps)}</b> ${key === 'any_td' ? 'to score' : `${side} ${L}`} · fair <b>${fmtOdds(oddsNum(ps))}</b>${key !== 'any_td' ? ` · projection ${sign(proj - L, 1)} vs line` : ''}${bl && key !== 'any_td' ? ' <span class="small">(projection alone; the book\'s line is usually the better guess)</span>' : ''}</span>`;
   if (O != null && ps != null){ const r = evMsg(ps, oddsNum(ps), st.odds); h += `<span class="ev ${r.c}">${esc(r.t)}</span>`; }
   else if (String(st.odds || '').trim()) h += `<span class="ev">Use American odds, like -115 or +105.</span>`;
   h += `<span class="pp-h">${key === 'any_td' ? `Scored in <b>${ov} of ${vals.length}</b> games` : `${side === 'over' ? 'Over' : 'Under'} ${L} in <b>${side === 'over' ? ov : un} of ${vals.length}</b> games`} this season</span>`;
@@ -845,7 +850,7 @@ function ppRow(g, p, key){
     <div class="pp-mx">${mx}</div>
     <div class="pp-chk">
       <div class="pp-in">${key === 'any_td' ? '' : `<div class="seg pp-side" role="group" aria-label="Over or under"><button data-ppside="over" aria-pressed="${side === 'over'}">Over</button><button data-ppside="under" aria-pressed="${side === 'under'}">Under</button></div>
-        <div class="f"><span class="clb-l">Line</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-pp="line" data-proj="${proj}" value="${esc(st.line || '')}" placeholder="${Math.floor(proj) + 0.5}" aria-label="${esc(p.name)} ${T_.label} line">`, 'line')}</div>`}
+        <div class="f"><span class="clb-l">Line</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-pp="line" data-proj="${proj}" value="${esc(st.line || '')}" placeholder="${((p.lines || {})[key] || {}).line ?? Math.floor(proj) + 0.5}" aria-label="${esc(p.name)} ${T_.label} line">`, 'line')}</div>`}
         <div class="f"><span class="clb-l">Odds</span>${stepWrap(`<input type="text" inputmode="numeric" autocomplete="off" data-pp="odds" value="${esc(st.odds || '')}" placeholder="${key === 'any_td' ? fmtOdds(oddsNum(proj)).replace('−', '-') : '-110'}" aria-label="${esc(p.name)} odds">`, 'odds')}</div></div>
       <div class="pp-out" aria-live="polite">${ppOutHtml(g, p, key)}</div>
       <div class="pp-acts"><button class="btn tiny slipb" data-slipkey="nfl:${esc(key + ':' + g.id + ':' + p.id)}" data-pppick="">+ Slip</button><button class="btn tiny" data-chart="p|${esc(p.id)}|${key}">Chart</button></div></div>
@@ -972,7 +977,7 @@ document.addEventListener('click', e => {
   const key = row.dataset.key, k = `${WEEK}:${p.id}:${PP_TYPES[key].stat}`;
   if (b.dataset.ppside){ PL[k] = Object.assign({}, PL[k], {side: b.dataset.ppside}); store.set('pl', PL);
     $$('[data-ppside]', row).forEach(x => x.setAttribute('aria-pressed', String(x.dataset.ppside === b.dataset.ppside))); $('.pp-out', row).innerHTML = ppOutHtml(g, p, key); return; }
-  if (b.hasAttribute('data-pppick')){ const st = PL[k] || {}, L = numOf(st.line), O = parseOdds(st.odds); addLeg(propLeg(g, p, key, st.side || 'over', L, O)); }
+  if (b.hasAttribute('data-pppick')){ const st = PL[k] || {}, L = numOf(st.line) ?? ((p.lines || {})[key] || {}).line ?? null, O = parseOdds(st.odds); addLeg(propLeg(g, p, key, st.side || 'over', L, O)); }
 });
 
 /* ======================================================================

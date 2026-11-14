@@ -1,0 +1,3 @@
+{"note": "How often overs cleared DraftKings' main NFL player lines (ESPN's records, 2025 and 2026 regular seasons, matched to nflverse stats; research_work/nfl_eval.py). Pushes left out.",
+ "over_rate": {"pass_yds": [0.517, 286], "rush_yds": [0.442, 852], "rec_yds": [0.486, 1722], "receptions": [0.48, 1687]},
+ "all": [0.475, 6351]}
