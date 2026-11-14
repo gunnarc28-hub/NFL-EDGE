@@ -49,6 +49,8 @@ loads every page; after a code change it also clicks through every tab in a phon
   anytime-goal prices are the book's with its margin removed (prices implied 17.5%, players scored 15.3%). ESPN's
   milestone (X+) prices are dropped when they can't be the real price of that rung. NFL props show DraftKings' line
   (ESPN carries no NFL prop prices) and how often overs have cleared its lines (`pipeline/static/nfl_line_record.json`).
+- Best value tab (NBA, NHL; `site/assets/app.js`): every DraftKings prop price next to its fair price, ranked by expected
+  value, filterable by game and market. Only prices whose fair chance is tied to a DraftKings main line are ranked.
 - `pipeline/injuries.py`: each NFL player's status for his team's next game, merged from the official report and ESPN's
   feed. The page runs the same merge live; `research/inj_parity.py` checks the two give identical answers.
 - `pipeline/static/`: the research each model is built on: which stats predict results, model weights, backtests
