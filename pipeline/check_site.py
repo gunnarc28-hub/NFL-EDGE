@@ -10,8 +10,8 @@ BASE = (sys.argv[1] if len(sys.argv) > 1 else 'https://gunnarc28-hub.github.io/N
 PAGES = {
     'home': ('', ['home', 'picks']),
     'nfl': ('nfl/', ['week', 'props', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams']),
-    'nba': ('nba/', ['games', 'props', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams']),
-    'nhl': ('nhl/', ['games', 'props', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams']),
+    'nba': ('nba/', ['games', 'props', 'value', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams']),
+    'nhl': ('nhl/', ['games', 'props', 'value', 'model', 'hc', 'ls', 'trends', 'picks', 'tips', 'matters', 'teams']),
 }
 
 
