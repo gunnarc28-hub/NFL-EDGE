@@ -42,6 +42,13 @@ loads every page; after a code change it also clicks through every tab in a phon
   and 1st-half player props (NFL, NBA) and the NBA's first basket, each next to DraftKings' price through ESPN when
   one is posted. The NBA build keeps this season's opening tips and part results in `data/parts_log.json` on the live
   site between runs.
+- Prop fair prices (NBA, NHL): the book's no-vig chance at its main line, corrected for the lean every market has toward
+  the over (overs hit 1-4 points less often than the book's price says), plus the model's small share where it helped:
+  `pipeline/static/nba_props_v2.json` and `nhl_props_v2.json`, fit on 2023-24 to now (287,000 NBA and 116,000 NHL main
+  lines; `research/props_v2/`). Shown NBA projections lean on the book's line in every market but steals and blocks. NHL
+  anytime-goal prices are the book's with its margin removed (prices implied 17.5%, players scored 15.3%). ESPN's
+  milestone (X+) prices are dropped when they can't be the real price of that rung. NFL props show DraftKings' line
+  (ESPN carries no NFL prop prices) and how often overs have cleared its lines (`pipeline/static/nfl_line_record.json`).
 - `pipeline/injuries.py`: each NFL player's status for his team's next game, merged from the official report and ESPN's
   feed. The page runs the same merge live; `research/inj_parity.py` checks the two give identical answers.
 - `pipeline/static/`: the research each model is built on: which stats predict results, model weights, backtests

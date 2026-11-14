@@ -143,6 +143,16 @@ function blendP(k, pm, pb){
   const a = Math.min(Math.max(pm, .02), .98), b = Math.min(Math.max(pb, .02), .98);
   return sgm((1 - w) * lgt(b) + w * lgt(a));
 }
+/* The fair chance of the over at any line. At the book's line it's the build's fair chance (the book's price with its margin and
+   its lean toward the over taken out, plus the model's small say); at other lines the same spread of outcomes, centred where
+   that fair chance puts it (ln.mu). With no book line, the projection alone. */
+function chanceAt(p, k, L){
+  if (L == null || isNaN(L) || !p) return null;
+  const ln = (p.lines || {})[k];
+  if (ln && Number(L) === ln.line) return ln.p;
+  if (ln && ln.mu != null) return pOver(k, ln.mu, L);
+  return pOver(k, propVal(p, k), L);
+}
 
 /* ---------------- header and tabs ---------------- */
 const DAYS = M.days || [];
@@ -394,28 +404,32 @@ const PIDX = {};
 (D.props || []).forEach(p => { PIDX[p.game + ':' + p.id] = p; });
 function propVal(p, k){ return k === 'goals' ? p.p_goal : p.proj[k]; }
 function bestEv(ln){ return ln ? Math.max(ln.ev_o ?? -9, ln.ev_u ?? -9) : -9; }
-function verdict(ln, k){
+function verdict(ln){
   if (!ln) return '';
-  const w = ((D.research || {}).blend || {})[k] ?? 0;
   const side = (ln.ev_o ?? -9) >= (ln.ev_u ?? -9) ? 'over' : 'under', ev = side === 'over' ? ln.ev_o : ln.ev_u;
   const c = Math.round(ev * 100), Side = side === 'over' ? 'Over' : 'Under';
-  if (ev >= 0.03 && w > 0) return `<span class="ev pos">${Side} is a good price: about +${c}¢ per $1</span>`;
-  if (c === 0) return `<span class="ev thin">${Side} is about break-even at these prices</span>`;
-  if (ev >= 0) return `<span class="ev thin">${Side}: thin edge, +${c}¢ per $1</span>`;
-  return `<span class="ev neg">No edge at these prices (the better side, ${side}, loses about ${Math.abs(c)}¢ per $1)</span>`;
+  if (ev >= 0.02) return `<span class="ev pos">${Side} pays more than fair: about +${c}¢ per $1</span>`;
+  if (ev >= -0.005) return `<span class="ev thin">${Side} is about a fair price</span>`;
+  return `<span class="ev neg">Both sides cost more than fair here (the better one, ${side}, gives up ${Math.abs(c)}¢ per $1). Worth it at the fair prices or better.</span>`;
+}
+/* the book's prices next to fair ones: fair is the book's own chance with its margin and its lean toward the over taken out */
+function fairBlock(ln, k){
+  const fo = oddsNum(ln.p), fu = oddsNum(1 - ln.p);
+  const pm = ln.p_model != null ? ` · projection alone ${pct(ln.p_model)}` : '';
+  return `<div class="pp-h"><b>${esc(ln.book || 'Book')}</b> line <b>${ln.line}</b>${ln.open != null && ln.open !== ln.line ? ` (opened ${ln.open})` : ''} · Over <b>${fmtOdds(ln.o)}</b> · Under <b>${fmtOdds(ln.u)}</b></div>
+    <div class="pp-pc">Fair: Over <b class="num">${fmtOdds(fo)}</b> · Under <b class="num">${fmtOdds(fu)}</b> <span class="small">(${pct(ln.p)} over · book after its margin ${pct(ln.p_book)}${pm})</span></div>${verdict(ln)}`;
 }
 function ppRow(p, k){
   const key = `${p.id}:${k}`, ln = (p.lines || {})[k], st = PL[key] || {};
   const proj = propVal(p, k);
   const typed = st.line != null && st.line !== '' ? numOf(st.line) : null;
   const L = typed ?? (ln ? ln.line : (proj != null ? Math.floor(proj) + 0.5 : null));
-  const pm = L != null ? pOver(k, proj, L) : null;
-  const pUse = ln && L === ln.line ? ln.p : pm;
+  const pm = L != null ? chanceAt(p, k, L) : null;
   const O = parseOdds(st.odds);
   const avg = p.avg && p.avg[k] != null ? `avg ${fmtN(p.avg[k], 1)} last 10` : '';
-  const book = ln ? `<div class="pp-h"><b>${esc(ln.book || 'Book')}</b> line <b>${ln.line}</b>${ln.open != null && ln.open !== ln.line ? ` (opened ${ln.open})` : ''} · Over <b>${fmtOdds(ln.o)}</b> · Under <b>${fmtOdds(ln.u)}</b></div>
-      <div class="pp-pc">Over <b class="num">${pct(ln.p)}</b> <span class="small">· model ${pct(ln.p_model)} · book ${pct(ln.p_book)}</span></div>${verdict(ln, k)}` : `<div class="pp-h">No book line posted yet${proj != null ? ' · type one to check it' : ''}</div>`;
-  const chk = L != null ? `<div class="pp-out"><span>${typed != null || !ln ? `At ${L}: over <b>${pct(pm)}</b> · under <b>${pct(pm == null ? null : 1 - pm)}</b> (model)` : ''}</span>${O != null && pm != null ? `<span class="ev ${evMsg(st.side === 'under' ? 1 - pm : pm, oddsNum(st.side === 'under' ? 1 - pm : pm), String(O)).c}">${esc(evMsg(st.side === 'under' ? 1 - pm : pm, oddsNum(st.side === 'under' ? 1 - pm : pm), String(O)).t)}</span>` : ''}</div>` : '';
+  const book = ln ? fairBlock(ln, k) : `<div class="pp-h">No book line posted yet${proj != null ? ' · type one to check it' : ''}</div>`;
+  const ps = pm == null ? null : (st.side === 'under' ? 1 - pm : pm), em = O != null && ps != null ? evMsg(ps, oddsNum(ps), String(O)) : null;
+  const chk = L != null ? `<div class="pp-out"><span>${(typed != null || !ln) && pm != null ? `At ${L}: over <b>${pct(pm)}</b> (fair ${fmtOdds(oddsNum(pm))}) · under <b>${pct(pm == null ? null : 1 - pm)}</b> (fair ${fmtOdds(oddsNum(pm == null ? null : 1 - pm))})${ln ? '' : ' · projection only, no book line to check it against'}` : ''}</span>${em ? `<span class="ev ${em.c}">${esc(em.t)}</span>` : ''}</div>` : '';
   return `<article class="pp" data-pid="${esc(p.id)}" data-g="${p.game}" data-key="${k}">
     <div class="pp-who"><div class="pn"><span data-chart="p|${esc(p.id)}|${k === 'goals' ? 'goals' : k}">${esc(p.name)}</span>${injPill(p.team, p.name, p.id, true)}</div>
       <div class="ps">${chip(p.team, 1)} ${p.home ? 'vs' : '@'} ${chip(p.opp, 1)} <span class="small">${esc(p.pos || '')} · ${fmtN(p.min ?? p.toi, 0)} min · ${esc(when((gameOf(p.game) || {}).k || '', {hour: 'numeric', minute: '2-digit', weekday: 'short'}))}</span></div>${bumpTxt(p)}</div>
@@ -448,7 +462,7 @@ function goalieRow(x){
     <div class="pp-who"><div class="pn"><span data-chart="g|${esc(x.id)}|saves">${esc(x.name)}</span> <span class="pill ${x.src === 'Confirmed' ? 'win' : 'ghost'}">${esc(x.src || 'Expected')}</span></div>
       <div class="ps">${chip(x.team, 1)} vs ${chip(x.opp, 1)} <span class="small">${(x.sv_pct * 100).toFixed(1)}% save rate · ${fmtN(x.shots, 0)} shots expected</span></div></div>
     <div class="pp-proj"><span class="proj num">${fmtN(x.saves, 1)}<small>saves</small></span></div>
-    <div class="pp-chk">${ln ? `<div class="pp-h"><b>${esc(ln.book)}</b> line <b>${ln.line}</b> · Over <b>${fmtOdds(ln.o)}</b> · Under <b>${fmtOdds(ln.u)}</b></div><div class="pp-pc">Over <b class="num">${pct(ln.p)}</b> <span class="small">· model ${pct(ln.p_model)} · book ${pct(ln.p_book)}</span></div>${verdict(ln, 'saves')}` : '<div class="pp-h">No saves line posted yet</div>'}
+    <div class="pp-chk">${ln ? fairBlock(ln, 'saves') : '<div class="pp-h">No saves line posted yet</div>'}
       <div class="pp-in"><div class="f"><span class="clb-l">Line</span>${stepWrap(`<input type="text" inputmode="decimal" autocomplete="off" data-ppl="${esc(key)}" value="${esc(st.line ?? '')}" placeholder="${L}" aria-label="Line">`, 'line')}</div>
         <div class="seg pp-side" role="group" aria-label="Side"><button type="button" data-ppside="over" aria-pressed="${st.side !== 'under'}">Over</button><button type="button" data-ppside="under" aria-pressed="${st.side === 'under'}">Under</button></div></div>
       <div class="pp-out"><span>At ${L}: over <b>${pct(pm)}</b> · under <b>${pct(pm == null ? null : 1 - pm)}</b> (model)</span></div>
@@ -519,7 +533,7 @@ function renderProps(){
   const rk = NHL ? ({sog: 'shots_on_goal', points: 'points', assists: 'assists', blocks: 'blocked_shots'}[PPF.key]) : PPF.key;
   const bt = PPF.part ? null : bm[rk];
   if (PPF.part && !PART_TABS.some(([k]) => k === PPF.key)) PPF.key = 'pts';
-  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Player props</h1><p class="lede">Every projection next to the sportsbook's line${(D.props || []).some(p => Object.keys(p.lines || {}).length) ? ' (DraftKings through ESPN)' : ''}. The chance blends the model with the book's own price, weighted by how much the model added in past seasons; the book is usually right. ${NHL ? 'When a regular is out, skaters at his position get part of his ice time (shots and points barely moved in past games, so those stay put).' : 'When a rotation player is out, teammates at his position get part of his minutes, mostly the bench players.'}</p></div></div>
+  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Player props</h1><p class="lede">Every projection next to the sportsbook's line${(D.props || []).some(p => Object.keys(p.lines || {}).length) ? ' (DraftKings through ESPN)' : ''}. Fair prices are the book's own price with its margin and its lean toward the over taken out (in ${NHL ? '116,000' : '287,000'} past lines, overs hit 1–4 points less often than its price said), plus the model's small, tested say. Bet a side when your book pays more than fair. ${NHL ? 'When a regular is out, skaters at his position get part of his ice time (shots and points barely moved in past games, so those stay put).' : 'When a rotation player is out, teammates at his position get part of his minutes, mostly the bench players.'}</p></div></div>
     ${NHL ? '' : `<div class="seg pp-part" role="group" aria-label="Part of the game">${[['', 'Full game'], ['h1', '1st half'], ['q1', '1st quarter']].map(([k, l]) => `<button type="button" data-pppart="${k}" aria-pressed="${PPF.part === k}">${l}</button>`).join('')}</div>`}
     <div class="seg pp-types" role="group" aria-label="Market">${(PPF.part ? PART_TABS : CFG.propTabs).map(([k, l]) => `<button type="button" data-ppk="${k}" aria-pressed="${PPF.key === k}">${l}</button>`).join('')}</div>
     ${PPF.part ? `<div class="tnote">${PPF.part === 'q1' ? '1st-quarter' : '1st-half'} lines are the full-game projection times the share of the game a player usually plays in that part, which depends mostly on whether he starts. Each "or more" chance is fit to how often players with that projection got there in 2020-21 to 2023-24, and checked on 2024-25 and 2025-26 (within a couple of points at every level). Book milestones are DraftKings' through ESPN.</div>` : ''}
@@ -528,7 +542,7 @@ function renderProps(){
       <input type="text" id="pp-q" placeholder="Search a player or team" value="${esc(PPF.q)}" aria-label="Search players">
       ${PPF.key !== 'goals' && PPF.key !== 'saves' ? `<select id="pp-sort" aria-label="Sort"><option value="value" ${PPF.sort === 'value' ? 'selected' : ''}>Best price first</option><option value="proj" ${PPF.sort === 'proj' ? 'selected' : ''}>Highest projection</option></select>` : ''}</div>
       <span class="small" id="pp-count"></span></div>
-    ${bt ? `<div class="tnote">Against ${bt.lines.toLocaleString()} past ${esc((CFG.mk[PPF.key] || PPF.key).toLowerCase())} lines, the book's price was ${bt.ll_book <= bt.ll_model ? 'closer to the result than the model' : 'about as good as the model'}, and betting the model's biggest disagreements returned ${bt.roi == null ? '–' : (bt.roi > 0 ? '+' : '') + (bt.roi * 100).toFixed(1) + '%'} per bet. Treat "good price" as a nudge, not a lock.</div>` : ''}
+    ${bt ? `<div class="tnote">Against ${bt.lines.toLocaleString()} past ${esc((CFG.mk[PPF.key] || PPF.key).toLowerCase())} lines, the book's price was ${bt.ll_book <= bt.ll_model ? 'closer to the result than the model' : 'about as good as the model'}, and betting the model's biggest disagreements returned ${bt.roi == null ? '–' : (bt.roi > 0 ? '+' : '') + (bt.roi * 100).toFixed(1) + '%'} per bet. So the fair prices lean on the book, and a "pays more than fair" side usually means shopping another book, not beating this one.</div>` : ''}
     <div class="pp-list" id="pp-list"></div>`;
   renderPPList();
   $('#pp-game').addEventListener('change', e => { PPF.game = e.target.value; store.set('ppf', PPF); PPSHOW = 30; renderPPList(); });
@@ -1061,7 +1075,7 @@ function renderChart(first){
       let pm = null;
       if (CH.kind === 'g') pm = pSaves(n.item, L);
       else if (CH.stat === 'goals') pm = pAtLeastNHL('goals', n.item.proj.goals, Math.floor(L) + 1);
-      else if ((n.item.proj || {})[CH.stat] != null) pm = pOver(CH.stat, n.item.proj[CH.stat], L);
+      else if ((n.item.proj || {})[CH.stat] != null) pm = chanceAt(n.item, CH.stat, L);
       const ln = (n.item.lines || {})[CH.stat];
       if (pm != null) p = CH.side === 'under' ? 1 - pm : pm;
       if (ln && ln.line === L) bookO = CH.side === 'under' ? ln.u : ln.o;
@@ -1176,19 +1190,19 @@ function modelP(l){
   if (!l.player) return null;
   if (NHL && (l.market === 'saves' || l.market === 'ga')){
     const gx = (D.goalies || []).find(x => x.id === String(l.player) && x.game === g.id); if (!gx || L == null || l.market !== 'saves') return null;
-    const ln = (gx.lines || {}).saves, pm = pSaves(gx, L), p = ln && ln.line === L ? blendP('saves', pm, ln.p_book) : pm;
+    const ln = (gx.lines || {}).saves, p = ln && ln.line === L ? ln.p : pSaves(gx, L);
     return l.side === 'U' ? 1 - p : p;
   }
   const p = PIDX[g.id + ':' + String(l.player)]; if (!p) return null;
   if (NHL){
     if (l.market === 'atg') return p.p_goal; if (l.market === 'g2') return pAtLeastNHL('goals', p.proj.goals, 2); if (l.market === 'first_goal') return p.p_first;
     const k = l.market === 'goals' ? 'goals' : l.market; if (p.proj[k] == null || L == null) return null;
-    const ln = (p.lines || {})[k], pm = pOver(k, p.proj[k], L), pp = ln && ln.line === L ? blendP(k, pm, ln.p_book) : pm;
+    const pp = chanceAt(p, k, L);
     return pp == null ? null : (l.side === 'U' ? 1 - pp : pp);
   }
   if (l.market === 'dd' || l.market === 'td3'){ const x = (D.long_shots || []).find(z => z.id === String(l.player) && z.game === g.id && z.key === l.market); return x ? x.p : null; }
   if (p.proj[l.market] == null || L == null) return null;
-  const ln = (p.lines || {})[l.market], pm = pOver(l.market, p.proj[l.market], L), pp = ln && ln.line === L ? blendP(l.market, pm, ln.p_book) : pm;
+  const pp = chanceAt(p, l.market, L);
   return pp == null ? null : (l.side === 'U' ? 1 - pp : pp);
 }
 const addLeg = (l, o) => {
