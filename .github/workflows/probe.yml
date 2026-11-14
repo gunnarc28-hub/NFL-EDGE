@@ -9,13 +9,13 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: echo no installs needed
+      - run: pip install pandas
       - run: python pipeline/probe_sources.py
       - name: Save raw copies to the probe-data branch
         run: |
