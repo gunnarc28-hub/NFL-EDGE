@@ -662,38 +662,44 @@ for g in SHOW.itertuples():
             GAME_PROPS.setdefault(g.id, []).append(item)
             if g.state != 'pre' or w_out >= 0.3 or pr['min'] < 16:
                 continue
+            # chances of reaching a round number: from where the fair chance at the book's main line centres him when there is one
+            # (the book's line beat the projection in every market), else from the projection (calibrated at the long end)
+            def chance_ge(k, t, hi=False, _l=item['lines']):
+                if k in _l and _l[k].get('mu'):
+                    return p_over(k, _l[k]['mu'], t - 0.5)
+                return cal(k + '_hi', p_over(k, pr[k], t)) if hi else p_over(k, pr[k], t)
             # ---- high-chance: the biggest round number he reaches 80%+ of the time
             yes = lns.get('yes', {})
             for k in ('pts', 'reb', 'ast', 'fg3m', 'pra', 'pr', 'pa'):
                 best = None
                 for t in range(1, 80):
-                    pt = p_over(k, pr[k], t)
+                    pt = chance_ge(k, t)
                     if pt < 0.80:
                         break
                     if pt <= 0.97:
                         best = (t, pt)
                 MIN_T = {'pts': 10, 'pra': 15, 'pr': 12, 'pa': 12, 'reb': 4, 'ast': 3, 'fg3m': 2}
-                if not best or best[0] < MIN_T[k] or best[0] < 0.6 * pr[k]:
+                if not best or best[0] < MIN_T[k] or best[0] < 0.6 * item['proj'][k]:
                     continue
                 t, pt = best
                 ln = last_n(pid, k); hits = sum(1 for v in ln if v >= t)
                 bo = yes.get((k + '+', float(t)))
                 HC.append({'kind': 'player', 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day, 'key': k, 't': t,
-                           'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(pr[k], 1), 'min': pr['min'], 'avg': round(float(np.mean(ln)), 1) if ln else None,
+                           'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(item['proj'][k], 1), 'min': pr['min'], 'avg': round(float(np.mean(ln)), 1) if ln else None,
                            'hits': [hits, len(ln)], 'book': sane_book(bo, pt), 'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}",
                            'reason': f"{NAMES.get(pid).split(' ')[-1]} has reached {t}+ {SHORT[k]} in {hits} of his last {len(ln)} games, averaging {np.mean(ln):.1f}. "
-                                     f"Projected for {pr[k]:.1f} in about {pr['min']:.0f} minutes against {opp}."})
+                                     f"Projected for {item['proj'][k]:.1f} in about {pr['min']:.0f} minutes against {opp}."})
             # ---- long shots: big games with a real chance
             for k, ts in (('pts', [25, 30, 35, 40, 45, 50]), ('reb', [10, 12, 15, 18]), ('ast', [8, 10, 12, 15]), ('fg3m', [4, 5, 6, 7]), ('pra', [40, 45, 50, 55])):
                 for t in ts:
-                    pt = cal(k + '_hi', p_over(k, pr[k], t))
-                    if 0.05 <= pt <= 0.33 and t >= pr[k] * 1.25:
+                    pt = chance_ge(k, t, hi=True)
+                    if 0.05 <= pt <= 0.33 and t >= item['proj'][k] * 1.25:
                         ln = last_n(pid, k, 20); hits = sum(1 for v in ln if v >= t)
                         bo = yes.get((k + '+', float(t)))
                         LS.append({'type': k + '+', 'key': k, 't': t, 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day,
-                                   'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': sane_book(bo, pt), 'proj': round(pr[k], 1), 'hits': [hits, len(ln)],
+                                   'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': sane_book(bo, pt), 'proj': round(item['proj'][k], 1), 'hits': [hits, len(ln)],
                                    'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}", 'group': k,
-                                   'reason': f"Projected {pr[k]:.1f} {SHORT[k]}; reached {t}+ in {hits} of his last {len(ln)} games."})
+                                   'reason': f"Projected {item['proj'][k]:.1f} {SHORT[k]}; reached {t}+ in {hits} of his last {len(ln)} games."})
                         break
             for need, nm, key in ((2, 'double-double', 'dd'), (3, 'triple-double', 'td3')):
                 pt = p_dd(pr, need)
