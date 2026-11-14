@@ -643,7 +643,7 @@ for g in SHOW.itertuples():
             for k, ts, col in (('sog', (2, 3, 4), 'shots_on_goal'), ('blocks', (1, 2), 'blocked_shots')):
                 best = None
                 for t in ts:
-                    pt = p_atleast(k, pr[k], t)
+                    pt = p_atleast(k, item['lines'][k]['mu'] if k in item['lines'] and item['lines'][k].get('mu') else pr[k], t)
                     if pt is not None and 0.80 <= pt <= 0.97:
                         best = (t, pt)
                 if best:
@@ -651,16 +651,19 @@ for g in SHOW.itertuples():
                     word = 'shots on goal' if k == 'sog' else 'blocked shots'
                     HC.append({'kind': 'player', 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'key': k, 't': t,
                                'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(pr[k], 2), 'avg': round(float(np.mean(r)), 2) if r else None, 'hits': [hits, len(r)],
-                               'book': sane_book((lns.get('yes', {}).get((k + '+', float(t))) or {}).get('odds'), pt), 'label': f"{nm} {t}+ {word}",
+                               'book': sane_book((lns.get('yes', {}).get((k + '+', float(t))) or {}).get('odds'), pt), 'anch': k in item['lines'], 'label': f"{nm} {t}+ {word}",
                                'reason': f"{short} has {t}+ {word} in {hits} of his last {len(r)} games and is projected for {pr[k]:.1f} in about {pr['toi']:.0f} minutes."})
             # ---- long shots: goals, multi-point games, the first goal, big shot nights
             yes = lns.get('yes', {})
+            # points and shots rungs: from the fair centre at the book's main line when there is one (the book beat the model there)
+            lam_ = lambda k: item['lines'][k]['mu'] if k in item['lines'] and item['lines'][k].get('mu') else pr[k]
+            ANCH = {'atg': 'atg' in item['yes'], 'pts2': 'points' in item['lines'], 'pts3': 'points' in item['lines'], 'sog5': 'sog' in item['lines']}
             for key, pt, label, book_key in (('atg', item['p_goal'], 'to score', ('atg', None)),
                                              ('g2', p_atleast('goals', pr['goals'], 2), '2+ goals', ('g2', None)),
-                                             ('pts2', p_atleast('points', pr['points'], 2), '2+ points', ('points+', 2.0)),
-                                             ('pts3', p_atleast('points', pr['points'], 3), '3+ points', ('points+', 3.0)),
+                                             ('pts2', p_atleast('points', lam_('points'), 2), '2+ points', ('points+', 2.0)),
+                                             ('pts3', p_atleast('points', lam_('points'), 3), '3+ points', ('points+', 3.0)),
                                              ('first_goal', item['p_first'], 'first goal of the game', ('first_goal', None)),
-                                             ('sog5', p_atleast('sog', pr['sog'], 5), '5+ shots on goal', ('sog+', 5.0))):
+                                             ('sog5', p_atleast('sog', lam_('sog'), 5), '5+ shots on goal', ('sog+', 5.0))):
                 lo = {'atg': 0.18, 'g2': 0.035, 'pts2': 0.10, 'pts3': 0.04, 'first_goal': 0.055, 'sog5': 0.07}[key]
                 hi = {'atg': 0.50, 'g2': 0.25, 'pts2': 0.45, 'pts3': 0.25, 'first_goal': 0.30, 'sog5': 0.40}[key]
                 if pt is None or not (lo <= pt <= hi):
@@ -670,7 +673,7 @@ for g in SHOW.itertuples():
                 need = {'atg': 1, 'g2': 2, 'pts2': 2, 'pts3': 3, 'sog5': 5, 'first_goal': 1}[key]
                 r = recent(pid, col, 20); hits = sum(1 for v in r if v >= need)
                 LS.append({'type': key, 'key': key, 'id': str(pid), 'name': nm, 'team': team, 'opp': opp, 'game': str(g.id), 'k': g.k.isoformat(), 'day': g.day, 'p': round(pt, 4),
-                           'fair': sl.odds_of(pt), 'book': sane_book(bo['odds'] if bo else None, pt, 0.25), 'hits': [hits, len(r)], 'label': f"{nm} {label}", 'group': key,
+                           'fair': sl.odds_of(pt), 'book': sane_book(bo['odds'] if bo else None, pt, 0.25), 'anch': ANCH.get(key, False), 'hits': [hits, len(r)], 'label': f"{nm} {label}", 'group': key,
                            'proj': round(pr['goals'] if col == 'goals' else pr['points'] if col == 'points' else pr['sog'], 2),
                            'reason': (f"{short} has {'scored' if col == 'goals' else 'had ' + str(need) + '+ ' + ('points' if col == 'points' else 'shots')} in {hits} of his last {len(r)} games. "
                                       f"Expected goals tonight {pr['goals']:.2f}, shots {pr['sog']:.1f}." if key != 'first_goal' else

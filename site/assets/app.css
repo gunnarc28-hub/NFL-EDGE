@@ -957,3 +957,16 @@ a.brand:hover b{text-decoration:underline;text-decoration-thickness:3px;text-und
   .fb-r{grid-template-columns:minmax(0,1fr) 46px 72px auto} .fb-r > :nth-child(3){display:none}
   .pq-l{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* Best value: one compact row per price */
+.vlist{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.vrow{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:10px 12px;display:grid;grid-template-columns:72px minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.vev{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;color:var(--ink-3)}
+.vev b{font-size:17px} .vev span{font-size:11px;font-weight:600;color:var(--ink-3)}
+.vev.pos b{color:var(--win)} .vev.thin b{color:var(--warn)} .vev.neg b{color:var(--loss)}
+.vlab{font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.vmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.vpx{display:flex;flex-direction:column;align-items:flex-end;text-align:right;white-space:nowrap}
+@media (max-width:560px){
+  .vrow{grid-template-columns:62px minmax(0,1fr) auto;grid-template-areas:"ev main main" "ev px btn"}
+  .vev{grid-area:ev;align-self:start} .vmain{grid-area:main} .vpx{grid-area:px;align-items:flex-start;text-align:left} .vrow .slipb{grid-area:btn;justify-self:end}
+}
