@@ -163,7 +163,7 @@ function renderAsof(){
 }
 renderAsof(); setInterval(renderAsof, 60000);
 const NAV = [['games', 'Games', NHL ? 'Every game: lines, starting goalies, the model and injuries' : 'Every game: lines, the model, rest and injuries'],
-  ['props', 'Props', 'Player projections against the real prop lines, with fair prices'], ['model', 'Model', 'Who the model picks, why, and its record'],
+  ['props', 'Props', 'Player projections against the real prop lines, with fair prices'], ['value', 'Best value', "Every DraftKings prop price ranked by expected value"], ['model', 'Model', 'Who the model picks, why, and its record'],
   ['hc', 'High-chance', 'Legs rated 80% or better, checked against past results'], ['ls', 'Long shots', NHL ? 'Goal scorers, multi-point nights and the first goal' : 'Big scoring nights, double- and triple-doubles'],
   ['trends', 'Trends', 'Players and teams on runs, and whether runs last'], ['picks', 'My bets', 'Every bet across sports: record, units, closing line'],
   ['tips', 'Betting tips', 'Where real edges come from, applied to today'], ['matters', 'What matters', 'What the research says predicts games and props'],
@@ -707,6 +707,94 @@ function renderHC(){
   SB.refresh();
 }
 RENDER.hc = renderHC;
+/* ======================================================================
+   BEST VALUE: every DraftKings prop price next to its fair price, best expected value first
+   ====================================================================== */
+let VF = Object.assign({game: 'all', mk: 'all', pos: false}, store.get('vf', {}));
+let VSHOW = 40;
+const decOf = o => o > 0 ? 1 + o / 100 : 1 + 100 / Math.abs(o);
+function valueRows(){
+  const pre = g => g && g.state === 'pre';
+  const dkGames = new Set((D.props || []).filter(p => Object.values(p.lines || {}).some(l => l.book === 'DraftKings')).map(p => p.game));
+  const rows = [], seen = new Set();
+  const add = r => { const id = r.key + ':' + r.side; if (seen.has(id) || r.odds == null || r.p == null || r.p <= 0 || r.p >= 1) return; seen.add(id);
+    r.ev = r.p * decOf(r.odds) - 1; rows.push(r); };
+  (D.props || []).forEach(p => {
+    const g = gameOf(p.game); if (!pre(g)) return;
+    Object.entries(p.lines || {}).forEach(([k, ln]) => {
+      if (ln.book !== 'DraftKings' || ln.p == null) return;
+      const w = CFG.short[k] || k, base = {mk: k, game: p.game, p0: p, team: p.team, opp: p.opp, name: p.name, k: g.k};
+      add(Object.assign({key: `${p.id}:${k}:${ln.line}`, side: 'O', label: `${p.name} over ${ln.line} ${w}`, odds: ln.o, p: ln.p,
+        leg: {market: k, game: p.game, player: p.id, player_name: p.name, team: p.team, side: 'O', line: ln.line, odds: ln.o}}, base));
+      add(Object.assign({key: `${p.id}:${k}:${ln.line}`, side: 'U', label: `${p.name} under ${ln.line} ${w}`, odds: ln.u, p: 1 - ln.p,
+        leg: {market: k, game: p.game, player: p.id, player_name: p.name, team: p.team, side: 'U', line: ln.line, odds: ln.u}}, base));
+    });
+    if (NHL && p.yes && p.yes.atg != null && dkGames.has(p.game))
+      add({key: `${p.id}:atg`, side: 'Y', mk: 'goals', game: p.game, p0: p, team: p.team, opp: p.opp, name: p.name, k: g.k, label: `${p.name} to score`, odds: p.yes.atg, p: p.p_goal,
+        leg: {market: 'atg', game: p.game, player: p.id, player_name: p.name, team: p.team, side: 'Y', odds: p.yes.atg, p: p.p_goal}});
+  });
+  (D.goalies || []).forEach(x => {
+    const g = gameOf(x.game), ln = (x.lines || {}).saves; if (!pre(g) || !ln || ln.book !== 'DraftKings') return;
+    const base = {mk: 'saves', game: x.game, team: x.team, opp: x.opp, name: x.name, k: g.k};
+    add(Object.assign({key: `${x.id}:saves:${ln.line}`, side: 'O', label: `${x.name} over ${ln.line} saves`, odds: ln.o, p: ln.p, leg: {market: 'saves', game: x.game, player: x.id, player_name: x.name, team: x.team, side: 'O', line: ln.line, odds: ln.o}}, base));
+    add(Object.assign({key: `${x.id}:saves:${ln.line}`, side: 'U', label: `${x.name} under ${ln.line} saves`, odds: ln.u, p: 1 - ln.p, leg: {market: 'saves', game: x.game, player: x.id, player_name: x.name, team: x.team, side: 'U', line: ln.line, odds: ln.u}}, base));
+  });
+  // milestone (X+) rungs and long shots with a DraftKings price that passed the build's sanity check
+  [['high_chance', 'hc'], ['long_shots', 'ls']].forEach(([lst, kind]) => (D[lst] || []).forEach(x => {
+    // only rungs whose chance is tied to the book's main line in that market: the model alone runs hot in the tails
+    const g = gameOf(x.game); if (!pre(g) || x.book == null || x.kind === 'ml' || !x.anch || !dkGames.has(x.game)) return;
+    if (NHL && x.key === 'atg') return;                                // the scorer row above covers it
+    const leg = kind === 'hc' ? {market: x.key, game: x.game, player: x.id, player_name: x.name, team: x.team, side: 'O', line: x.t - 0.5, odds: x.book, p: x.p}
+      : Object.assign({game: x.game, player: x.id, player_name: x.name, team: x.team, odds: x.book, p: x.p}, lsMarket(x));
+    const mk = NHL ? ({sog5: 'sog', pts2: 'points', pts3: 'points', g2: 'goals', first_goal: 'goals'}[x.key] || x.key) : ({dd: 'dd', td3: 'dd', first_basket: 'fb'}[x.key] || x.key);
+    add({key: `${x.id}:${x.key}:${x.t ?? ''}`, side: 'Y', mk, game: x.game, team: x.team, opp: x.opp, name: x.name, k: x.k || g.k, label: x.label, odds: x.book, p: x.p, leg, rung: true});
+  }));
+  return rows.sort((a, b) => b.ev - a.ev);
+}
+function valueRow(r){
+  const c = Math.round(r.ev * 1000) / 10, cls = r.ev >= 0.02 ? 'pos' : r.ev >= -0.02 ? 'thin' : 'neg';
+  const slipKey = `${SP}:${r.leg.market}:${r.game}:${r.leg.player}`;
+  return `<article class="vrow">
+    <div class="vev ev ${cls}"><b class="num">${c > 0 ? '+' : ''}${c.toFixed(1)}¢</b><span>per $1</span></div>
+    <div class="vmain"><div class="vlab">${esc(r.label)}</div>
+      <div class="small vmeta">${chip(r.team, 1)} vs ${chip(r.opp, 1)} <span>${esc(whenDay(r.k))}</span>${r.p0 ? injPill(r.team, r.name, r.p0.id) : ''}</div></div>
+    <div class="vpx"><span>DK <b class="num">${fmtOdds(r.odds)}</b></span><span class="small">fair ${fmtOdds(oddsNum(r.p))} · ${pct(r.p, r.p < 0.1 ? 1 : 0)}</span></div>
+    <button class="btn tiny slipb" data-slipkey="${esc(slipKey)}" data-pleg="${esc(JSON.stringify(r.leg))}">+ Slip</button>
+  </article>`;
+}
+function renderValue(){
+  const v = $('#v-value'); if (!v) return;
+  const all = valueRows();
+  const games = (D.games || []).filter(g => g.state === 'pre' && all.some(r => r.game === g.id)).sort((a, b) => String(a.k).localeCompare(String(b.k)));
+  if (VF.game !== 'all' && !games.some(g => g.id === VF.game)) VF.game = 'all';
+  const mks = [...new Set(all.filter(r => VF.game === 'all' || r.game === VF.game).map(r => r.mk))];
+  const MKL = Object.assign({}, CFG.mk || {}, {dd: 'Double-doubles', fb: 'First basket', saves: 'Saves', goals: 'Goals'});
+  if (VF.mk !== 'all' && !mks.includes(VF.mk)) VF.mk = 'all';
+  let L = all.filter(r => (VF.game === 'all' || r.game === VF.game) && (VF.mk === 'all' || r.mk === VF.mk));
+  const npos = L.filter(r => r.ev >= 0).length;
+  if (VF.pos) L = L.filter(r => r.ev >= 0);
+  const R = (D.research || {}).fair || {};
+  v.innerHTML = `<div class="sec-head"><div><h1 class="h2">Best value</h1><p class="lede">Every DraftKings prop price next to its fair price, ranked by expected value: what a $1 bet returns on average at the fair chance. ${NHL ? 'Over/unders, anytime goals, saves and' : 'Over/unders and'} milestone rungs tied to a main line are included; double-doubles, first baskets and other model-only long shots stay on their own tabs. Fair chances are the ones on the Props tab: the book's own price with its margin and its lean toward the over taken out${NHL ? '' : ', plus the model\'s small, tested say'}.</p></div></div>
+    <div class="toolbar"><div class="filters">
+      <select id="vf-game" aria-label="Game"><option value="all">All games</option>${games.map(g => `<option value="${g.id}">${g.away} @ ${g.home} · ${esc(whenDay(g.k))}</option>`).join('')}</select>
+      <select id="vf-mk" aria-label="Market"><option value="all">All markets</option>${mks.map(k => `<option value="${k}">${esc(MKL[k] || CFG.short[k] || k)}</option>`).join('')}</select>
+      <div class="seg" role="group" aria-label="Which prices"><button type="button" data-vpos="0" aria-pressed="${!VF.pos}">All</button><button type="button" data-vpos="1" aria-pressed="${VF.pos}">Above fair only</button></div></div>
+      <span class="small" id="vf-count">${L.length} price${L.length === 1 ? '' : 's'} · ${npos} above fair</span></div>
+    <div class="tnote">DraftKings builds its margin into both sides, so most prices sit a few cents below fair and only a handful come out ahead. Over ${R.seasons ? `${R.seasons.length} seasons` : 'past seasons'} of main lines, no market's "above fair" side made money every season, so treat the top of this list as the closest calls, not locks, and check whether another book pays more.</div>
+    ${L.length ? `<div class="vlist">${L.slice(0, VSHOW).map(valueRow).join('')}</div>${L.length > VSHOW ? `<div style="display:flex;justify-content:center"><button class="btn more" data-vmore="">Show ${Math.min(40, L.length - VSHOW)} more of ${L.length}</button></div>` : ''}`
+      : `<div class="empty"><div class="h3">${all.length ? 'Nothing matches' : 'No DraftKings prop prices right now'}</div><p class="lede" style="margin:0">${all.length ? (VF.pos ? 'No price is above fair here. Try All.' : 'Try another game or market.') : 'Prices show up once DraftKings posts lines for the next games.'}</p></div>`}`;
+  $('#vf-game').value = VF.game; $('#vf-mk').value = VF.mk;
+  $('#vf-game').addEventListener('change', e => { VF.game = e.target.value; VF.mk = 'all'; VSHOW = 40; store.set('vf', VF); renderValue(); });
+  $('#vf-mk').addEventListener('change', e => { VF.mk = e.target.value; VSHOW = 40; store.set('vf', VF); renderValue(); });
+  SB.refresh();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-vpos],[data-vmore]'); if (!b || !$('#v-value') || $('#v-value').hidden) return;
+  if (b.dataset.vpos != null){ VF.pos = b.dataset.vpos === '1'; VSHOW = 40; store.set('vf', VF); renderValue(); return; }
+  VSHOW += 40; renderValue();
+});
+RENDER.value = renderValue;
+
 let LS_F = store.get('lsf', 'all');
 function lsCard(x, i){
   const g = gameOf(x.game) || {}, started = g.state && g.state !== 'pre';

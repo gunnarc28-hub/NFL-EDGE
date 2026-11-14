@@ -666,7 +666,8 @@ for g in SHOW.itertuples():
             # (the book's line beat the projection in every market), else from the projection (calibrated at the long end)
             def chance_ge(k, t, hi=False, _l=item['lines']):
                 if k in _l and _l[k].get('mu'):
-                    return p_over(k, _l[k]['mu'], t - 0.5)
+                    # tail rungs centred on the book's line ran about 10% high (10-33% chances hit 0.9x as often; nba_anchor_test.py)
+                    return p_over(k, _l[k]['mu'], t - 0.5) * (0.9 if hi else 1.0)
                 return cal(k + '_hi', p_over(k, pr[k], t)) if hi else p_over(k, pr[k], t)
             # ---- high-chance: the biggest round number he reaches 80%+ of the time
             yes = lns.get('yes', {})
@@ -686,7 +687,7 @@ for g in SHOW.itertuples():
                 bo = yes.get((k + '+', float(t)))
                 HC.append({'kind': 'player', 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day, 'key': k, 't': t,
                            'p': round(pt, 4), 'fair': sl.odds_of(pt), 'proj': round(item['proj'][k], 1), 'min': pr['min'], 'avg': round(float(np.mean(ln)), 1) if ln else None,
-                           'hits': [hits, len(ln)], 'book': sane_book(bo, pt), 'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}",
+                           'hits': [hits, len(ln)], 'book': sane_book(bo, pt), 'anch': k in item['lines'], 'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}",
                            'reason': f"{NAMES.get(pid).split(' ')[-1]} has reached {t}+ {SHORT[k]} in {hits} of his last {len(ln)} games, averaging {np.mean(ln):.1f}. "
                                      f"Projected for {item['proj'][k]:.1f} in about {pr['min']:.0f} minutes against {opp}."})
             # ---- long shots: big games with a real chance
@@ -697,7 +698,7 @@ for g in SHOW.itertuples():
                         ln = last_n(pid, k, 20); hits = sum(1 for v in ln if v >= t)
                         bo = yes.get((k + '+', float(t)))
                         LS.append({'type': k + '+', 'key': k, 't': t, 'id': pid, 'name': NAMES.get(pid), 'team': team, 'opp': opp, 'game': g.id, 'k': g.k.isoformat(), 'day': g.day,
-                                   'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': sane_book(bo, pt), 'proj': round(item['proj'][k], 1), 'hits': [hits, len(ln)],
+                                   'p': round(pt, 4), 'fair': sl.odds_of(pt), 'book': sane_book(bo, pt), 'anch': k in item['lines'], 'proj': round(item['proj'][k], 1), 'hits': [hits, len(ln)],
                                    'label': f"{NAMES.get(pid)} {t}+ {SHORT[k]}", 'group': k,
                                    'reason': f"Projected {item['proj'][k]:.1f} {SHORT[k]}; reached {t}+ in {hits} of his last {len(ln)} games."})
                         break
