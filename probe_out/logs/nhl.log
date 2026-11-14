@@ -1,0 +1,18 @@
+NHL season 2027 slate 2026-11-14 now 2026-11-14T16:04:08.958813+00:00
+history: skater rows 61379 goalie rows 6819 schedule 2738
+games 2738 finals this season 311
+ESPN events matched 40 of 40
+rosters 31 ESPN ids matched 785
+injuries: teams 30 players 108
+odds fetched 14 of 21 | log 146
+model this season: SU [190, 121] value ML [14, 35, -17.42] O/U [52, 50, 0]
+period lines: 14 of 19 games
+prop lines: {2026020321: 414, 2026020312: 352, 2026020320: 343, 2026020319: 122, 2026020316: 286, 2026020318: 416, 2026020315: 59, 2026020317: 328, 2026020314: 376, 2026020313: 347, 2026020322: 324, 2026020323: 322, 2026020325: 362, 2026020324: 381, 2026020326: 0, 2026020327: 0, 2026020328: 0, 2026020330: 0, 2026020329: 0}
+props 742 with lines 468 | goalies 38 | high-chance 58 | long shots 160 | by day {'2026-11-14': [40, 80], '2026-11-15': [18, 80]}
+team stats 2027 32 teams | 311 games from team boxes, 0 from skater boxes | special teams for 32 (PP 11.1–36.8%, PK 62.7–89.7%, faceoffs 42.5–57.7%)
+team stats 2026 32 teams | 1312 games from team boxes, 0 from skater boxes | special teams for 32 (PP 15.7–30.6%, PK 71.5–84.6%, faceoffs 45.9–54.5%)
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nhl/data/data.json 632 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nhl/data/logs.json 659 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nhl/data/grade.json 259 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nhl/data/odds_log.json 37 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nhl/data/summary.json 3 KB

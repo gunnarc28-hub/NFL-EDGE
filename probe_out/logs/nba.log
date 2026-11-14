@@ -1,0 +1,19 @@
+NBA season 2027 slate 2026-11-14 now 2026-11-14T16:03:34.731055+00:00
+history rows: players 39616 teams 3006 schedule 2530
+scoreboard events 45 by day {'2026-11-11': 10, '2026-11-12': 4, '2026-11-13': 9, '2026-11-14': 5, '2026-11-15': 9, '2026-11-16': 8}
+games 2530 this season 1206
+odds: fetched 5 of 22 | log size 188
+injuries: teams 28 players 100
+model this season: SU [126, 57] ATS 3+ [28, 30, 0] ATS all [72, 111, 0] O/U 5+ [43, 41, 0]
+prop lines: {'401909980': 812, '401909981': 913, '401909984': 749, '401909983': 801, '401909982': 899, '401909985': 0, '401909986': 0, '401909987': 0, '401909988': 0, '401909989': 0, '401909990': 0, '401909991': 0, '401909992': 0, '401909993': 0}
+quarter and half lines: {'401909980': ['h1', 'h2', 'q1', 'q2', 'q3', 'q4'], '401909981': ['h1', 'h2', 'q1', 'q2', 'q3', 'q4'], '401909984': ['h1', 'h2', 'q1', 'q2', 'q3', 'q4'], '401909983': ['h1', 'h2', 'q1', 'q2', 'q3', 'q4'], '401909982': ['h1', 'h2', 'q1', 'q2', 'q3', 'q4']} | first-basket prices 50
+part results: summaries read 0 of 0 | games with quarters 145 | with 1st-quarter lines 145
+first basket: 14 games | tips from this season 183
+props 328 with book lines 57 | high-chance 80 | long shots 150 | by day {'2026-11-14': [40, 75], '2026-11-15': [40, 75]}
+team stats: this season 30 teams, last season 30
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nba/data/data.json 576 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nba/data/logs.json 372 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nba/data/grade.json 262 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nba/data/odds_log.json 45 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nba/data/parts_log.json 105 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nba/data/summary.json 1 KB

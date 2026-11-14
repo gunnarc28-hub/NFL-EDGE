@@ -1,0 +1,17 @@
+Season 2026
+ESPN scoreboard games: 14
+Week 10 games 14 final 1 live 0
+Injuries: ESPN entries 800 | official report teams {'nfl.com': 26, 'nflverse': 0} | listed 596
+::notice title=Injuries::ESPN entries 800; official report teams {'nfl.com': 26, 'nflverse': 0}; weeks [10, 11]; listed 596
+quarters and halves: 13 games | with book lines 13 | ESPN ids for 2147 players | players with full-game book lines 141
+high-chance picks: 17 history: 113
+first-TD chances summed per game (players modeled): 0.61-1.08
+long shots: 34 {'atd': 12, 'ftd': 7, 'td2': 5, 'yds100': 7, 'pass300': 3} history: 180
+model units this season: {'spread': -4.73, 'ml': -1.08, 'value': 1.11}
+part results: 137 games with quarters | 2258 player lines
+who played: 137 games with snap counts | 1st-half exits 62 players in 50 games
+matchups: 32 defenses
+chart logs: 204 players, 32 teams
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nfl/data/data.json 1473 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nfl/data/grade.json 315 KB
+wrote /home/runner/work/NFL-EDGE/NFL-EDGE/site/nfl/data/summary.json 3 KB
