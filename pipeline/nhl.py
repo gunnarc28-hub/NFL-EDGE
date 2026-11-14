@@ -480,8 +480,9 @@ def dec(o):
 
 
 lgt = lambda p: math.log(p / (1 - p)); sgm = lambda x: 1 / (1 + math.exp(-x))
-BLEND = {'points': PP['blend'].get('points', 0), 'assists': PP['blend'].get('assists', 0), 'sog': PP['blend'].get('shots_on_goal', 0),
-         'blocks': PP['blend'].get('blocked_shots', 0), 'saves': 0.3}
+# the model's share of the fair chance: only where betting its disagreements with the book made money in past seasons
+# (blocked shots, +3.3%); points, assists and shots lost 3.5-4.7%, so there the fair price is the book's alone
+BLEND = {'points': 0.0, 'assists': 0.0, 'sog': 0.0, 'blocks': PP['blend'].get('blocked_shots', 0), 'saves': 0.15}
 
 
 V2 = json.load(open(os.path.join(HERE, 'static', 'nhl_props_v2.json')))    # research_work/nhl_eval.py: 2023-24 to now
